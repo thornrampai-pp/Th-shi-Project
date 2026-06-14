@@ -1,0 +1,400 @@
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// 👤 USER MANAGEMENT MODULE
+// ==========================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  tokenVersion Int       @default(0)
+  firstName    String?
+  lastName     String?
+  imageUrl     String?
+  role         UserRole  @default(USER)
+  taxResidency String    @default("TH") // ใช้จัดกลุ่มกฎหมายภาษี เช่น TH, US
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime? // สำหรับทำ Soft Delete
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  portfolios Portfolio[]
+  watchLists WatchList[]
+  alerts     Alert[]
+  auditLogs  AuditLog[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// ==========================================
+// 💼 PORTFOLIO MODULE
+// ==========================================
+
+model Portfolio {
+  id           String         @id @default(uuid())
+  userId       String
+  name         String
+  imageUrl     String?
+  strategy     StrategyType   @default(VALUE)
+  baseCurrency String         @default("THB") // สกุลเงินหลักของพอร์ต (THB, USD)
+  isMargin     Boolean        @default(false)
+  type         PortfolioType  @default(REAL) // REAL หรือ PAPER (Test Mode / Trading)
+  deletedAt    DateTime?      // สำหรับทำ Soft Delete
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags          PortfolioTag[]
+  cashAccounts  CashAccount[]
+  positions     Position[]
+  transactions  Transaction[]
+  taxLots       TaxLot[]
+  snapshots     PortfolioSnapshot[]
+  rebalanceLogs RebalanceLog[]
+
+  @@index([userId])
+}
+
+enum StrategyType {
+  VALUE
+  GROWTH
+  DIVIDEND
+  TRADING
+}
+
+enum PortfolioType {
+  REAL
+  PAPER
+}
+
+// 🏷️ Many-to-Many Relationship Table Between Portfolio and Tag
+model PortfolioTag {
+  portfolioId String
+  tagId       String
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([portfolioId, tagId])
+}
+
+model Tag {
+  id         String         @id @default(uuid())
+  name       String         @unique
+  color      String         @default("#000000") // สีของ Tag สำหรับแสดงผลบน GUI ให้แยกพอร์ทง่ายขึ้น
+  portfolios PortfolioTag[]
+}
+
+// ==========================================
+// 💵 CASH & LEDGER CORE (Double-Entry System)
+// ==========================================
+
+model CashAccount {
+  id          String   @id @default(uuid())
+  portfolioId String
+  currency    String   // USD, THB, JPY etc.
+  balance     Decimal  @default(0) @db.Decimal(24, 8)
+  isDomestic  Boolean  @default(false) // แยกเงินในประเทศ/นอกประเทศ เพื่อคำนวณภาษีเงินนำเข้าไทยปีล่าสุด
+  updatedAt   DateTime @updatedAt
+
+  portfolio     Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+
+  @@unique([portfolioId, currency, isDomestic])
+}
+
+model LedgerEntry {
+  id            String   @id @default(uuid())
+  transactionId String
+  portfolioId   String
+  cashAccountId String?
+  positionId    String?
+  accountType   AccountType
+  side          EntrySide
+  amount        Decimal     @db.Decimal(24, 8)
+  assetSymbol   String
+
+  transaction Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
+  position    Position?    @relation(fields: [positionId], references: [id])
+
+  @@index([transactionId])
+  @@index([cashAccountId])
+  @@index([positionId])
+}
+
+enum AccountType {
+  CASH
+  ASSET
+}
+
+enum EntrySide {
+  DEBIT
+  CREDIT
+}
+
+// ==========================================
+// 📈 ASSET & MARKET DATA MODULE
+// ==========================================
+
+model Asset {
+  id       String    @id @default(uuid())
+  symbol   String    // สัญลักษณ์หุ้น เช่น AAPL, PTT, BTC
+  name     String    // ชื่อบริษัท/สินทรัพย์เต็ม
+  type     AssetType
+  currency String    // สกุลเงินที่ใช้ซื้อขายสินทรัพย์นี้ (เช่น USD สำหรับ AAPL)
+  exchange String    @default("GLOBAL") // ตลาดที่ซื้อขาย เช่น SET, NASDAQ, NYSE, BINANCE (ป้องกัน Symbol ซ้ำกัน)
+
+  positions     Position[]
+  taxLots       TaxLot[]
+  fundamentals  AssetFundamental[]
+  watchListItem WatchListItem[]
+  dividends     DividendAnnouncement[]
+  alerts        Alert[]
+
+  @@unique([symbol, exchange]) // ยึดโครงสร้าง Global Market ป้องกันหุ้นไทยซ้ำหุ้นนอก
+}
+
+enum AssetType {
+  STOCK
+  ETF
+  CRYPTO
+  FOREX
+  GOLD
+}
+
+model AssetFundamental {
+  id       String  @id @default(uuid())
+  assetId  String
+  quarter  Int
+  year     Int
+  isLatest Boolean @default(false)
+
+  peRatio       Decimal? @db.Decimal(10, 2)
+  pbvRatio      Decimal? @db.Decimal(10, 2)
+  debtToEquity  Decimal? @db.Decimal(10, 2)
+  netProfit     Decimal? @db.Decimal(24, 8)
+  dividendYield Decimal? @db.Decimal(5, 2)
+
+  healthScore Int      @default(0) // สำหรับทำฟีเจอร์ Health check แสดงผล เขียว/แดง อัตโนมัติ
+  updatedAt   DateTime @updatedAt
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, quarter, year])
+  @@index([assetId, isLatest])
+}
+
+model DividendAnnouncement {
+  id       String    @id @default(uuid())
+  assetId  String
+  exDate   DateTime
+  payDate  DateTime?
+  amount   Decimal   @db.Decimal(18, 8) // ปันผลต่อหุ้น
+  currency String    @default("THB")    // สกุลเงินของเงินปันผลที่จ่ายออกมา
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// 🔄 TRANSACTION & REBALANCE MODULE
+// ==========================================
+
+model Transaction {
+  id          String            @id @default(uuid())
+  portfolioId String
+  type        TransactionType
+  status      TransactionStatus @default(COMPLETED)
+  executedAt  DateTime          @default(now())
+
+  // Summary Fields (Denormalized สำหรับปั้นกราฟและเพิ่ม Performance ความเร็ว)
+  mainAssetId    String?
+  mainQuantity   Decimal? @db.Decimal(24, 8)
+  mainPrice      Decimal? @db.Decimal(24, 8)
+  baseCurrAmount Decimal? @db.Decimal(24, 8) // มูลค่ารวมแปลงเป็นสกุลเงินหลักของพอร์ตแล้ว
+
+  exchangeRate Decimal? @db.Decimal(18, 6) // อัตราแลกเปลี่ยน ณ วันที่ทำรายการ
+  fee          Decimal  @default(0) @db.Decimal(18, 8)
+  taxWithheld  Decimal  @default(0) @db.Decimal(18, 8)
+
+  metadata       Json?    // เก็บข้อมูลจำเพาะ เช่น ข้อมูลการแตกพาร์ (Split Ratio)
+  parentTxId     String?
+  rebalanceLogId String?
+
+  portfolio     Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  rebalanceLog  RebalanceLog? @relation(fields: [rebalanceLogId], references: [id])
+  ledgerEntries LedgerEntry[]
+  taxRecord     TaxRecord?
+  parentTx      Transaction?  @relation("TxHistory", fields: [parentTxId], references: [id])
+  childTxs      Transaction[] @relation("TxHistory")
+
+  @@index([portfolioId, executedAt(sort: Desc)])
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DEPOSIT
+  WITHDRAW
+  DIVIDEND
+  REPATRIATION // การนำเงินกลับประเทศ (ใช้คำนวณภาษีต่างประเทศ)
+  FEE
+  TAX
+  SPLIT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+model Position {
+  id           String   @id @default(uuid())
+  portfolioId  String
+  assetId      String
+  quantity     Decimal  @db.Decimal(24, 8)
+  avgPrice     Decimal  @db.Decimal(24, 8)
+  realizedPL   Decimal  @default(0) @db.Decimal(24, 8)
+  totalDiv     Decimal  @default(0) @db.Decimal(24, 8)
+  targetWeight Decimal? @db.Decimal(5, 2) // % สัดส่วนเป้าหมายที่ตั้งไว้ทำ Rebalancing
+  updatedAt    DateTime @updatedAt
+
+  portfolio     Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset         Asset         @relation(fields: [assetId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@unique([portfolioId, assetId])
+}
+
+model RebalanceLog {
+  id               String   @id @default(uuid())
+  portfolioId      String
+  executedAt       DateTime @default(now())
+  totalValueBefore Decimal  @db.Decimal(24, 8)
+  driftBefore      Json     // เก็บประวัติค่าความเบี่ยงเบนจาก Target % ก่อนที่จะปรับพอร์ต
+  description      String?
+
+  portfolio    Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+// ==========================================
+// 📑 TAX & PERFORMANCE SNAPSHOT MODULE
+// ==========================================
+
+model TaxLot {
+  id            String   @id @default(uuid())
+  portfolioId   String
+  assetId       String
+  transactionId String
+  remainingQty  Decimal  @db.Decimal(24, 8) // จำนวนหุ้นคงเหลือในลอตนี้ (ใช้ตัด FIFO / LIFO)
+  purchasePrice Decimal  @db.Decimal(24, 8)
+  earnedYear    Int      // ปีคริสต์ศักราชที่เกิดรายได้
+  executedAt    DateTime
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     Asset     @relation(fields: [assetId], references: [id])
+}
+
+model TaxRecord {
+  id              String    @id @default(uuid())
+  transactionId   String    @unique
+  portfolioId     String
+  sourceCountry   String    @default("US")
+  taxType         TaxType
+  incomeAmount    Decimal   @db.Decimal(18, 2)
+  repeatAmountTHB Decimal   @db.Decimal(18, 2) // มูลค่าเงินได้ที่แปลงกลับเป็นเงินบาท
+  fxRate          Decimal   @db.Decimal(18, 6)
+  taxYear         Int       // ปีที่ต้องยื่นภาษี
+  earnedYear      Int       // ปีที่ได้เงินมาจริง
+  status          TaxStatus @default(PENDING)
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+enum TaxType {
+  PERSONAL_INCOME
+  CAPITAL_GAIN
+  WITHHOLDING
+}
+
+enum TaxStatus {
+  PENDING
+  FILED
+  PAID
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(uuid())
+  portfolioId String
+  date        DateTime // เก็บแบบรายวัน/รายเดือน เพื่อเอาไปวาดกราฟ Performance เปรียบเทียบแต่ละปี
+
+  equity       Decimal @db.Decimal(24, 8) // มูลค่าสินทรัพย์รวม (Cash + Positions Value)
+  cash         Decimal @db.Decimal(24, 8) // เงินสดคงเหลือรวมในพอร์ต
+  unrealizedPL Decimal @db.Decimal(24, 8) // กำไร/ขาดทุนที่ยังไม่ขาย ณ วันนั้น
+  costBasis    Decimal @db.Decimal(24, 8) // ต้นทุนรวมทั้งหมด ณ วันนั้น
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, date])
+}
+
+// ==========================================
+// 🔔 WATCHLIST, ALERTS & AUDIT MODULES
+// ==========================================
+
+model WatchList {
+  id     String          @id @default(uuid())
+  userId String
+  name   String
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  WatchListItem[]
+}
+
+model WatchListItem {
+  id          String    @id @default(uuid())
+  watchListId String
+  assetId     String
+  watchList   WatchList @relation(fields: [watchListId], references: [id], onDelete: Cascade)
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([watchListId, assetId])
+}
+
+model Alert {
+  id          String  @id @default(uuid())
+  userId      String
+  assetId     String  
+  condition   String  // เงื่อนไข เช่น "PRICE_ABOVE", "PE_ABOVE", "HEALTH_DROP"
+  targetValue Decimal @db.Decimal(18, 8)
+  isActive    Boolean @default(true)
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset       Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String   // กิจกรรม เช่น "LOGIN", "UPDATE_PASSWORD", "FORCE_REBALANCE"
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

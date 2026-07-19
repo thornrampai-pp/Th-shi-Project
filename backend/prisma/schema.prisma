@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -51,8 +50,8 @@ model Portfolio {
   isMargin     Boolean        @default(false)
   type         PortfolioType  @default(REAL) // REAL หรือ PAPER (Test Mode / Trading)
   deletedAt    DateTime?      // สำหรับทำ Soft Delete
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags          PortfolioTag[]
@@ -231,12 +230,15 @@ model Transaction {
   parentTxId     String?
   rebalanceLogId String?
 
-  portfolio     Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  rebalanceLog  RebalanceLog? @relation(fields: [rebalanceLogId], references: [id])
-  ledgerEntries LedgerEntry[]
-  taxRecord     TaxRecord?
-  parentTx      Transaction?  @relation("TxHistory", fields: [parentTxId], references: [id])
-  childTxs      Transaction[] @relation("TxHistory")
+  portfolio        Portfolio         @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  rebalanceLog     RebalanceLog?     @relation(fields: [rebalanceLogId], references: [id])
+  ledgerEntries    LedgerEntry[]
+  taxRecord        TaxRecord?
+  parentTx         Transaction?      @relation("TxHistory", fields: [parentTxId], references: [id])
+  childTxs         Transaction[]     @relation("TxHistory")
+  
+  // 🌟 จุดเชื่อมโยงไปยังโมดูลตรวจสอบสลิป (1:1 Relation)
+  slipVerification SlipVerification?
 
   @@index([portfolioId, executedAt(sort: Desc)])
 }
@@ -251,6 +253,7 @@ enum TransactionType {
   FEE
   TAX
   SPLIT
+  ADJUSTMENT   // 🌟 เพิ่มสำหรับการปรับปรุงยอดเงินสด/หุ้นให้ตรงกับกระดานจริง (Manual Adjust)
 }
 
 enum TransactionStatus {
@@ -288,6 +291,43 @@ model RebalanceLog {
 
   portfolio    Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+}
+
+// ==========================================
+// 🧾 SLIP VERIFICATION MODULE (รองรับ FCD & Dime!)
+// ==========================================
+
+model SlipVerification {
+  id              String   @id @default(uuid())
+  transactionId   String   @unique // ผูกกับ 1 Transaction เสมอ
+  imageUrl        String   // URL รูปภาพสลิปที่เก็บไว้บน Cloud Storage (S3, Supabase)
+  
+  // 🛡️ ป้องกันสลิปซ้ำ (Duplicate Detection)
+  transRef        String   @unique // รหัสอ้างอิงของสลิป (ได้จาก QR Code) ใช้ตรวจสอบการส่งซ้ำ
+
+  // 🏦 ข้อมูลธนาคารต้นทาง-ปลายทาง
+  sendingBank     String?  // ธนาคารผู้โอน (เช่น KBANK, SCB, หรือ DIME)
+  receivingBank   String?  // ธนาคารผู้รับ
+  senderName      String?  // ชื่อผู้โอนเงินตามหน้าสลิป
+  
+  // 💵 ยอดเงินต้นทางตามหน้าสลิป
+  amount          Decimal  @db.Decimal(24, 8) // ยอดเงินสดที่แสดงบนหน้าสลิปจริง
+  currency        String   @default("THB")    // สกุลเงินของสลิปต้นทาง (THB, USD)
+
+  // 💱 ส่วนรองรับระบบ FCD & FX (สำหรับเคส Dime! ที่โอนบาทแต่เข้าพอร์ตดอลลาร์)
+  fxRate          Decimal? @db.Decimal(18, 6) // อัตราแลกเปลี่ยน ณ เวลาที่ระบุในสลิป (ถ้ามี)
+  targetAmount    Decimal? @db.Decimal(24, 8) // ยอดเงินปลายทางหลังจากแปลงสกุลเงินแล้ว
+  targetCurrency  String?  // สกุลเงินของบัญชีปลายทางที่เงินเข้า (THB, USD)
+
+  // ⏱️ บันทึกเวลาและข้อมูลดิบ
+  verifiedAt      DateTime @default(now())
+  rawPayload      Json?    // เก็บข้อมูล JSON ทั้งหมดที่ค่าย API ตรวจสอบสลิปส่งกลับมา
+
+  // 🚨 แฟล็กตรวจสอบสถานะระบบหลังบ้าน
+  isAmountMatched Boolean  @default(false) // ตัวช่วยเช็คด่วนว่ายอดเงินในสลิปกับยอดที่บันทึกเข้าระบบตรงกันไหม
+
+  // Relations
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
 // ==========================================

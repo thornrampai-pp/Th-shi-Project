@@ -1,4 +1,3 @@
-// src/graphql/mutations/loginMutation.ts
 import { gql } from '@apollo/client';
 
 export const LOGIN_MUTATION = gql`

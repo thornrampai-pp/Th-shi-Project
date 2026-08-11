@@ -32,6 +32,7 @@ export class PortfolioService {
     userId: string,
     input: {
       name: string;
+      description?: string;
       imageUrl?: string;
       strategy?: StrategyType;
       baseCurrency?: string;
@@ -45,10 +46,13 @@ export class PortfolioService {
         data: {
           userId,
           name: input.name,
-          strategy: input.strategy || 'VALUE',
+          strategy: input.strategy || "VALUE",
           baseCurrency: input.baseCurrency || "USD",
           isMargin: input.isMargin || false,
-          type: input.type || 'REAL',
+          type: input.type || "REAL",
+          ...(input.description && { description: input.description }),
+          ...(input.imageUrl && { imageUrl: input.imageUrl }),
+          // -------------------------------------------------------------
           ...(input.tagIds &&
             input.tagIds.length > 0 && {
               tags: {
@@ -105,9 +109,4 @@ export class PortfolioService {
       return true;
     });
   }
-
-
-  
 }
-
-

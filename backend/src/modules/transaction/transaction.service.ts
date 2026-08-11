@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { TransactionType, AccountType, EntrySide } from "@prisma/client";
+import { PositionService } from "../position/position.service";
 
 export class TransactionService {
   static async getTransaction(portfolioId: string) {
@@ -16,6 +17,7 @@ export class TransactionService {
       },
     });
   }
+
   static async createAssetTransaction(
     portfolioId: string,
     input: {
@@ -23,9 +25,9 @@ export class TransactionService {
       type: "BUY" | "SELL";
       quantity: number;
       price: number;
-     fee?: number | undefined;          
-      taxWithheld?: number | undefined;   
-      executedAt?: string | undefined;    
+      fee?: number | undefined;
+      taxWithheld?: number | undefined;
+      executedAt?: string | undefined;
       slipVerification?: any;
     },
   ) {
@@ -33,7 +35,13 @@ export class TransactionService {
     const prc = Number(input.price);
     const numericFee = Number(input.fee || 0);
     const numericTax = Number(input.taxWithheld || 0);
-    const totalCost = qty * prc + numericFee + numericTax;
+
+    // ถ้าซื้อ: จ่ายเงินเพิ่ม (Quantity * Price + Fee + Tax)
+    // ถ้าขาย: ได้รับเงินสุทธิ (Quantity * Price - Fee - Tax)
+    const totalAmount =
+      input.type === "BUY"
+        ? qty * prc + numericFee + numericTax
+        : qty * prc - numericFee - numericTax;
 
     return await prisma.$transaction(async (tx) => {
       const asset = await tx.asset.findUnique({ where: { id: input.assetId } });
@@ -48,10 +56,12 @@ export class TransactionService {
           `Cash account for currency ${asset.currency} not found.`,
         );
 
-      if (input.type === "BUY" && Number(cashAccount.balance) < totalCost) {
+      // ตรวจสอบเงินสดคงเหลือกรณีซื้อ
+      if (input.type === "BUY" && Number(cashAccount.balance) < totalAmount) {
         throw new Error("Insufficient cash to buy this asset.");
       }
 
+      // 1. บันทึก Transaction
       const transaction = await tx.transaction.create({
         data: {
           portfolioId,
@@ -63,7 +73,7 @@ export class TransactionService {
           mainAssetId: input.assetId,
           mainQuantity: qty,
           mainPrice: prc,
-          baseCurrAmount: totalCost,
+          baseCurrAmount: Math.abs(totalAmount),
           fee: numericFee,
           taxWithheld: numericTax,
           ...(input.slipVerification && {
@@ -74,10 +84,20 @@ export class TransactionService {
                 ...(input.slipVerification.sendingBank && {
                   sendingBank: input.slipVerification.sendingBank,
                 }),
+                ...(input.slipVerification.senderName && {
+                  senderName: input.slipVerification.senderName,
+                }),
                 amount: input.slipVerification.amount
                   ? Number(input.slipVerification.amount)
-                  : totalCost,
+                  : Math.abs(totalAmount),
                 currency: input.slipVerification.currency || asset.currency,
+                fee: input.slipVerification.fee
+                  ? Number(input.slipVerification.fee)
+                  : undefined,
+                vat: input.slipVerification.vat
+                  ? Number(input.slipVerification.vat)
+                  : undefined,
+                netAmount: Math.abs(totalAmount),
                 isAmountMatched: true,
               },
             },
@@ -86,16 +106,18 @@ export class TransactionService {
         include: { slipVerification: true },
       });
 
+      // 2. อัปเดตยอดเงินสดในพอร์ต (ซื้อ = เงินลด, ขาย = เงินเพิ่ม)
       const newCashBalance =
         input.type === "BUY"
-          ? Number(cashAccount.balance) - totalCost
-          : Number(cashAccount.balance) + totalCost;
+          ? Number(cashAccount.balance) - totalAmount
+          : Number(cashAccount.balance) + totalAmount;
 
       await tx.cashAccount.update({
         where: { id: cashAccount.id },
         data: { balance: newCashBalance },
       });
 
+      // 3. บันทึก Double-Entry Ledger
       await tx.ledgerEntry.createMany({
         data: [
           {
@@ -104,7 +126,7 @@ export class TransactionService {
             cashAccountId: cashAccount.id,
             accountType: AccountType.CASH,
             side: input.type === "BUY" ? EntrySide.CREDIT : EntrySide.DEBIT,
-            amount: totalCost,
+            amount: Math.abs(totalAmount),
             assetSymbol: asset.symbol,
           },
           {
@@ -117,6 +139,17 @@ export class TransactionService {
           },
         ],
       });
+
+      // 4. 🌟 เรียกใช้ PositionService เพื่อคำนวณต้นทุนเฉลี่ยและตัด TaxLot (FIFO) อัตโนมัติ
+      await PositionService.handleAssetTransaction(
+        tx,
+        portfolioId,
+        input.assetId,
+        input.type,
+        qty,
+        prc,
+        transaction.id,
+      );
 
       return transaction;
     });

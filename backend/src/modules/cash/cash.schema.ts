@@ -1,7 +1,7 @@
 import { builder } from "../../graphql/builder";
 import { CashService } from "./cash.service";
 
-// 🌟 1. ประกาศ TypeScript Type สำหรับข้อมูลที่จะส่งออกผ่าน GraphQL
+// 🌟 1. ประกาศ TypeScript Type สำหรับข้อมูลที่จะส่งออกผ่าน GraphQL (เพิ่ม fee, vat, netAmount แล้ว)
 export interface SlipVerificationShape {
   id: string;
   imageUrl: string;
@@ -11,6 +11,9 @@ export interface SlipVerificationShape {
   senderName?: string | null;
   amount: any;
   currency: string;
+  fee?: any | null; // <-- เพิ่มเข้ามา
+  vat?: any | null; // <-- เพิ่มเข้ามา
+  netAmount?: any | null; // <-- เพิ่มเข้ามา
 }
 
 export interface TransactionShape {
@@ -22,8 +25,9 @@ export interface TransactionShape {
   slipVerification?: SlipVerificationShape | null;
 }
 
-// 2. นิยาม SlipVerification Object Type โดยกำหนด Type Shape กำกับ
-export const SlipVerificationRef = builder.objectRef<SlipVerificationShape>("SlipVerification");
+// 2. นิยาม SlipVerification Object Type (เพิ่มฟิลด์ GraphQL ของ fee, vat, netAmount)
+export const SlipVerificationRef =
+  builder.objectRef<SlipVerificationShape>("SlipVerification");
 SlipVerificationRef.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -37,11 +41,29 @@ SlipVerificationRef.implement({
       resolve: (parent) => Number(parent.amount),
     }),
     currency: t.exposeString("currency"),
+    // --- เพิ่มฟิลด์ใหม่ตรงนี้ ---
+    fee: t.field({
+      type: "Float",
+      nullable: true,
+      resolve: (parent) => (parent.fee ? Number(parent.fee) : null),
+    }),
+    vat: t.field({
+      type: "Float",
+      nullable: true,
+      resolve: (parent) => (parent.vat ? Number(parent.vat) : null),
+    }),
+    netAmount: t.field({
+      type: "Float",
+      nullable: true,
+      resolve: (parent) => (parent.netAmount ? Number(parent.netAmount) : null),
+    }),
+    // -----------------------
   }),
 });
 
 // 3. นิยาม Transaction Object Type โดยกำหนด Type Shape กำกับ
-export const TransactionRef = builder.objectRef<TransactionShape>("Transaction");
+export const TransactionRef =
+  builder.objectRef<TransactionShape>("Transaction");
 TransactionRef.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -63,18 +85,23 @@ TransactionRef.implement({
   }),
 });
 
-// 4. นิยาม Input Type สำหรับรับข้อมูลสลิป
-export const SlipVerificationInputRef = builder.inputType("SlipVerificationInput", {
-  fields: (t) => ({
-    imageUrl: t.string({ required: true }),
-    transRef: t.string({ required: true }),
-    sendingBank: t.string({ required: false }),
-    receivingBank: t.string({ required: false }),
-    senderName: t.string({ required: false }),
-    amount: t.float({ required: false }),
-    currency: t.string({ required: false }),
-  }),
-});
+// 4. นิยาม Input Type สำหรับรับข้อมูลสลิป (เพิ่ม fee และ vat ให้รับค่าจาก Client ได้)
+export const SlipVerificationInputRef = builder.inputType(
+  "SlipVerificationInput",
+  {
+    fields: (t) => ({
+      imageUrl: t.string({ required: true }),
+      transRef: t.string({ required: true }),
+      sendingBank: t.string({ required: false }),
+      receivingBank: t.string({ required: false }),
+      senderName: t.string({ required: false }),
+      amount: t.float({ required: false }),
+      currency: t.string({ required: false }),
+      fee: t.float({ required: false }), // <-- เพิ่มเข้ามา
+      vat: t.float({ required: false }), // <-- เพิ่มเข้ามา
+    }),
+  },
+);
 
 // 5. นำ Mutation มาผูกกับ Builder
 builder.mutationFields((t) => ({
@@ -94,8 +121,7 @@ builder.mutationFields((t) => ({
     },
     resolve: async (_parent, args, context: any) => {
       if (!context.userId) throw new Error("Unauthorized");
-      
-      // ใช้ Type Assertion ตรงนี้เพื่อบอก TS ว่าผลลัพธ์ตรงกับ TransactionShape แน่นอน
+
       const result = await CashService.createCashTransaction(args.portfolioId, {
         amount: args.amount,
         currency: args.currency,

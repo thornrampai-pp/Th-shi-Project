@@ -1,12 +1,11 @@
 import { builder } from "../../graphql/builder";
 import { TransactionService } from "./transaction.service";
-import { SlipVerificationInputRef, TransactionRef } from "../cash/cash.schema";
-
-
+import { SlipVerificationInputRef, TransactionRef, TransactionShape } from "../cash/cash.schema";
 
 builder.mutationFields((t) => ({
   createAssetTransaction: t.field({
-    type: TransactionRef, // แทนที่ด้วย Transaction Object Type ของคุณ
+    type: TransactionRef,
+    nullable: true,
     args: {
       portfolioId: t.arg.id({ required: true }),
       assetId: t.arg.id({ required: true }),
@@ -23,23 +22,25 @@ builder.mutationFields((t) => ({
     },
     resolve: async (_parent, args, context: any) => {
       if (!context.userId) throw new Error("Unauthorized");
-      return (await TransactionService.createAssetTransaction(
+      
+      const result = await TransactionService.createAssetTransaction(
         args.portfolioId,
         {
           assetId: args.assetId,
           type: args.type as any,
           quantity: args.quantity,
           price: args.price,
-          fee: args.fee || undefined,
-          taxWithheld: args.taxWithheld || undefined,
-          executedAt: args.executedAt || undefined,
-          slipVerification: args.slipVerification,
+          fee: args.fee ?? undefined,
+          taxWithheld: args.taxWithheld ?? undefined,
+          executedAt: args.executedAt ?? undefined,
+          slipVerification: args.slipVerification ?? undefined,
         },
-      )) as any;
+      );
+
+      return result as unknown as TransactionShape;
     },
   }),
 }));
-
 
 builder.queryFields((t) => ({
   getTransactions: t.field({
@@ -50,7 +51,8 @@ builder.queryFields((t) => ({
     resolve: async (_parent, { portfolioId }, context: any) => {
       if (!context.userId) throw new Error("Unauthorized");
       
-      return await TransactionService.getTransaction(portfolioId);
+      const result = await TransactionService.getTransaction(portfolioId);
+      return result as unknown as TransactionShape[];
     },
   }),
 }));

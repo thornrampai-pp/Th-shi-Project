@@ -9,6 +9,7 @@ export class CashService {
       },
     });
   }
+
   static async createCashTransaction(
     portfolioId: string,
     input: {
@@ -23,6 +24,8 @@ export class CashService {
         senderName?: string;
         amount?: number;
         currency?: string;
+        fee?: number; // <-- เพิ่มเข้ามา
+        vat?: number; // <-- เพิ่มเข้ามา
       };
     },
   ) {
@@ -57,6 +60,15 @@ export class CashService {
         throw new Error("Insufficient cash balance.");
       }
 
+      // คำนวณ Net Amount (ถ้ามี fee หรือ vat นำมาหักออก หรือปรับใช้ตาม business logic ของคุณ)
+      const fee = input.slipVerification?.fee
+        ? Number(input.slipVerification.fee)
+        : 0;
+      const vat = input.slipVerification?.vat
+        ? Number(input.slipVerification.vat)
+        : 0;
+      const netAmount = numericAmount - fee - vat; // ตัวอย่างสูตรคำนวนยอดสุทธิ
+
       const transaction = await tx.transaction.create({
         data: {
           portfolioId,
@@ -79,6 +91,11 @@ export class CashService {
                 }),
                 amount: numericAmount,
                 currency: input.currency,
+                // --- บันทึกข้อมูล fee, vat, netAmount ลง DB ---
+                ...(fee > 0 && { fee }),
+                ...(vat > 0 && { vat }),
+                netAmount: netAmount,
+                // ---------------------------------------------
                 isAmountMatched: true,
               },
             },
@@ -87,7 +104,7 @@ export class CashService {
         include: { slipVerification: true },
       });
 
-      // 6. อัปเดตยอดเงินใน CashAccount
+      // 6. อัปเดตยอดเงินใน CashAccount (แนะนำให้ใช้ netAmount หรือ numericAmount ตามดีไซน์ระบบของคุณ)
       const newBalance =
         input.type === "DEPOSIT"
           ? Number(cashAccount.balance) + numericAmount

@@ -60,6 +60,7 @@ PortfolioRef.implement({
   fields: (t) => ({
     id: t.exposeID("id"),
     name: t.exposeString("name"),
+    description: t.exposeString("description", { nullable: true }), // 🌟 เพิ่มตรงนี้
     imageUrl: t.exposeString("imageUrl", { nullable: true }),
     strategy: t.exposeString("strategy"),
     baseCurrency: t.exposeString("baseCurrency"),
@@ -95,6 +96,7 @@ builder.queryFields((t) => ({
 const CreatePortfolioInput = builder.inputType("CreatePortfolioInput", {
   fields: (t) => ({
     name: t.string({ required: true }),
+    description: t.string(),
     imageUrl: t.string(),
     strategy: t.string({ required: true }),
     baseCurrency: t.string({ required: true }),

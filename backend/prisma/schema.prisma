@@ -1,3 +1,7 @@
+// ==========================================
+// ⚙️ PRISMA CONFIGURATION & DATASOURCE
+// ==========================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -67,6 +71,7 @@ model Portfolio {
   snapshots     PortfolioSnapshot[]
   rebalanceLogs RebalanceLog[]
   theses        InvestmentThesis[] // เชื่อมโยงกับสมมติฐานการลงทุนในพอร์ตนี้
+  ledgerEntries LedgerEntry[]
 
   @@index([userId])
 }
@@ -130,18 +135,24 @@ model LedgerEntry {
   portfolioId   String // อ้างอิงพอร์ต
   cashAccountId String? // อ้างอิงบัญชีเงินสด (ถ้ามี)
   positionId    String? // อ้างอิงสถานะการถือครองสินทรัพย์ (ถ้ามี)
+  assetId       String? // อ้างอิงสินทรัพย์โดยตรง ( Foreign Key ช่วย Query ประวัติ)
   accountType   AccountType // ประเภทบัญชี (CASH หรือ ASSET)
   side          EntrySide // ฝั่งบันทึกบัญชี (DEBIT หรือ CREDIT)
-  amount        Decimal     @db.Decimal(24, 8) // จำนวนเงิน
+  amount        Decimal     @db.Decimal(24, 8) // จำนวนเงินหรือมูลค่า
   assetSymbol   String // สัญลักษณ์สินทรัพย์หรือสกุลเงินที่เกี่ยวข้อง
+  createdAt     DateTime    @default(now())
 
   transaction Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id])
-  position    Position?    @relation(fields: [positionId], references: [id])
+  portfolio   Portfolio    @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  cashAccount CashAccount? @relation(fields: [cashAccountId], references: [id], onDelete: SetNull)
+  position    Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  asset       Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([transactionId])
+  @@index([portfolioId])
   @@index([cashAccountId])
   @@index([positionId])
+  @@index([assetId])
 }
 
 /// ประเภทบัญชีในระบบสมุดบัญชีคู่
@@ -162,51 +173,32 @@ enum EntrySide {
 
 /// ข้อมูลกลางของสินทรัพย์ทั้งหมดในระบบ (หุ้น, คริปโต, ทองคำ ฯลฯ)
 model Asset {
-  id       String    @id @default(uuid())
-  symbol   String // สัญลักษณ์ (เช่น AAPL, PTT, BTC)
-  name     String // ชื่อเต็มของบริษัทหรือสินทรัพย์
-  type     AssetType // ประเภทสินทรัพย์
-  currency String // สกุลเงินที่ใช้ซื้อขายสินทรัพย์เดิม
-  exchange String    @default("GLOBAL") // ตลาดหลักทรัพย์ที่ซื้อขาย (เช่น SET, NASDAQ, NYSE, BINANCE)
-
-  sector   String? // หมวดธุรกิจหลัก (เช่น Technology, Energy)
-  industry String? // อุตสาหกรรมย่อย (เช่น Software, Oil & Gas)
-
-  isPopular Boolean @default(false)
+  id        String    @id @default(uuid())
+  symbol    String // สัญลักษณ์ (เช่น AAPL, PTT, BTC)
+  name      String // ชื่อเต็มของบริษัทหรือสินทรัพย์
+  type      AssetType // ประเภทสินทรัพย์
+  currency  String // สกุลเงินที่ใช้ซื้อขายสินทรัพย์เดิม
+  exchange  String    @default("GLOBAL") // ตลาดหลักทรัพย์ที่ซื้อขาย (เช่น SET, NASDAQ, NYSE, BINANCE)
+  sector    String? // หมวดธุรกิจหลัก (เช่น Technology, Energy)
+  industry  String? // อุตสาหกรรมย่อย (เช่น Software, Oil & Gas)
+  isPopular Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   positions     Position[]
   taxLots       TaxLot[]
   fundamentals  AssetFundamental[]
-  prices        AssetPrice[] // 🌟 เพิ่มความสัมพันธ์ไปยังตารางราคาปิดรายวัน
+  prices        AssetPrice[] // ความสัมพันธ์ไปยังตารางราคาปิดรายวัน
   watchListItem WatchListItem[]
   dividends     DividendAnnouncement[]
   alerts        Alert[]
   theses        InvestmentThesis[] // รายการวิเคราะห์สมมติฐานของสินทรัพย์ตัวนี้
+  ledgerEntries LedgerEntry[]
 
   @@unique([symbol, exchange]) // ป้องกัน Symbol ซ้ำกันระหว่างตลาด
+  @@index([symbol])
   @@index([sector])
   @@index([type])
-}
-
-// ==========================================
-// 📊 ASSET PRICE MODULE (เพิ่มตารางเก็บราคาปิดรายวัน)
-// ==========================================
-
-/// บันทึกประวัติราคาปิดรายวัน (Daily End-of-Day Price) ของสินทรัพย์แต่ละตัว
-model AssetPrice {
-  id         String   @id @default(uuid())
-  assetId    String // อ้างอิงสินทรัพย์
-  date       DateTime // วันที่ของราคา (แนะนำให้เก็บแบบตัดเวลาเป็น 00:00:00 เพื่อความสะดวกในการ Query)
-  closePrice Decimal  @db.Decimal(12, 4) // ราคาปิด
-  openPrice  Decimal? @db.Decimal(12, 4) // ราคาเปิด (ถ้ามี)
-  highPrice  Decimal? @db.Decimal(12, 4) // ราคาสูงสุดของวัน (ถ้ามี)
-  lowPrice   Decimal? @db.Decimal(12, 4) // ราคาต่ำสุดของวัน (ถ้ามี)
-  volume     BigInt? // ปริมาณการซื้อขายรวมทั้งวัน
-
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-
-  @@unique([assetId, date]) // 1 สินทรัพย์ ต่อ 1 วัน จะมีราคาปิดได้แค่วันเดียว
-  @@index([assetId, date(sort: Desc)]) // ช่วยให้ดึงประวัติราคาย้อนหลังเรียงตามวันที่ล่าสุดได้เร็วขึ้น
 }
 
 /// ประเภทของสินทรัพย์
@@ -216,6 +208,24 @@ enum AssetType {
   CRYPTO // คริปโตเคอเรนซี
   FOREX // ค่าเงิน
   GOLD // ทองคำ
+}
+
+/// บันทึกประวัติราคาปิดรายวัน (Daily End-of-Day Price) ของสินทรัพย์แต่ละตัว
+model AssetPrice {
+  id         String   @id @default(uuid())
+  assetId    String // อ้างอิงสินทรัพย์
+  date       DateTime // วันที่ของราคา (ตัดเวลาเป็น 00:00:00 UTC)
+  closePrice Decimal  @db.Decimal(18, 4) // ราคาปิด
+  openPrice  Decimal? @db.Decimal(18, 4) // ราคาเปิด
+  highPrice  Decimal? @db.Decimal(18, 4) // ราคาสูงสุดของวัน
+  lowPrice   Decimal? @db.Decimal(18, 4) // ราคาต่ำสุดของวัน
+  volume     BigInt? // ปริมาณการซื้อขายรวมทั้งวัน
+  createdAt  DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, date]) // 1 สินทรัพย์ ต่อ 1 วัน มีราคาปิดชุดเดียว
+  @@index([assetId, date(sort: Desc)]) // ดึงประวัติราคาย้อนหลังล่าสุดได้อย่างรวดเร็ว
 }
 
 /// ข้อมูลปัจจัยพื้นฐาน (Fundamental Data) และอัตราส่วนทางการเงินของสินทรัพย์
@@ -250,13 +260,14 @@ model AssetFundamental {
   revenueGrowth Decimal? @db.Decimal(5, 2) // อัตราการเติบโตของรายได้ YoY (%)
   profitGrowth  Decimal? @db.Decimal(5, 2) // อัตราการเติบโตของกำไรสุทธิ YoY (%)
 
-  healthScore Int      @default(0) // คะแนนสุขภาพทางการเงิน (ใช้สำหรับทำ Health Check เขียว/แดง อัตโนมัติ)
+  healthScore Int      @default(0) // คะแนนสุขภาพทางการเงิน (ใช้สำหรับ Health Check เขียว/แดง)
   updatedAt   DateTime @updatedAt
-  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@unique([assetId, period, year, quarter])
   @@index([assetId, isLatest])
-  @@index([isLatest, peRatio, roe, dividendYield, debtToEquity]) // Index ช่วยให้ Stock Screener ค้นหาเร็วขึ้น
+  @@index([isLatest, peRatio, roe, dividendYield, debtToEquity]) // Index สำหรับ Stock Screener
 }
 
 /// งวดของข้อมูลทางการเงิน
@@ -267,14 +278,35 @@ enum DataPeriod {
 
 /// ประกาศการจ่ายเงินปันผลของสินทรัพย์แต่ละตัว
 model DividendAnnouncement {
-  id       String    @id @default(uuid())
-  assetId  String // อ้างอิงสินทรัพย์ที่จ่ายปันผล
-  exDate   DateTime // วันขึ้นเครื่องหมาย XD (Ex-Dividend Date)
-  payDate  DateTime? // วันที่จ่ายเงินปันผลจริง
-  amount   Decimal   @db.Decimal(18, 8) // เงินปันผลต่อหุ้น
-  currency String    @default("THB") // สกุลเงินของเงินปันผลที่จ่าย
+  id        String    @id @default(uuid())
+  assetId   String // อ้างอิงสินทรัพย์ที่จ่ายปันผล
+  exDate    DateTime // วันขึ้นเครื่องหมาย XD (Ex-Dividend Date)
+  payDate   DateTime? // วันที่จ่ายเงินปันผลจริง
+  amount    Decimal   @db.Decimal(18, 8) // เงินปันผลต่อหุ้น
+  currency  String    @default("THB") // สกุลเงินของเงินปันผลที่จ่าย
+  createdAt DateTime  @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, exDate])
+}
+
+// ==========================================
+// 💱 EXCHANGE RATE CENTRAL MODULE (ระบบอัตราแลกเปลี่ยนกลาง)
+// ==========================================
+
+/// เก็บประวัติอัตราแลกเปลี่ยนย้อนหลังรายวัน สำหรับทำ Currency Conversion & Cache
+model ExchangeRate {
+  id           String   @id @default(uuid())
+  fromCurrency String // สกุลเงินต้นทาง (เช่น USD)
+  toCurrency   String // สกุลเงินปลายทาง (เช่น THB)
+  rate         Decimal  @db.Decimal(18, 6) // อัตราแลกเปลี่ยน
+  date         DateTime // วันที่ของอัตราแลกเปลี่ยน (00:00:00 UTC)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency, date])
+  @@index([fromCurrency, toCurrency, date(sort: Desc)])
 }
 
 // ==========================================
@@ -286,17 +318,17 @@ model InvestmentThesis {
   id          String       @id @default(uuid())
   userId      String // เจ้าของบันทึกวิเคราะห์
   assetId     String // สินทรัพย์ที่วิเคราะห์
-  portfolioId String? // (Optional) ผูกกับ Portfolio กรณีมีการเปิด Position ซื้อจริงแล้ว
+  portfolioId String? // (Optional) ผูกกับ Portfolio กรณีเปิด Position จริงแล้ว
   status      ThesisStatus @default(DRAFT) // สถานะของ Thesis
 
-  title   String // หัวข้อบทวิเคราะห์ (เช่น "PTT - เก็งกำไรจากการขยายธุรกิจ EV")
+  title   String // หัวข้อบทวิเคราะห์
   summary String? @db.Text // สรุปย่อเหตุผลการลงทุน
 
   // กรอบราคาและเป้าหมายการลงทุน
   entryPrice  Decimal? @db.Decimal(24, 8) // ราคาที่ตั้งใจจะเข้าซื้อ
   targetPrice Decimal? @db.Decimal(24, 8) // ราคาเป้าหมาย (Take Profit)
   stopLoss    Decimal? @db.Decimal(24, 8) // จุดตัดขาดทุน (Stop Loss)
-  timeHorizon String? // กรอบเวลาการถือครอง (เช่น "12-18 เดือน", "3-5 ปี")
+  timeHorizon String? // กรอบเวลาการถือครอง (เช่น "12-18 เดือน")
 
   // รายละเอียดการวิเคราะห์
   catalysts String? @db.Text // ปัจจัยหนุน/ตัวเร่งราคา (Key Catalysts)
@@ -317,7 +349,7 @@ model InvestmentThesis {
 /// สถานะของบทวิเคราะห์/สมมติฐานการลงทุน
 enum ThesisStatus {
   DRAFT // ร่างบทวิเคราะห์ / อยู่ระหว่างรวบรวมข้อมูล
-  WATCHING // วิเคราะห์เสร็จแล้ว รอราคาถึงจุดเข้าซื้อ (เฝ้าระวัง)
+  WATCHING // วิเคราะห์เสร็จแล้ว รอราคาถึงจุดเข้าซื้อ
   ACTIVE // ทำการซื้อหุ้นเข้าพอร์ตจริงแล้วตาม Thesis นี้
   ARCHIVED // ปิดดีลขายหุ้นแล้ว หรือยกเลิกสมมติฐานนี้
 }
@@ -344,19 +376,22 @@ model Transaction {
   fee          Decimal  @default(0) @db.Decimal(18, 8) // ค่าธรรมเนียมการซื้อขาย
   taxWithheld  Decimal  @default(0) @db.Decimal(18, 8) // ภาษีหัก ณ ที่จ่าย
 
-  metadata       Json? // เก็บข้อมูลเพิ่มเติมเฉพาะกิจ (เช่น อัตราส่วนการแตกพาร์ Split Ratio)
+  metadata       Json? // เก็บข้อมูลเพิ่มเติม เช่น Split Ratio หรือ Corporate Actions
   parentTxId     String? // อ้างอิง Transaction แม่ (กรณีมีประวัติการแตกแขนง)
   rebalanceLogId String? // อ้างอิงรอบการ Rebalance พอร์ต (ถ้ามี)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   portfolio        Portfolio         @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  rebalanceLog     RebalanceLog?     @relation(fields: [rebalanceLogId], references: [id])
+  rebalanceLog     RebalanceLog?     @relation(fields: [rebalanceLogId], references: [id], onDelete: SetNull)
   ledgerEntries    LedgerEntry[]
   taxRecord        TaxRecord?
-  parentTx         Transaction?      @relation("TxHistory", fields: [parentTxId], references: [id])
+  parentTx         Transaction?      @relation("TxHistory", fields: [parentTxId], references: [id], onDelete: SetNull)
   childTxs         Transaction[]     @relation("TxHistory")
   slipVerification SlipVerification? // ตรวจสอบสลิปโอนเงิน (1:1 Relation)
 
   @@index([portfolioId, executedAt(sort: Desc)])
+  @@index([type])
 }
 
 /// ประเภทของธุรกรรมการเงินและการลงทุน
@@ -370,7 +405,7 @@ enum TransactionType {
   FEE // ค่าธรรมเนียมต่างๆ
   TAX // จ่ายภาษี
   SPLIT // การแตกพาร์หุ้น
-  ADJUSTMENT // ปรับปรุงยอดเงินสด/หุ้นให้ตรงกับกระดานจริง (Manual Adjust)
+  ADJUSTMENT // ปรับปรุงยอดเงินสด/หุ้นให้ตรงกับกระดานจริง
 }
 
 /// สถานะของธุรกรรม
@@ -388,7 +423,7 @@ model Position {
   assetId      String // สินทรัพย์ที่ถือครอง
   quantity     Decimal  @db.Decimal(24, 8) // จำนวนหุ้น/หน่วยคงเหลือ
   avgPrice     Decimal  @db.Decimal(24, 8) // ราคาต้นทุนเฉลี่ยต่อหน่วย (Average Cost)
-  realizedPL   Decimal  @default(0) @db.Decimal(24, 8) // กำไร/ขาดทุนที่ขายไปแล้วสะสม (Realized P&L)
+  realizedPL   Decimal  @default(0) @db.Decimal(24, 8) // กำไร/ขาดทุนที่ขายไปแล้วสะสม
   totalDiv     Decimal  @default(0) @db.Decimal(24, 8) // เงินปันผลรับสะสมทั้งหมดจากตัวนี้
   targetWeight Decimal? @db.Decimal(5, 2) // เปอร์เซ็นต์สัดส่วนเป้าหมาย (Target %) สำหรับทำ Rebalancing
   updatedAt    DateTime @updatedAt
@@ -398,6 +433,7 @@ model Position {
   ledgerEntries LedgerEntry[]
 
   @@unique([portfolioId, assetId]) // 1 พอร์ต ถือสินทรัพย์ชนิดเดียวกันได้ 1 แถว (รวมยอด)
+  @@index([portfolioId])
 }
 
 /// ประวัติการปรับสมดุลพอร์ต (Rebalance Log)
@@ -419,33 +455,28 @@ model RebalanceLog {
 
 /// เก็บข้อมูลการตรวจสอบสลิปการโอนเงิน (ผูกกับ 1 Transaction)
 model SlipVerification {
-  id            String @id @default(uuid())
-  transactionId String @unique // ผูกกับ Transaction หลัก 1:1
+  id            String  @id @default(uuid())
+  transactionId String  @unique // ผูกกับ Transaction หลัก 1:1
   imageUrl      String // ลิงก์รูปภาพสลิปบน Cloud Storage (S3, Supabase)
-
-  transRef String @unique // รหัสอ้างอิงสลิปจาก QR Code (ป้องกันการส่งสลิปซ้ำ)
-
+  transRef      String  @unique // รหัสอ้างอิงสลิปจาก QR Code (ป้องกันสลิปซ้ำ)
   sendingBank   String? // ธนาคารต้นทางผู้โอน
   receivingBank String? // ธนาคารปลายทางผู้รับ
   senderName    String? // ชื่อผู้โอนตามสลิป
+  amount        Decimal @db.Decimal(24, 8) // ยอดเงินตามหน้าสลิป
+  currency      String  @default("THB") // สกุลเงินของสลิปต้นทาง
 
-  amount   Decimal @db.Decimal(24, 8) // ยอดเงินตามหน้าสลิป
-  currency String  @default("THB") // สกุลเงินของสลิปต้นทาง
-
-  // --- เพิ่มส่วนของค่าธรรมเนียมและ VAT ตรงนี้ ---
+  // ค่าธรรมเนียมและ VAT
   fee       Decimal? @db.Decimal(24, 8) // ค่าธรรมเนียมการทำรายการ
   vat       Decimal? @db.Decimal(24, 8) // ภาษีมูลค่าเพิ่ม (VAT)
-  netAmount Decimal? @db.Decimal(24, 8) // ยอดสุทธิ (ยอดโอนหักค่าธรรมเนียม/vat ถ้ามี)
-  // ------------------------------------------
+  netAmount Decimal? @db.Decimal(24, 8) // ยอดสุทธิหลังหักค่าธรรมเนียม
 
-  fxRate         Decimal? @db.Decimal(18, 6) // อัตราแลกเปลี่ยน 
+  fxRate         Decimal? @db.Decimal(18, 6) // อัตราแลกเปลี่ยน
   targetAmount   Decimal? @db.Decimal(24, 8) // ยอดเงินปลายทางหลังแปลงสกุลเงินแล้ว
   targetCurrency String? // สกุลเงินบัญชีปลายทาง
 
-  verifiedAt DateTime @default(now()) // เวลาที่ตรวจสอบสลิป
-  rawPayload Json? // เก็บข้อมูล JSON ดิบจาก API ตรวจสลิปภายนอก
-
-  isAmountMatched Boolean @default(false) // แฟล็กเช็คด่วนว่ายอดเงินตรงกันไหม
+  verifiedAt      DateTime @default(now()) // เวลาที่ตรวจสอบสลิป
+  rawPayload      Json? // เก็บข้อมูล JSON ดิบจาก API ตรวจสลิปภายนอก
+  isAmountMatched Boolean  @default(false) // แฟล็กเช็คด่วนว่ายอดเงินตรงกันไหม
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
@@ -464,9 +495,12 @@ model TaxLot {
   purchasePrice Decimal  @db.Decimal(24, 8) // ราคาซื้อต่อหน่วยในล็อตนี้
   earnedYear    Int // ปี ค.ศ. ที่เกิดรายการ
   executedAt    DateTime // วันเวลาที่ซื้อ
+  createdAt     DateTime @default(now())
 
   portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   asset     Asset     @relation(fields: [assetId], references: [id])
+
+  @@index([portfolioId, assetId, executedAt(sort: Asc)]) // Index เพิ่มประสิทธิภาพ FIFO Cut
 }
 
 /// บันทึกรายการภาษีที่เกี่ยวข้องกับการลงทุน (นำไปใช้ทำรายงานยื่นสรรพากร)
@@ -482,8 +516,11 @@ model TaxRecord {
   taxYear         Int // ปีภาษีที่ต้องยื่น
   earnedYear      Int // ปีที่ได้รับรายได้จริง
   status          TaxStatus @default(PENDING) // สถานะการยื่นภาษี
+  createdAt       DateTime  @default(now())
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, taxYear])
 }
 
 /// ประเภทของภาษี
@@ -500,20 +537,22 @@ enum TaxStatus {
   PAID // ชำระแล้ว
 }
 
-/// สแนปช็อตบันทึกมูลค่าพอร์ตรายวัน/รายเดือน เพื่อนำไปใช้วาดกราฟ Performance ย้อนหลัง
+/// สแนปช็อตบันทึกมูลค่าพอร์ตรายวัน เพื่อนำไปใช้วาดกราฟ Performance ย้อนหลัง
 model PortfolioSnapshot {
   id          String   @id @default(uuid())
   portfolioId String // พอร์ต
-  date        DateTime // วันที่บันทึก Snapshot (เก็บแบบรายวัน)
+  date        DateTime // วันที่บันทึก Snapshot (เก็บแบบรายวัน 00:00:00 UTC)
 
-  equity       Decimal @db.Decimal(24, 8) // มูลค่าสินทรัพย์สุทธิรวม (เงินสด + มูลค่าหุ้นทั้งหมด)
-  cash         Decimal @db.Decimal(24, 8) // เงินสดคงเหลือรวม
-  unrealizedPL Decimal @db.Decimal(24, 8) // กำไร/ขาดทุนที่ยังไม่ขาย ณ วันนั้น
-  costBasis    Decimal @db.Decimal(24, 8) // ต้นทุนรวมทั้งหมด ณ วันนั้น
+  equity       Decimal  @db.Decimal(24, 8) // มูลค่าสินทรัพย์สุทธิรวม (เงินสด + มูลค่าหุ้น)
+  cash         Decimal  @db.Decimal(24, 8) // เงินสดคงเหลือรวม
+  unrealizedPL Decimal  @db.Decimal(24, 8) // กำไร/ขาดทุนที่ยังไม่ขาย ณ วันนั้น
+  costBasis    Decimal  @db.Decimal(24, 8) // ต้นทุนรวมทั้งหมด ณ วันนั้น
+  createdAt    DateTime @default(now())
 
   portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@unique([portfolioId, date]) // 1 พอร์ต มี Snapshot ได้ 1 ชุดต่อ 1 วัน
+  @@index([portfolioId, date(sort: Desc)])
 }
 
 // ==========================================
@@ -522,23 +561,27 @@ model PortfolioSnapshot {
 
 /// รายการหุ้น/สินทรัพย์ที่ผู้ใช้สนใจ (Watchlist)
 model WatchList {
-  id     String          @id @default(uuid())
-  userId String // เจ้าของ Watchlist
-  name   String // ชื่อหมวดหมู่ Watchlist (เช่น หุ้นน่าซื้อ, คริปโตเฝ้าระวัง)
-  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items  WatchListItem[]
+  id        String   @id @default(uuid())
+  userId    String // เจ้าของ Watchlist
+  name      String // ชื่อหมวดหมู่ Watchlist
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WatchListItem[]
+
+  @@index([userId])
 }
 
-/// รายการสินทรัพย์ที่อยู่ใน Watchlist แต่ละกลุ่ม (รองรับการจดโน้ตเหตุผลและความสนใจ)
+/// รายการสินทรัพย์ที่อยู่ใน Watchlist แต่ละกลุ่ม
 model WatchListItem {
   id          String @id @default(uuid())
   watchListId String // อ้างอิง Watchlist
   assetId     String // อ้างอิงสินทรัพย์
 
-  // 🌟 เพิ่มฟิลด์สำหรับจดบันทึกเหตุผลว่าทำไมถึงสนใจ และประทับเวลา
   note      String?  @db.Text // โน้ตเหตุผลความสนใจ / ข้อมูลวิเคราะห์เบื้องต้น
-  createdAt DateTime @default(now()) // วันเวลาที่เพิ่มและเริ่มจดโน้ตครั้งแรก
-  updatedAt DateTime @updatedAt // วันเวลาที่อัปเดตแก้ไขโน้ตล่าสุด
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   watchList WatchList @relation(fields: [watchListId], references: [id], onDelete: Cascade)
   asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
@@ -548,12 +591,14 @@ model WatchListItem {
 
 /// การตั้งค่าแจ้งเตือนเงื่อนไขราคาหรือปัจจัยพื้นฐานของสินทรัพย์
 model Alert {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String // ผู้ใช้งานที่ตั้งแจ้งเตือน
   assetId     String // สินทรัพย์ที่ต้องการให้แจ้งเตือน
   condition   String // เงื่อนไข (เช่น "PRICE_ABOVE", "PE_ABOVE", "HEALTH_DROP")
-  targetValue Decimal @db.Decimal(18, 8) // ค่าเป้าหมายที่ตั้งไว้
-  isActive    Boolean @default(true) // เปิดใช้งานการแจ้งเตือนอยู่หรือไม่
+  targetValue Decimal  @db.Decimal(18, 8) // ค่าเป้าหมายที่ตั้งไว้
+  isActive    Boolean  @default(true) // เปิดใช้งานการแจ้งเตือนอยู่หรือไม่
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
@@ -571,4 +616,6 @@ model AuditLog {
   createdAt DateTime @default(now()) // เวลาที่เกิดเหตุการณ์
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
 }

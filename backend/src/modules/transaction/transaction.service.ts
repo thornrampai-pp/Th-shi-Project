@@ -1,4 +1,4 @@
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../config/prisma";
 import { TransactionType, AccountType, EntrySide } from "@prisma/client";
 import { PositionService } from "../position/position.service";
 

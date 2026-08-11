@@ -1,5 +1,5 @@
 import { builder } from "../../graphql/builder";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../../config/prisma";
 import { TokenService } from "../../lib/jwt";
 import { AuthService } from "./auth.service";
 import { UserType } from "../user/user.schema";

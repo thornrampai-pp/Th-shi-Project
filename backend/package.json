@@ -27,6 +27,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "graphql": "^16.14.2",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "yahoo-finance2": "^4.0.0"

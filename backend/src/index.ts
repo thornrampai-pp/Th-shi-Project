@@ -1,5 +1,5 @@
-import 'dotenv/config';
-import { config } from './lib/config';
+import "dotenv/config";
+import { env } from "./config/env";
 import express from "express";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5"; // 🌟 ใช้ตัวนี้ตามที่คุณเลือก
@@ -39,7 +39,7 @@ async function startServer() {
 
             const payload = jwt.verify(
               token!,
-              config.jwt.accessSecret,
+              env.JWT_ACCESS_SECRET,
             ) as unknown as { userId: string };
             userId = payload.userId;
           }
@@ -52,7 +52,7 @@ async function startServer() {
     }),
   );
 
-  app.listen(config.port, () => {
+  app.listen(env.PORT, () => {
     console.log(
       `🚀 Tōshi Backend Engine ready at http://localhost:4000/graphql`,
     );

@@ -1,6 +1,6 @@
 import { builder } from '../../graphql/builder';
 import type { User } from '@prisma/client';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../../config/prisma';
 import { AuthService } from '../auth/auth.service';
 
 export const UserType = builder.objectRef<User>('User').implement({

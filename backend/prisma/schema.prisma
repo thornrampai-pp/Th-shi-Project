@@ -3,7 +3,9 @@
 // ==========================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+    output   = "../src/generated/prisma"
+
 }
 
 datasource db {
@@ -30,11 +32,12 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  portfolios Portfolio[]
-  watchLists WatchList[]
-  alerts     Alert[]
-  auditLogs  AuditLog[]
-  theses     InvestmentThesis[] // บันทึกสมมติฐานการลงทุนของผู้ใช้
+  portfolios   Portfolio[]
+  watchLists   WatchList[]
+  alerts       Alert[]
+  auditLogs    AuditLog[]
+  theses       InvestmentThesis[] // บันทึกสมมติฐานการลงทุนของผู้ใช้
+  backtestRuns BacktestRun[] // ประวัติการสั่งรัน Backtest ของผู้ใช้
 }
 
 /// ระดับสิทธิ์ของผู้ใช้งานในระบบ
@@ -62,16 +65,24 @@ model Portfolio {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tags          PortfolioTag[]
-  cashAccounts  CashAccount[]
-  positions     Position[]
-  transactions  Transaction[]
-  taxLots       TaxLot[]
-  snapshots     PortfolioSnapshot[]
-  rebalanceLogs RebalanceLog[]
-  theses        InvestmentThesis[] // เชื่อมโยงกับสมมติฐานการลงทุนในพอร์ตนี้
-  ledgerEntries LedgerEntry[]
+  // การตั้งค่าเฉพาะสำหรับ Paper Trading (จำลองการเทรด)
+  initialPaperBalance Decimal? @db.Decimal(24, 8) // เงินทุนเริ่มต้นสมมติ
+  paperSlippageBps    Int?     @default(5) // ค่า Slippage สมมติ (Basis Points)
+  paperCommissionRate Decimal? @default(0.001) @db.Decimal(8, 6) // อัตราค่าธรรมเนียมการเทรดสมมติ (%)
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags           PortfolioTag[]
+  cashAccounts   CashAccount[]
+  positions      Position[]
+  transactions   Transaction[]
+  taxLots        TaxLot[]
+  snapshots      PortfolioSnapshot[]
+  rebalanceLogs  RebalanceLog[]
+  theses         InvestmentThesis[] // เชื่อมโยงกับสมมติฐานการลงทุนในพอร์ตนี้
+  ledgerEntries  LedgerEntry[]
+  backtestRuns   BacktestRun[] // ประวัติ Backtest ที่เชื่อมโยงกับพอร์ตนี้
+  tradingSignals TradingSignal[] // สัญญาณการเทรดที่ส่งเข้าพอร์ตนี้
+  orders         Order[] // 🆕 คำสั่งซื้อขาย (Paper หรือจริง) ของพอร์ตนี้
 
   @@index([userId])
 }
@@ -82,6 +93,7 @@ enum StrategyType {
   GROWTH // เน้นหุ้นเติบโต
   DIVIDEND // เน้นหุ้นปันผล
   TRADING // เน้นเก็งกำไรระยะสั้น
+  QUANT_ALGO // กลยุทธ์เชิงปริมาณ/อัลกอริทึม
 }
 
 /// ประเภทพอร์ตการลงทุน
@@ -135,7 +147,7 @@ model LedgerEntry {
   portfolioId   String // อ้างอิงพอร์ต
   cashAccountId String? // อ้างอิงบัญชีเงินสด (ถ้ามี)
   positionId    String? // อ้างอิงสถานะการถือครองสินทรัพย์ (ถ้ามี)
-  assetId       String? // อ้างอิงสินทรัพย์โดยตรง ( Foreign Key ช่วย Query ประวัติ)
+  assetId       String? // อ้างอิงสินทรัพย์โดยตรง (Foreign Key ช่วย Query ประวัติ)
   accountType   AccountType // ประเภทบัญชี (CASH หรือ ASSET)
   side          EntrySide // ฝั่งบันทึกบัญชี (DEBIT หรือ CREDIT)
   amount        Decimal     @db.Decimal(24, 8) // จำนวนเงินหรือมูลค่า
@@ -185,15 +197,18 @@ model Asset {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  positions     Position[]
-  taxLots       TaxLot[]
-  fundamentals  AssetFundamental[]
-  prices        AssetPrice[] // ความสัมพันธ์ไปยังตารางราคาปิดรายวัน
-  watchListItem WatchListItem[]
-  dividends     DividendAnnouncement[]
-  alerts        Alert[]
-  theses        InvestmentThesis[] // รายการวิเคราะห์สมมติฐานของสินทรัพย์ตัวนี้
-  ledgerEntries LedgerEntry[]
+  positions      Position[]
+  taxLots        TaxLot[]
+  fundamentals   AssetFundamental[]
+  prices         AssetPrice[] // ความสัมพันธ์ไปยังตารางราคาปิดรายวัน
+  indicators     AssetIndicator[] // 🔧 FIX: เพิ่ม back-relation ที่ขาดไป (ทำให้ schema validate ไม่ผ่าน)
+  watchListItem  WatchListItem[]
+  dividends      DividendAnnouncement[]
+  alerts         Alert[]
+  theses         InvestmentThesis[] // รายการวิเคราะห์สมมติฐานของสินทรัพย์ตัวนี้
+  ledgerEntries  LedgerEntry[]
+  tradingSignals TradingSignal[] // เชื่อมโยงกับสัญญาณการเทรด
+  orders         Order[] // 🆕 คำสั่งซื้อขายที่เกิดขึ้นกับสินทรัพย์นี้
 
   @@unique([symbol, exchange]) // ป้องกัน Symbol ซ้ำกันระหว่างตลาด
   @@index([symbol])
@@ -213,19 +228,19 @@ enum AssetType {
 /// บันทึกประวัติราคาปิดรายวัน (Daily End-of-Day Price) ของสินทรัพย์แต่ละตัว
 model AssetPrice {
   id         String   @id @default(uuid())
-  assetId    String // อ้างอิงสินทรัพย์
-  date       DateTime // วันที่ของราคา (ตัดเวลาเป็น 00:00:00 UTC)
-  closePrice Decimal  @db.Decimal(18, 4) // ราคาปิด
-  openPrice  Decimal? @db.Decimal(18, 4) // ราคาเปิด
-  highPrice  Decimal? @db.Decimal(18, 4) // ราคาสูงสุดของวัน
-  lowPrice   Decimal? @db.Decimal(18, 4) // ราคาต่ำสุดของวัน
-  volume     BigInt? // ปริมาณการซื้อขายรวมทั้งวัน
-  createdAt  DateTime @default(now())
+  assetId    String
+  timestamp  DateTime // เปลี่ยนจาก date เป็น timestamp
+  timeframe  String   @default("1D") // e.g., "1M", "5M", "1H", "1D"
+  closePrice Decimal  @db.Decimal(18, 4)
+  openPrice  Decimal? @db.Decimal(18, 4)
+  highPrice  Decimal? @db.Decimal(18, 4)
+  lowPrice   Decimal? @db.Decimal(18, 4)
+  volume     BigInt?
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
-  @@unique([assetId, date]) // 1 สินทรัพย์ ต่อ 1 วัน มีราคาปิดชุดเดียว
-  @@index([assetId, date(sort: Desc)]) // ดึงประวัติราคาย้อนหลังล่าสุดได้อย่างรวดเร็ว
+  @@unique([assetId, timestamp, timeframe])
+  @@index([assetId, timeframe, timestamp(sort: Desc)])
 }
 
 /// ข้อมูลปัจจัยพื้นฐาน (Fundamental Data) และอัตราส่วนทางการเงินของสินทรัพย์
@@ -233,7 +248,9 @@ model AssetFundamental {
   id       String     @id @default(uuid())
   assetId  String // อ้างอิงสินทรัพย์
   period   DataPeriod @default(QUARTERLY) // ประเภทงบ (QUARTERLY หรือ ANNUAL)
-  quarter  Int? // ไตรมาส (1, 2, 3, 4) - เป็น null กรณีเป็นงบรายปี
+  quarter  Int        @default(0) // 🔧 FIX: ไตรมาส 1-4, ใช้ 0 แทน ANNUAL แทน null
+  // เดิมเป็น Int? แล้วปล่อย null กรณีรายปี — Postgres ไม่บังคับ unique ระหว่างค่า NULL หลายแถว
+  // ทำให้ insert งบรายปีซ้ำปีเดียวกันได้โดยไม่ error ใช้ 0 แทนเพื่อให้ @@unique บังคับได้จริง
   year     Int // ปี ค.ศ.
   isLatest Boolean    @default(false) // เป็นข้อมูลล่าสุดหรือไม่
 
@@ -260,14 +277,30 @@ model AssetFundamental {
   revenueGrowth Decimal? @db.Decimal(5, 2) // อัตราการเติบโตของรายได้ YoY (%)
   profitGrowth  Decimal? @db.Decimal(5, 2) // อัตราการเติบโตของกำไรสุทธิ YoY (%)
 
-  healthScore Int      @default(0) // คะแนนสุขภาพทางการเงิน (ใช้สำหรับ Health Check เขียว/แดง)
-  updatedAt   DateTime @updatedAt
+  healthScore      Int       @default(0) // คะแนนสุขภาพทางการเงิน (ใช้สำหรับ Health Check เขียว/แดง)
+  updatedAt        DateTime  @updatedAt
+  announcementDate DateTime? // วันที่งบออกจริง (ป้องกัน Lookahead Bias ในการ Backtest)
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@unique([assetId, period, year, quarter])
   @@index([assetId, isLatest])
   @@index([isLatest, peRatio, roe, dividendYield, debtToEquity]) // Index สำหรับ Stock Screener
+}
+
+/// บันทึกค่า Technical Indicator รายจุดเวลา (เช่น RSI, SMA, Volatility)
+model AssetIndicator {
+  id        String   @id @default(uuid())
+  assetId   String
+  timestamp DateTime
+  timeframe String   @default("1D")
+  name      String // เช่น "RSI_14", "SMA_200", "VOLATILITY_30D"
+  value     Decimal  @db.Decimal(18, 6)
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, name, timeframe, timestamp])
+  @@index([assetId, name, timestamp(sort: Desc)])
 }
 
 /// งวดของข้อมูลทางการเงิน
@@ -386,6 +419,8 @@ model Transaction {
   rebalanceLog     RebalanceLog?     @relation(fields: [rebalanceLogId], references: [id], onDelete: SetNull)
   ledgerEntries    LedgerEntry[]
   taxRecord        TaxRecord?
+  taxLots          TaxLot[] // 🔧 FIX: back-relation ของ TaxLot.transaction ที่เพิ่มใหม่
+  order            Order? // 🆕 คำสั่งซื้อขายที่ทำให้เกิด Transaction นี้ (ถ้ามาจาก Order)
   parentTx         Transaction?      @relation("TxHistory", fields: [parentTxId], references: [id], onDelete: SetNull)
   childTxs         Transaction[]     @relation("TxHistory")
   slipVerification SlipVerification? // ตรวจสอบสลิปโอนเงิน (1:1 Relation)
@@ -497,26 +532,28 @@ model TaxLot {
   executedAt    DateTime // วันเวลาที่ซื้อ
   createdAt     DateTime @default(now())
 
-  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
-  asset     Asset     @relation(fields: [assetId], references: [id])
+  portfolio   Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset       Asset       @relation(fields: [assetId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade) // 🔧 FIX: เพิ่ม relation จริง กันข้อมูลกำพร้า
 
   @@index([portfolioId, assetId, executedAt(sort: Asc)]) // Index เพิ่มประสิทธิภาพ FIFO Cut
+  @@index([transactionId])
 }
 
 /// บันทึกรายการภาษีที่เกี่ยวข้องกับการลงทุน (นำไปใช้ทำรายงานยื่นสรรพากร)
 model TaxRecord {
-  id              String    @id @default(uuid())
-  transactionId   String    @unique // ผูกกับ Transaction
-  portfolioId     String // พอร์ต
-  sourceCountry   String    @default("US") // ประเทศแหล่งที่มาของรายได้ (เช่น US, TH)
-  taxType         TaxType // ประเภทภาษี
-  incomeAmount    Decimal   @db.Decimal(18, 2) // มูลค่าเงินได้
-  repeatAmountTHB Decimal   @db.Decimal(18, 2) // มูลค่าเงินได้แปลงเป็นเงินบาทไทย
-  fxRate          Decimal   @db.Decimal(18, 6) // อัตราแลกเปลี่ยน ณ วันคำนวณภาษี
-  taxYear         Int // ปีภาษีที่ต้องยื่น
-  earnedYear      Int // ปีที่ได้รับรายได้จริง
-  status          TaxStatus @default(PENDING) // สถานะการยื่นภาษี
-  createdAt       DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  transactionId      String    @unique // ผูกกับ Transaction
+  portfolioId        String // พอร์ต
+  sourceCountry      String    @default("US") // ประเทศแหล่งที่มาของรายได้ (เช่น US, TH)
+  taxType            TaxType // ประเภทภาษี
+  incomeAmount       Decimal   @db.Decimal(18, 2) // มูลค่าเงินได้ (สกุลเงินต้นทาง)
+  convertedAmountTHB Decimal   @db.Decimal(18, 2) // 🔧 FIX: เปลี่ยนชื่อจาก repeatAmountTHB (พิมพ์ผิด/สื่อความหมายไม่ชัด) เป็นยอดที่แปลงเป็นบาทแล้ว
+  fxRate             Decimal   @db.Decimal(18, 6) // อัตราแลกเปลี่ยน ณ วันคำนวณภาษี
+  taxYear            Int // ปีภาษีที่ต้องยื่น
+  earnedYear         Int // ปีที่ได้รับรายได้จริง
+  status             TaxStatus @default(PENDING) // สถานะการยื่นภาษี
+  createdAt          DateTime  @default(now())
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
@@ -537,22 +574,162 @@ enum TaxStatus {
   PAID // ชำระแล้ว
 }
 
-/// สแนปช็อตบันทึกมูลค่าพอร์ตรายวัน เพื่อนำไปใช้วาดกราฟ Performance ย้อนหลัง
+/// สแนปช็อตบันทึกมูลค่าพอร์ตรายวัน/งวด เพื่อนำไปใช้วาดกราฟ Performance ย้อนหลัง
 model PortfolioSnapshot {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   portfolioId String // พอร์ต
-  date        DateTime // วันที่บันทึก Snapshot (เก็บแบบรายวัน 00:00:00 UTC)
+  date        DateTime // วันที่บันทึก Snapshot (เก็บแบบ 00:00:00 UTC)
+  granularity SnapshotPeriod @default(DAILY) // ระดับงวดเวลา (DAILY, MONTHLY, YEARLY)
 
-  equity       Decimal  @db.Decimal(24, 8) // มูลค่าสินทรัพย์สุทธิรวม (เงินสด + มูลค่าหุ้น)
-  cash         Decimal  @db.Decimal(24, 8) // เงินสดคงเหลือรวม
-  unrealizedPL Decimal  @db.Decimal(24, 8) // กำไร/ขาดทุนที่ยังไม่ขาย ณ วันนั้น
-  costBasis    Decimal  @db.Decimal(24, 8) // ต้นทุนรวมทั้งหมด ณ วันนั้น
-  createdAt    DateTime @default(now())
+  equity        Decimal @db.Decimal(24, 8) // มูลค่าสินทรัพย์สุทธิรวม (เงินสด + มูลค่าหุ้น)
+  cash          Decimal @db.Decimal(24, 8) // เงินสดคงเหลือรวม
+  unrealizedPL  Decimal @db.Decimal(24, 8) // กำไร/ขาดทุนที่ยังไม่ขาย ณ วันนั้น
+  realizedPL    Decimal @default(0) @db.Decimal(24, 8) // กำไร/ขาดทุนที่รับรู้แล้วในรอบงวดนี้
+  totalDividend Decimal @default(0) @db.Decimal(24, 8) // เงินปันผลสะสมที่ได้รับในงวดนี้
+  costBasis     Decimal @db.Decimal(24, 8) // ต้นทุนรวมทั้งหมด ณ วันนั้น
+
+  // ตัววัดผลการดำเนินงาน (Performance Metrics)
+  netCashFlow Decimal @default(0) @db.Decimal(24, 8) // เงินฝาก/ถอนสุทธิในงวดนี้
+  twrReturn   Decimal @default(0) @db.Decimal(10, 6) // ผลตอบแทน Time-Weighted Return (%)
+
+  createdAt DateTime @default(now())
 
   portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
-  @@unique([portfolioId, date]) // 1 พอร์ต มี Snapshot ได้ 1 ชุดต่อ 1 วัน
-  @@index([portfolioId, date(sort: Desc)])
+  @@unique([portfolioId, date, granularity]) // 1 พอร์ต มี Snapshot ได้ 1 ชุดต่อ 1 วัน/เดือน/ปี
+  @@index([portfolioId, granularity, date(sort: Desc)])
+}
+
+/// ช่วงเวลาของ Snapshot กำไร/ขาดทุน
+enum SnapshotPeriod {
+  DAILY // รายวัน
+  MONTHLY // รายเดือน
+  YEARLY // รายปี
+}
+
+// ==========================================
+// 🧪 BACKTESTING & TRADING MODULE (โมดูลทดสอบกลยุทธ์ย้อนหลังและการซื้อขาย)
+// ==========================================
+
+/// บันทึกประวัติและผลการสั่งรัน Backtest จาก Python Engine
+model BacktestRun {
+  id             String         @id @default(uuid())
+  userId         String // ผู้สั่งรัน Backtest
+  portfolioId    String? // (Optional) อ้างอิงพอร์ตหากต้องการรันเลียนแบบพอร์ตจริง/จำลองที่มีอยู่
+  name           String // ชื่อการรัน Backtest (เช่น "EMA Cross BTC 1H Strategy")
+  strategyKey    String // รหัสกลยุทธ์ใน Python (เช่น "MA_CROSSOVER", "RSI_MEAN_REVERSION")
+  parameters     Json // พารามิเตอร์กลยุทธ์ในรูปแบบ JSON (เช่น { "fast_period": 10, "slow_period": 50 })
+  startDate      DateTime // วันเริ่มต้นทดสอบ
+  endDate        DateTime // วันสิ้นสุดทดสอบ
+  initialCapital Decimal        @db.Decimal(24, 8) // เงินทุนเริ่มต้น
+  status         BacktestStatus @default(PENDING) // สถานะการประมวลผล
+
+  // ผลลัพธ์การวัดผลการลงทุนที่คำนวณได้จาก Python Engine
+  totalReturn Decimal? @db.Decimal(10, 4) // ผลตอบแทนรวม (%)
+  cagr        Decimal? @db.Decimal(10, 4) // อัตราการเติบโตต่อปี (%)
+  sharpeRatio Decimal? @db.Decimal(10, 4) // Sharpe Ratio
+  maxDrawdown Decimal? @db.Decimal(10, 4) // Max Drawdown (%)
+  winRate     Decimal? @db.Decimal(5, 2) // อัตราการชนะ (%)
+  totalTrades Int? // จำนวน Trade ทั้งหมด
+
+  equityCurve  Json? // ข้อมูลพล็อตพอยต์สำหรับสร้างกราฟ Equity Curve [{ date, equity, drawdown }]
+  rawMetrics   Json? // สถิติละเอียดเพิ่มเติมจาก Backtrader / PyFolio / Pandas
+  errorMessage String? @db.Text // บันทึกข้อผิดพลาดกรณีสถานะ FAILED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolio Portfolio? @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+/// สถานะการประมวลผลการทำ Backtest
+enum BacktestStatus {
+  PENDING // รอดำเนินการ
+  PROCESSING // กำลังประมวลผล
+  COMPLETED // เสร็จสิ้น
+  FAILED // ล้มเหลว
+}
+
+/// สัญญาณการเทรดที่ส่งมาจาก Python Trading Service หรือ Terminal Bot
+model TradingSignal {
+  id          String     @id @default(uuid())
+  portfolioId String // พอร์ตที่รับสัญญาณ
+  assetId     String // สินทรัพย์ที่เกิดสัญญาณ
+  signalType  SignalType // ประเภทสัญญาณ (BUY, SELL, HOLD)
+  strength    Decimal?   @db.Decimal(5, 2) // น้ำหนักความมั่นใจของสัญญาณ (0.00 - 1.00)
+  price       Decimal    @db.Decimal(24, 8) // ราคาที่ส่งสัญญาณ
+  source      String     @default("PYTHON_BOT") // ที่มาของสัญญาณ (เช่น "TERMINAL_CLI", "FASTAPI_MODEL")
+  metadata    Json? // รายละเอียด Indicators ที่ทำให้เกิดสัญญาณ
+  isExecuted  Boolean    @default(false) // นำไปเปิดออเดอร์ในพอร์ตจริง/จำลองแล้วหรือยัง
+  createdAt   DateTime   @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  orders    Order[] // 🆕 คำสั่งซื้อขายที่เกิดจากสัญญาณนี้ (อาจมีมากกว่า 1 ถ้าแบ่งไม้)
+
+  @@index([portfolioId, isExecuted])
+  @@index([assetId, createdAt(sort: Desc)])
+}
+
+/// ประเภทของสัญญาณการเทรด
+enum SignalType {
+  BUY // สัญญาณซื้อ
+  SELL // สัญญาณขาย
+  HOLD // สัญญาณถือครอง
+}
+
+/// 🆕 คำสั่งซื้อขาย (Order) — เติมช่องว่างระหว่าง Signal กับ Transaction ตาม flow
+/// Signal → Order → Execution → Transaction ที่ระบุไว้ใน diagram เดิม
+/// รองรับทั้ง Paper Trading และพอร์ตจริงในอนาคต, เก็บสถานะ PENDING/PARTIALLY_FILLED แยกจาก Transaction ที่สำเร็จแล้วเท่านั้น
+model Order {
+  id            String      @id @default(uuid())
+  portfolioId   String // พอร์ตที่ส่งคำสั่ง
+  assetId       String // สินทรัพย์ที่สั่งซื้อขาย
+  signalId      String? // อ้างอิงสัญญาณต้นทาง (ถ้ามาจาก Strategy/Bot อัตโนมัติ)
+  side          OrderSide // BUY หรือ SELL
+  orderType     OrderType   @default(MARKET) // ประเภทคำสั่ง
+  quantity      Decimal     @db.Decimal(24, 8) // จำนวนที่ต้องการซื้อขาย
+  limitPrice    Decimal?    @db.Decimal(24, 8) // ราคาที่ต้องการ (กรณี LIMIT)
+  filledQty     Decimal     @default(0) @db.Decimal(24, 8) // จำนวนที่ Filled แล้ว
+  avgFillPrice  Decimal?    @db.Decimal(24, 8) // ราคาเฉลี่ยที่ Filled จริง
+  status        OrderStatus @default(PENDING) // สถานะคำสั่ง
+  submittedAt   DateTime    @default(now())
+  filledAt      DateTime?
+  cancelledAt   DateTime?
+  transactionId String?     @unique // ธุรกรรมที่เกิดขึ้นจริงเมื่อ Order Filled สมบูรณ์
+
+  portfolio   Portfolio      @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  asset       Asset          @relation(fields: [assetId], references: [id])
+  signal      TradingSignal? @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  transaction Transaction?   @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([portfolioId, status])
+  @@index([assetId])
+}
+
+/// ฝั่งของคำสั่งซื้อขาย
+enum OrderSide {
+  BUY
+  SELL
+}
+
+/// ประเภทคำสั่งซื้อขาย
+enum OrderType {
+  MARKET // ราคาตลาด ณ ขณะนั้น
+  LIMIT // กำหนดราคาที่ต้องการ
+}
+
+/// สถานะคำสั่งซื้อขาย
+enum OrderStatus {
+  PENDING // รอดำเนินการ
+  PARTIALLY_FILLED // Filled บางส่วน
+  FILLED // Filled ครบสมบูรณ์
+  CANCELLED // ยกเลิกโดยผู้ใช้/ระบบ
+  REJECTED // ถูกปฏิเสธ (เช่น เงินไม่พอ)
 }
 
 // ==========================================

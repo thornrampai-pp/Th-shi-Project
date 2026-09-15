@@ -1,62 +1,13 @@
-import "dotenv/config";
-import { env } from "./config/env";
-import express from "express";
-import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@as-integrations/express5"; // 🌟 ใช้ตัวนี้ตามที่คุณเลือก
-import cors from "cors";
-import bodyParser from "body-parser";
-import cookieParser from "cookie-parser";
-import jwt from "jsonwebtoken";
-import { schema } from "./graphql/schema";
-import { GraphQLContext } from "./graphql/context";
+import { createApp } from './app';
+import { env } from './config/env';
 
-async function startServer() {
-  const app = express();
-
-  app.use(cookieParser());
-
-  const server = new ApolloServer<GraphQLContext>({
-    schema,
+createApp()
+  .then((app) => {
+    app.listen(env.PORT, () => {
+      console.log(`🚀 Server ready at http://localhost:${env.PORT}/graphql`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
   });
-
-  await server.start();
-
-  app.use(
-    "/graphql",
-    cors<cors.CorsRequest>({
-      origin: ["http://localhost:3000"],
-      credentials: true,
-    }),
-    bodyParser.json(),
-    expressMiddleware<GraphQLContext>(server, {
-      context: async ({ req, res }) => {
-        const authorization = req.headers["authorization"] || "";
-        let userId: string | null = null;
-
-        try {
-          if (authorization.startsWith("Bearer ")) {
-            const token = authorization.split(" ")[1];
-
-            const payload = jwt.verify(
-              token!,
-              env.JWT_ACCESS_SECRET,
-            ) as unknown as { userId: string };
-            userId = payload.userId;
-          }
-        } catch (err) {
-          // ปล่อยผ่านเพื่อให้ Request ที่ยังไม่ยืนยันตัวสามารถยิงคิวรี่บางตัวได้
-        }
-
-        return { req, res, userId };
-      },
-    }),
-  );
-
-  app.listen(env.PORT, () => {
-    console.log(
-      `🚀 Tōshi Backend Engine ready at http://localhost:4000/graphql`,
-    );
-  });
-}
-
-startServer();

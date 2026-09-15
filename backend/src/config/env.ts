@@ -1,20 +1,41 @@
-import dotenv from 'dotenv';
-import path from 'path';
+import 'dotenv/config';
+import { z } from 'zod';
+import type { SignOptions } from 'jsonwebtoken';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Helper type สำหรับบังคับ Type ของ StringValue/ExpiresIn ของ jsonwebtoken
+const expiresInSchema = z
+  .string()
+  .min(1) as z.ZodType<NonNullable<SignOptions['expiresIn']>>;
 
-export const env = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: parseInt(process.env.PORT || '4000', 10),
-  DATABASE_URL: process.env.DATABASE_URL || '',
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || 'super-secret-key-change-in-prod',
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'super-secret-key-change-in-prod',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-  FMP_API_KEY: process.env.FMP_API_KEY || '',
-  PYTHON_PATH: process.env.PYTHON_PATH || 'python3',
-};
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(4000),
 
-if (!env.DATABASE_URL) {
-  console.warn('⚠️ WARNING: DATABASE_URL is not defined in environment variables.');
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
+
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 chars'),
+
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 chars'),
+
+  JWT_ACCESS_EXPIRES_IN: expiresInSchema.default('15m'),
+  JWT_REFRESH_EXPIRES_IN: expiresInSchema.default('30d'),
+
+  FMP_API_KEY: z.string().min(1, 'FMP_API_KEY is required'),
+});
+
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error(
+    '❌ Invalid environment variables:',
+    parsed.error.flatten().fieldErrors,
+  );
+  process.exit(1);
 }
+
+export const env = parsed.data;

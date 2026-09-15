@@ -1,36 +1,29 @@
 {
   "compilerOptions": {
-    /* File Layout */
-    "rootDir": "./src",                       
-    "outDir": "./dist",                       
+    "rootDir": "./src",
+    "outDir": "./dist",
 
-    /* Environment Settings */
-    "target": "ES2022",                       
-    "module": "CommonJS",                     
-    "lib": ["ES2022"],                        
-    "types": ["node"],                        
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022"],
+    "types": ["node"],
 
-    /* Interop Constraints */
-    "esModuleInterop": true,                  
-    "forceConsistentCasingInFileNames": true, 
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
 
-    /* Other Outputs */
-    "sourceMap": true,                        
+    "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
 
-    /* Stricter Typechecking Options */
-    "strict": true,                           
+    "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
-    /* Style & Code Quality Options */
-    "noImplicitReturns": true,                
-    "noUnusedLocals": true,                   
-    "noUnusedParameters": true,               
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
 
-    /* Recommended Options */
-    "skipLibCheck": true                      
+    "skipLibCheck": true
   },
-  "include": ["src/**/*", "../generated/prisma/**/*"]
+  "include": ["src/**/*"]
 }

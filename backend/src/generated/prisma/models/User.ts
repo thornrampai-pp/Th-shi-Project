@@ -286,6 +286,7 @@ export type UserWhereInput = {
   auditLogs?: Prisma.AuditLogListRelationFilter
   theses?: Prisma.InvestmentThesisListRelationFilter
   backtestRuns?: Prisma.BacktestRunListRelationFilter
+  notificationChannels?: Prisma.NotificationChannelListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -308,6 +309,7 @@ export type UserOrderByWithRelationInput = {
   auditLogs?: Prisma.AuditLogOrderByRelationAggregateInput
   theses?: Prisma.InvestmentThesisOrderByRelationAggregateInput
   backtestRuns?: Prisma.BacktestRunOrderByRelationAggregateInput
+  notificationChannels?: Prisma.NotificationChannelOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -333,6 +335,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   auditLogs?: Prisma.AuditLogListRelationFilter
   theses?: Prisma.InvestmentThesisListRelationFilter
   backtestRuns?: Prisma.BacktestRunListRelationFilter
+  notificationChannels?: Prisma.NotificationChannelListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -395,6 +398,7 @@ export type UserCreateInput = {
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -417,6 +421,7 @@ export type UserUncheckedCreateInput = {
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -439,6 +444,7 @@ export type UserUpdateInput = {
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -461,6 +467,7 @@ export type UserUncheckedUpdateInput = {
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -688,6 +695,20 @@ export type UserUpdateOneRequiredWithoutAuditLogsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAuditLogsInput, Prisma.UserUpdateWithoutAuditLogsInput>, Prisma.UserUncheckedUpdateWithoutAuditLogsInput>
 }
 
+export type UserCreateNestedOneWithoutNotificationChannelsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNotificationChannelsInput, Prisma.UserUncheckedCreateWithoutNotificationChannelsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNotificationChannelsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutNotificationChannelsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutNotificationChannelsInput, Prisma.UserUncheckedCreateWithoutNotificationChannelsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutNotificationChannelsInput
+  upsert?: Prisma.UserUpsertWithoutNotificationChannelsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutNotificationChannelsInput, Prisma.UserUpdateWithoutNotificationChannelsInput>, Prisma.UserUncheckedUpdateWithoutNotificationChannelsInput>
+}
+
 export type UserCreateWithoutPortfoliosInput = {
   id?: string
   email: string
@@ -707,6 +728,7 @@ export type UserCreateWithoutPortfoliosInput = {
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutPortfoliosInput = {
@@ -728,6 +750,7 @@ export type UserUncheckedCreateWithoutPortfoliosInput = {
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutPortfoliosInput = {
@@ -765,6 +788,7 @@ export type UserUpdateWithoutPortfoliosInput = {
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPortfoliosInput = {
@@ -786,6 +810,7 @@ export type UserUncheckedUpdateWithoutPortfoliosInput = {
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutThesesInput = {
@@ -807,6 +832,7 @@ export type UserCreateWithoutThesesInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutThesesInput = {
@@ -828,6 +854,7 @@ export type UserUncheckedCreateWithoutThesesInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutThesesInput = {
@@ -865,6 +892,7 @@ export type UserUpdateWithoutThesesInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutThesesInput = {
@@ -886,6 +914,7 @@ export type UserUncheckedUpdateWithoutThesesInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutBacktestRunsInput = {
@@ -907,6 +936,7 @@ export type UserCreateWithoutBacktestRunsInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutBacktestRunsInput = {
@@ -928,6 +958,7 @@ export type UserUncheckedCreateWithoutBacktestRunsInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutBacktestRunsInput = {
@@ -965,6 +996,7 @@ export type UserUpdateWithoutBacktestRunsInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutBacktestRunsInput = {
@@ -986,6 +1018,7 @@ export type UserUncheckedUpdateWithoutBacktestRunsInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWatchListsInput = {
@@ -1007,6 +1040,7 @@ export type UserCreateWithoutWatchListsInput = {
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWatchListsInput = {
@@ -1028,6 +1062,7 @@ export type UserUncheckedCreateWithoutWatchListsInput = {
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWatchListsInput = {
@@ -1065,6 +1100,7 @@ export type UserUpdateWithoutWatchListsInput = {
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWatchListsInput = {
@@ -1086,6 +1122,7 @@ export type UserUncheckedUpdateWithoutWatchListsInput = {
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAlertsInput = {
@@ -1107,6 +1144,7 @@ export type UserCreateWithoutAlertsInput = {
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAlertsInput = {
@@ -1128,6 +1166,7 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAlertsInput = {
@@ -1165,6 +1204,7 @@ export type UserUpdateWithoutAlertsInput = {
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAlertsInput = {
@@ -1186,6 +1226,7 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAuditLogsInput = {
@@ -1207,6 +1248,7 @@ export type UserCreateWithoutAuditLogsInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAuditLogsInput = {
@@ -1228,6 +1270,7 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
   backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAuditLogsInput = {
@@ -1265,6 +1308,7 @@ export type UserUpdateWithoutAuditLogsInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAuditLogsInput = {
@@ -1286,6 +1330,111 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
   backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
+  notificationChannels?: Prisma.NotificationChannelUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutNotificationChannelsInput = {
+  id?: string
+  email: string
+  passwordHash: string
+  tokenVersion?: number
+  firstName?: string | null
+  lastName?: string | null
+  imageUrl?: string | null
+  role?: $Enums.UserRole
+  taxResidency?: string
+  isActive?: boolean
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  portfolios?: Prisma.PortfolioCreateNestedManyWithoutUserInput
+  watchLists?: Prisma.WatchListCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
+  auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
+  theses?: Prisma.InvestmentThesisCreateNestedManyWithoutUserInput
+  backtestRuns?: Prisma.BacktestRunCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutNotificationChannelsInput = {
+  id?: string
+  email: string
+  passwordHash: string
+  tokenVersion?: number
+  firstName?: string | null
+  lastName?: string | null
+  imageUrl?: string | null
+  role?: $Enums.UserRole
+  taxResidency?: string
+  isActive?: boolean
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  portfolios?: Prisma.PortfolioUncheckedCreateNestedManyWithoutUserInput
+  watchLists?: Prisma.WatchListUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
+  auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
+  theses?: Prisma.InvestmentThesisUncheckedCreateNestedManyWithoutUserInput
+  backtestRuns?: Prisma.BacktestRunUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutNotificationChannelsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutNotificationChannelsInput, Prisma.UserUncheckedCreateWithoutNotificationChannelsInput>
+}
+
+export type UserUpsertWithoutNotificationChannelsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutNotificationChannelsInput, Prisma.UserUncheckedUpdateWithoutNotificationChannelsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutNotificationChannelsInput, Prisma.UserUncheckedCreateWithoutNotificationChannelsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutNotificationChannelsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutNotificationChannelsInput, Prisma.UserUncheckedUpdateWithoutNotificationChannelsInput>
+}
+
+export type UserUpdateWithoutNotificationChannelsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  tokenVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  portfolios?: Prisma.PortfolioUpdateManyWithoutUserNestedInput
+  watchLists?: Prisma.WatchListUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
+  auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
+  theses?: Prisma.InvestmentThesisUpdateManyWithoutUserNestedInput
+  backtestRuns?: Prisma.BacktestRunUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutNotificationChannelsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  tokenVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  portfolios?: Prisma.PortfolioUncheckedUpdateManyWithoutUserNestedInput
+  watchLists?: Prisma.WatchListUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
+  auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  theses?: Prisma.InvestmentThesisUncheckedUpdateManyWithoutUserNestedInput
+  backtestRuns?: Prisma.BacktestRunUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -1300,6 +1449,7 @@ export type UserCountOutputType = {
   auditLogs: number
   theses: number
   backtestRuns: number
+  notificationChannels: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1309,6 +1459,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   auditLogs?: boolean | UserCountOutputTypeCountAuditLogsArgs
   theses?: boolean | UserCountOutputTypeCountThesesArgs
   backtestRuns?: boolean | UserCountOutputTypeCountBacktestRunsArgs
+  notificationChannels?: boolean | UserCountOutputTypeCountNotificationChannelsArgs
 }
 
 /**
@@ -1363,6 +1514,13 @@ export type UserCountOutputTypeCountBacktestRunsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.BacktestRunWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountNotificationChannelsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NotificationChannelWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1384,6 +1542,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   theses?: boolean | Prisma.User$thesesArgs<ExtArgs>
   backtestRuns?: boolean | Prisma.User$backtestRunsArgs<ExtArgs>
+  notificationChannels?: boolean | Prisma.User$notificationChannelsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1443,6 +1602,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   theses?: boolean | Prisma.User$thesesArgs<ExtArgs>
   backtestRuns?: boolean | Prisma.User$backtestRunsArgs<ExtArgs>
+  notificationChannels?: boolean | Prisma.User$notificationChannelsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1457,6 +1617,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     auditLogs: Prisma.$AuditLogPayload<ExtArgs>[]
     theses: Prisma.$InvestmentThesisPayload<ExtArgs>[]
     backtestRuns: Prisma.$BacktestRunPayload<ExtArgs>[]
+    notificationChannels: Prisma.$NotificationChannelPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1872,6 +2033,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   auditLogs<T extends Prisma.User$auditLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$auditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   theses<T extends Prisma.User$thesesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$thesesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvestmentThesisPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   backtestRuns<T extends Prisma.User$backtestRunsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$backtestRunsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BacktestRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  notificationChannels<T extends Prisma.User$notificationChannelsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$notificationChannelsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationChannelPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2448,6 +2610,30 @@ export type User$backtestRunsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.BacktestRunScalarFieldEnum | Prisma.BacktestRunScalarFieldEnum[]
+}
+
+/**
+ * User.notificationChannels
+ */
+export type User$notificationChannelsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the NotificationChannel
+   */
+  select?: Prisma.NotificationChannelSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the NotificationChannel
+   */
+  omit?: Prisma.NotificationChannelOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NotificationChannelInclude<ExtArgs> | null
+  where?: Prisma.NotificationChannelWhereInput
+  orderBy?: Prisma.NotificationChannelOrderByWithRelationInput | Prisma.NotificationChannelOrderByWithRelationInput[]
+  cursor?: Prisma.NotificationChannelWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NotificationChannelScalarFieldEnum | Prisma.NotificationChannelScalarFieldEnum[]
 }
 
 /**

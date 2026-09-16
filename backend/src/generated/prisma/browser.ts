@@ -154,3 +154,13 @@ export type Alert = Prisma.AlertModel
  * บันทึกประวัติการกระทำสำคัญของผู้ใช้งานในระบบ (Audit Trail / Security Log)
  */
 export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model NotificationChannel
+ * 
+ */
+export type NotificationChannel = Prisma.NotificationChannelModel
+/**
+ * Model NotificationLog
+ * 
+ */
+export type NotificationLog = Prisma.NotificationLogModel

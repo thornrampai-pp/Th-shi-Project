@@ -178,3 +178,30 @@ export const OrderStatus = {
 } as const
 
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus]
+
+
+export const NotificationChannelType = {
+  DISCORD: 'DISCORD'
+} as const
+
+export type NotificationChannelType = (typeof NotificationChannelType)[keyof typeof NotificationChannelType]
+
+
+export const NotificationEventType = {
+  TRANSACTION_EXECUTED: 'TRANSACTION_EXECUTED',
+  ALERT_TRIGGERED: 'ALERT_TRIGGERED',
+  DAILY_SUMMARY: 'DAILY_SUMMARY',
+  BACKTEST_COMPLETED: 'BACKTEST_COMPLETED',
+  ORDER_FILLED: 'ORDER_FILLED'
+} as const
+
+export type NotificationEventType = (typeof NotificationEventType)[keyof typeof NotificationEventType]
+
+
+export const NotificationStatus = {
+  PENDING: 'PENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED'
+} as const
+
+export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus]

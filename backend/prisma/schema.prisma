@@ -38,6 +38,7 @@ model User {
   auditLogs    AuditLog[]
   theses       InvestmentThesis[] // บันทึกสมมติฐานการลงทุนของผู้ใช้
   backtestRuns BacktestRun[] // ประวัติการสั่งรัน Backtest ของผู้ใช้
+   notificationChannels NotificationChannel[] 
 }
 
 /// ระดับสิทธิ์ของผู้ใช้งานในระบบ
@@ -795,4 +796,58 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+
+// 🔔 NOTIFICATION MODULE (Discord ฯลฯ)
+// ==========================================
+
+model NotificationChannel {
+  id         String                  @id @default(uuid())
+  userId     String
+  type       NotificationChannelType @default(DISCORD)
+  label      String?
+  webhookUrl String
+  isActive   Boolean                 @default(true)
+  events     NotificationEventType[]
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs NotificationLog[]
+
+  @@index([userId])
+}
+
+enum NotificationChannelType {
+  DISCORD
+}
+
+enum NotificationEventType {
+  TRANSACTION_EXECUTED
+  ALERT_TRIGGERED
+  DAILY_SUMMARY
+  BACKTEST_COMPLETED
+  ORDER_FILLED
+}
+
+model NotificationLog {
+  id           String                @id @default(uuid())
+  channelId    String
+  eventType    NotificationEventType
+  payload      Json
+  status       NotificationStatus    @default(PENDING)
+  errorMessage String?               @db.Text
+  sentAt       DateTime?
+  createdAt    DateTime              @default(now())
+
+  channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt(sort: Desc)])
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
 }

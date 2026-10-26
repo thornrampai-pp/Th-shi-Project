@@ -366,20 +366,45 @@ model InvestmentThesis {
   stopLoss    Decimal? @db.Decimal(24, 8) // จุดตัดขาดทุน (Stop Loss)
   timeHorizon String? // กรอบเวลาการถือครอง (เช่น "12-18 เดือน")
 
-  // รายละเอียดการวิเคราะห์
-  catalysts String? @db.Text // ปัจจัยหนุน/ตัวเร่งราคา (Key Catalysts)
-  risks     String? @db.Text // ความเสี่ยงสำคัญที่ต้องระวัง (Key Risks)
-  notes     String? @db.Text // โน้ตวิเคราะห์เพิ่มเติม
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  asset     Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  portfolio Portfolio? @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  portfolio Portfolio?      @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+  sections  ThesisSection[] // หัวข้อวิเคราะห์ (ธุรกิจ, ความเสี่ยง, คู่แข่ง ฯลฯ) ผู้ใช้เพิ่ม/ลบได้
 
   @@index([userId, assetId])
   @@index([userId, status])
+}
+
+/// หัวข้อหนึ่งใน Thesis เก็บเนื้อหาล่าสุด ส่วนประวัติอยู่ใน ThesisSectionVersion
+model ThesisSection {
+  id        String   @id @default(uuid())
+  thesisId  String
+  title     String // ชื่อหัวข้อ (เช่น "ความเสี่ยง")
+  content   String   @default("") @db.Text // เนื้อหาล่าสุด
+  position  Int // ลำดับการแสดงผล
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  thesis   InvestmentThesis       @relation(fields: [thesisId], references: [id], onDelete: Cascade)
+  versions ThesisSectionVersion[]
+
+  @@index([thesisId, position])
+}
+
+/// ประวัติเนื้อหาของแต่ละหัวข้อ การบันทึกที่ห่างกันไม่เกิน 10 นาทีจะรวมเป็นเวอร์ชันเดียว
+model ThesisSectionVersion {
+  id        String   @id @default(uuid())
+  sectionId String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  savedAt   DateTime @default(now()) // เวลาบันทึกครั้งล่าสุดในเวอร์ชันนี้
+
+  section ThesisSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, createdAt])
 }
 
 /// สถานะของบทวิเคราะห์/สมมติฐานการลงทุน

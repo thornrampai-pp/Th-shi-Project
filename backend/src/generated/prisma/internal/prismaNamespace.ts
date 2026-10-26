@@ -410,6 +410,8 @@ export const ModelName = {
   DividendAnnouncement: 'DividendAnnouncement',
   ExchangeRate: 'ExchangeRate',
   InvestmentThesis: 'InvestmentThesis',
+  ThesisSection: 'ThesisSection',
+  ThesisSectionVersion: 'ThesisSectionVersion',
   Transaction: 'Transaction',
   Position: 'Position',
   RebalanceLog: 'RebalanceLog',
@@ -441,7 +443,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "portfolio" | "portfolioTag" | "tag" | "cashAccount" | "ledgerEntry" | "asset" | "assetPrice" | "assetFundamental" | "assetIndicator" | "dividendAnnouncement" | "exchangeRate" | "investmentThesis" | "transaction" | "position" | "rebalanceLog" | "slipVerification" | "taxLot" | "taxRecord" | "portfolioSnapshot" | "backtestRun" | "tradingSignal" | "order" | "watchList" | "watchListItem" | "alert" | "auditLog" | "notificationChannel" | "notificationLog"
+    modelProps: "user" | "portfolio" | "portfolioTag" | "tag" | "cashAccount" | "ledgerEntry" | "asset" | "assetPrice" | "assetFundamental" | "assetIndicator" | "dividendAnnouncement" | "exchangeRate" | "investmentThesis" | "thesisSection" | "thesisSectionVersion" | "transaction" | "position" | "rebalanceLog" | "slipVerification" | "taxLot" | "taxRecord" | "portfolioSnapshot" | "backtestRun" | "tradingSignal" | "order" | "watchList" | "watchListItem" | "alert" | "auditLog" | "notificationChannel" | "notificationLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1404,6 +1406,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.InvestmentThesisCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.InvestmentThesisCountAggregateOutputType> | number
+        }
+      }
+    }
+    ThesisSection: {
+      payload: Prisma.$ThesisSectionPayload<ExtArgs>
+      fields: Prisma.ThesisSectionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ThesisSectionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ThesisSectionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        findFirst: {
+          args: Prisma.ThesisSectionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ThesisSectionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        findMany: {
+          args: Prisma.ThesisSectionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>[]
+        }
+        create: {
+          args: Prisma.ThesisSectionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        createMany: {
+          args: Prisma.ThesisSectionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ThesisSectionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>[]
+        }
+        delete: {
+          args: Prisma.ThesisSectionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        update: {
+          args: Prisma.ThesisSectionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        deleteMany: {
+          args: Prisma.ThesisSectionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ThesisSectionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ThesisSectionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>[]
+        }
+        upsert: {
+          args: Prisma.ThesisSectionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionPayload>
+        }
+        aggregate: {
+          args: Prisma.ThesisSectionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateThesisSection>
+        }
+        groupBy: {
+          args: Prisma.ThesisSectionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ThesisSectionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ThesisSectionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ThesisSectionCountAggregateOutputType> | number
+        }
+      }
+    }
+    ThesisSectionVersion: {
+      payload: Prisma.$ThesisSectionVersionPayload<ExtArgs>
+      fields: Prisma.ThesisSectionVersionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ThesisSectionVersionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ThesisSectionVersionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        findFirst: {
+          args: Prisma.ThesisSectionVersionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ThesisSectionVersionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        findMany: {
+          args: Prisma.ThesisSectionVersionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>[]
+        }
+        create: {
+          args: Prisma.ThesisSectionVersionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        createMany: {
+          args: Prisma.ThesisSectionVersionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ThesisSectionVersionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>[]
+        }
+        delete: {
+          args: Prisma.ThesisSectionVersionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        update: {
+          args: Prisma.ThesisSectionVersionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        deleteMany: {
+          args: Prisma.ThesisSectionVersionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ThesisSectionVersionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ThesisSectionVersionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>[]
+        }
+        upsert: {
+          args: Prisma.ThesisSectionVersionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ThesisSectionVersionPayload>
+        }
+        aggregate: {
+          args: Prisma.ThesisSectionVersionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateThesisSectionVersion>
+        }
+        groupBy: {
+          args: Prisma.ThesisSectionVersionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ThesisSectionVersionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ThesisSectionVersionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ThesisSectionVersionCountAggregateOutputType> | number
         }
       }
     }
@@ -2829,14 +2979,35 @@ export const InvestmentThesisScalarFieldEnum = {
   targetPrice: 'targetPrice',
   stopLoss: 'stopLoss',
   timeHorizon: 'timeHorizon',
-  catalysts: 'catalysts',
-  risks: 'risks',
-  notes: 'notes',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type InvestmentThesisScalarFieldEnum = (typeof InvestmentThesisScalarFieldEnum)[keyof typeof InvestmentThesisScalarFieldEnum]
+
+
+export const ThesisSectionScalarFieldEnum = {
+  id: 'id',
+  thesisId: 'thesisId',
+  title: 'title',
+  content: 'content',
+  position: 'position',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ThesisSectionScalarFieldEnum = (typeof ThesisSectionScalarFieldEnum)[keyof typeof ThesisSectionScalarFieldEnum]
+
+
+export const ThesisSectionVersionScalarFieldEnum = {
+  id: 'id',
+  sectionId: 'sectionId',
+  content: 'content',
+  createdAt: 'createdAt',
+  savedAt: 'savedAt'
+} as const
+
+export type ThesisSectionVersionScalarFieldEnum = (typeof ThesisSectionVersionScalarFieldEnum)[keyof typeof ThesisSectionVersionScalarFieldEnum]
 
 
 export const TransactionScalarFieldEnum = {
@@ -3729,6 +3900,8 @@ export type GlobalOmitConfig = {
   dividendAnnouncement?: Prisma.DividendAnnouncementOmit
   exchangeRate?: Prisma.ExchangeRateOmit
   investmentThesis?: Prisma.InvestmentThesisOmit
+  thesisSection?: Prisma.ThesisSectionOmit
+  thesisSectionVersion?: Prisma.ThesisSectionVersionOmit
   transaction?: Prisma.TransactionOmit
   position?: Prisma.PositionOmit
   rebalanceLog?: Prisma.RebalanceLogOmit

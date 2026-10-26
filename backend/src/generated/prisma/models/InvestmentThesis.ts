@@ -50,9 +50,6 @@ export type InvestmentThesisMinAggregateOutputType = {
   targetPrice: runtime.Decimal | null
   stopLoss: runtime.Decimal | null
   timeHorizon: string | null
-  catalysts: string | null
-  risks: string | null
-  notes: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -69,9 +66,6 @@ export type InvestmentThesisMaxAggregateOutputType = {
   targetPrice: runtime.Decimal | null
   stopLoss: runtime.Decimal | null
   timeHorizon: string | null
-  catalysts: string | null
-  risks: string | null
-  notes: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -88,9 +82,6 @@ export type InvestmentThesisCountAggregateOutputType = {
   targetPrice: number
   stopLoss: number
   timeHorizon: number
-  catalysts: number
-  risks: number
-  notes: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -121,9 +112,6 @@ export type InvestmentThesisMinAggregateInputType = {
   targetPrice?: true
   stopLoss?: true
   timeHorizon?: true
-  catalysts?: true
-  risks?: true
-  notes?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -140,9 +128,6 @@ export type InvestmentThesisMaxAggregateInputType = {
   targetPrice?: true
   stopLoss?: true
   timeHorizon?: true
-  catalysts?: true
-  risks?: true
-  notes?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -159,9 +144,6 @@ export type InvestmentThesisCountAggregateInputType = {
   targetPrice?: true
   stopLoss?: true
   timeHorizon?: true
-  catalysts?: true
-  risks?: true
-  notes?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -265,9 +247,6 @@ export type InvestmentThesisGroupByOutputType = {
   targetPrice: runtime.Decimal | null
   stopLoss: runtime.Decimal | null
   timeHorizon: string | null
-  catalysts: string | null
-  risks: string | null
-  notes: string | null
   createdAt: Date
   updatedAt: Date
   _count: InvestmentThesisCountAggregateOutputType | null
@@ -307,14 +286,12 @@ export type InvestmentThesisWhereInput = {
   targetPrice?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  catalysts?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  risks?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  notes?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
   createdAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   asset?: Prisma.XOR<Prisma.AssetScalarRelationFilter, Prisma.AssetWhereInput>
   portfolio?: Prisma.XOR<Prisma.PortfolioNullableScalarRelationFilter, Prisma.PortfolioWhereInput> | null
+  sections?: Prisma.ThesisSectionListRelationFilter
 }
 
 export type InvestmentThesisOrderByWithRelationInput = {
@@ -329,14 +306,12 @@ export type InvestmentThesisOrderByWithRelationInput = {
   targetPrice?: Prisma.SortOrderInput | Prisma.SortOrder
   stopLoss?: Prisma.SortOrderInput | Prisma.SortOrder
   timeHorizon?: Prisma.SortOrderInput | Prisma.SortOrder
-  catalysts?: Prisma.SortOrderInput | Prisma.SortOrder
-  risks?: Prisma.SortOrderInput | Prisma.SortOrder
-  notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   asset?: Prisma.AssetOrderByWithRelationInput
   portfolio?: Prisma.PortfolioOrderByWithRelationInput
+  sections?: Prisma.ThesisSectionOrderByRelationAggregateInput
 }
 
 export type InvestmentThesisWhereUniqueInput = Prisma.AtLeast<{
@@ -354,14 +329,12 @@ export type InvestmentThesisWhereUniqueInput = Prisma.AtLeast<{
   targetPrice?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  catalysts?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  risks?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  notes?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
   createdAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   asset?: Prisma.XOR<Prisma.AssetScalarRelationFilter, Prisma.AssetWhereInput>
   portfolio?: Prisma.XOR<Prisma.PortfolioNullableScalarRelationFilter, Prisma.PortfolioWhereInput> | null
+  sections?: Prisma.ThesisSectionListRelationFilter
 }, "id">
 
 export type InvestmentThesisOrderByWithAggregationInput = {
@@ -376,9 +349,6 @@ export type InvestmentThesisOrderByWithAggregationInput = {
   targetPrice?: Prisma.SortOrderInput | Prisma.SortOrder
   stopLoss?: Prisma.SortOrderInput | Prisma.SortOrder
   timeHorizon?: Prisma.SortOrderInput | Prisma.SortOrder
-  catalysts?: Prisma.SortOrderInput | Prisma.SortOrder
-  risks?: Prisma.SortOrderInput | Prisma.SortOrder
-  notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.InvestmentThesisCountOrderByAggregateInput
@@ -403,9 +373,6 @@ export type InvestmentThesisScalarWhereWithAggregatesInput = {
   targetPrice?: Prisma.DecimalNullableWithAggregatesFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.DecimalNullableWithAggregatesFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.StringNullableWithAggregatesFilter<"InvestmentThesis"> | string | null
-  catalysts?: Prisma.StringNullableWithAggregatesFilter<"InvestmentThesis"> | string | null
-  risks?: Prisma.StringNullableWithAggregatesFilter<"InvestmentThesis"> | string | null
-  notes?: Prisma.StringNullableWithAggregatesFilter<"InvestmentThesis"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"InvestmentThesis"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"InvestmentThesis"> | Date | string
 }
@@ -419,14 +386,12 @@ export type InvestmentThesisCreateInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutThesesInput
   asset: Prisma.AssetCreateNestedOneWithoutThesesInput
   portfolio?: Prisma.PortfolioCreateNestedOneWithoutThesesInput
+  sections?: Prisma.ThesisSectionCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisUncheckedCreateInput = {
@@ -441,11 +406,9 @@ export type InvestmentThesisUncheckedCreateInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  sections?: Prisma.ThesisSectionUncheckedCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisUpdateInput = {
@@ -457,14 +420,12 @@ export type InvestmentThesisUpdateInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutThesesNestedInput
   asset?: Prisma.AssetUpdateOneRequiredWithoutThesesNestedInput
   portfolio?: Prisma.PortfolioUpdateOneWithoutThesesNestedInput
+  sections?: Prisma.ThesisSectionUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateInput = {
@@ -479,11 +440,9 @@ export type InvestmentThesisUncheckedUpdateInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sections?: Prisma.ThesisSectionUncheckedUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisCreateManyInput = {
@@ -498,9 +457,6 @@ export type InvestmentThesisCreateManyInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -514,9 +470,6 @@ export type InvestmentThesisUpdateManyMutationInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -533,9 +486,6 @@ export type InvestmentThesisUncheckedUpdateManyInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -562,9 +512,6 @@ export type InvestmentThesisCountOrderByAggregateInput = {
   targetPrice?: Prisma.SortOrder
   stopLoss?: Prisma.SortOrder
   timeHorizon?: Prisma.SortOrder
-  catalysts?: Prisma.SortOrder
-  risks?: Prisma.SortOrder
-  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -587,9 +534,6 @@ export type InvestmentThesisMaxOrderByAggregateInput = {
   targetPrice?: Prisma.SortOrder
   stopLoss?: Prisma.SortOrder
   timeHorizon?: Prisma.SortOrder
-  catalysts?: Prisma.SortOrder
-  risks?: Prisma.SortOrder
-  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -606,9 +550,6 @@ export type InvestmentThesisMinOrderByAggregateInput = {
   targetPrice?: Prisma.SortOrder
   stopLoss?: Prisma.SortOrder
   timeHorizon?: Prisma.SortOrder
-  catalysts?: Prisma.SortOrder
-  risks?: Prisma.SortOrder
-  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -617,6 +558,11 @@ export type InvestmentThesisSumOrderByAggregateInput = {
   entryPrice?: Prisma.SortOrder
   targetPrice?: Prisma.SortOrder
   stopLoss?: Prisma.SortOrder
+}
+
+export type InvestmentThesisScalarRelationFilter = {
+  is?: Prisma.InvestmentThesisWhereInput
+  isNot?: Prisma.InvestmentThesisWhereInput
 }
 
 export type InvestmentThesisCreateNestedManyWithoutUserInput = {
@@ -749,6 +695,20 @@ export type EnumThesisStatusFieldUpdateOperationsInput = {
   set?: $Enums.ThesisStatus
 }
 
+export type InvestmentThesisCreateNestedOneWithoutSectionsInput = {
+  create?: Prisma.XOR<Prisma.InvestmentThesisCreateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedCreateWithoutSectionsInput>
+  connectOrCreate?: Prisma.InvestmentThesisCreateOrConnectWithoutSectionsInput
+  connect?: Prisma.InvestmentThesisWhereUniqueInput
+}
+
+export type InvestmentThesisUpdateOneRequiredWithoutSectionsNestedInput = {
+  create?: Prisma.XOR<Prisma.InvestmentThesisCreateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedCreateWithoutSectionsInput>
+  connectOrCreate?: Prisma.InvestmentThesisCreateOrConnectWithoutSectionsInput
+  upsert?: Prisma.InvestmentThesisUpsertWithoutSectionsInput
+  connect?: Prisma.InvestmentThesisWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.InvestmentThesisUpdateToOneWithWhereWithoutSectionsInput, Prisma.InvestmentThesisUpdateWithoutSectionsInput>, Prisma.InvestmentThesisUncheckedUpdateWithoutSectionsInput>
+}
+
 export type InvestmentThesisCreateWithoutUserInput = {
   id?: string
   status?: $Enums.ThesisStatus
@@ -758,13 +718,11 @@ export type InvestmentThesisCreateWithoutUserInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   asset: Prisma.AssetCreateNestedOneWithoutThesesInput
   portfolio?: Prisma.PortfolioCreateNestedOneWithoutThesesInput
+  sections?: Prisma.ThesisSectionCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisUncheckedCreateWithoutUserInput = {
@@ -778,11 +736,9 @@ export type InvestmentThesisUncheckedCreateWithoutUserInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  sections?: Prisma.ThesisSectionUncheckedCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisCreateOrConnectWithoutUserInput = {
@@ -826,9 +782,6 @@ export type InvestmentThesisScalarWhereInput = {
   targetPrice?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.DecimalNullableFilter<"InvestmentThesis"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  catalysts?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  risks?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
-  notes?: Prisma.StringNullableFilter<"InvestmentThesis"> | string | null
   createdAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"InvestmentThesis"> | Date | string
 }
@@ -842,13 +795,11 @@ export type InvestmentThesisCreateWithoutPortfolioInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutThesesInput
   asset: Prisma.AssetCreateNestedOneWithoutThesesInput
+  sections?: Prisma.ThesisSectionCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisUncheckedCreateWithoutPortfolioInput = {
@@ -862,11 +813,9 @@ export type InvestmentThesisUncheckedCreateWithoutPortfolioInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  sections?: Prisma.ThesisSectionUncheckedCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisCreateOrConnectWithoutPortfolioInput = {
@@ -904,13 +853,11 @@ export type InvestmentThesisCreateWithoutAssetInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutThesesInput
   portfolio?: Prisma.PortfolioCreateNestedOneWithoutThesesInput
+  sections?: Prisma.ThesisSectionCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisUncheckedCreateWithoutAssetInput = {
@@ -924,11 +871,9 @@ export type InvestmentThesisUncheckedCreateWithoutAssetInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  sections?: Prisma.ThesisSectionUncheckedCreateNestedManyWithoutThesisInput
 }
 
 export type InvestmentThesisCreateOrConnectWithoutAssetInput = {
@@ -957,6 +902,86 @@ export type InvestmentThesisUpdateManyWithWhereWithoutAssetInput = {
   data: Prisma.XOR<Prisma.InvestmentThesisUpdateManyMutationInput, Prisma.InvestmentThesisUncheckedUpdateManyWithoutAssetInput>
 }
 
+export type InvestmentThesisCreateWithoutSectionsInput = {
+  id?: string
+  status?: $Enums.ThesisStatus
+  title: string
+  summary?: string | null
+  entryPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  timeHorizon?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutThesesInput
+  asset: Prisma.AssetCreateNestedOneWithoutThesesInput
+  portfolio?: Prisma.PortfolioCreateNestedOneWithoutThesesInput
+}
+
+export type InvestmentThesisUncheckedCreateWithoutSectionsInput = {
+  id?: string
+  userId: string
+  assetId: string
+  portfolioId?: string | null
+  status?: $Enums.ThesisStatus
+  title: string
+  summary?: string | null
+  entryPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  timeHorizon?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type InvestmentThesisCreateOrConnectWithoutSectionsInput = {
+  where: Prisma.InvestmentThesisWhereUniqueInput
+  create: Prisma.XOR<Prisma.InvestmentThesisCreateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedCreateWithoutSectionsInput>
+}
+
+export type InvestmentThesisUpsertWithoutSectionsInput = {
+  update: Prisma.XOR<Prisma.InvestmentThesisUpdateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedUpdateWithoutSectionsInput>
+  create: Prisma.XOR<Prisma.InvestmentThesisCreateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedCreateWithoutSectionsInput>
+  where?: Prisma.InvestmentThesisWhereInput
+}
+
+export type InvestmentThesisUpdateToOneWithWhereWithoutSectionsInput = {
+  where?: Prisma.InvestmentThesisWhereInput
+  data: Prisma.XOR<Prisma.InvestmentThesisUpdateWithoutSectionsInput, Prisma.InvestmentThesisUncheckedUpdateWithoutSectionsInput>
+}
+
+export type InvestmentThesisUpdateWithoutSectionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumThesisStatusFieldUpdateOperationsInput | $Enums.ThesisStatus
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  entryPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutThesesNestedInput
+  asset?: Prisma.AssetUpdateOneRequiredWithoutThesesNestedInput
+  portfolio?: Prisma.PortfolioUpdateOneWithoutThesesNestedInput
+}
+
+export type InvestmentThesisUncheckedUpdateWithoutSectionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  assetId?: Prisma.StringFieldUpdateOperationsInput | string
+  portfolioId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumThesisStatusFieldUpdateOperationsInput | $Enums.ThesisStatus
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  entryPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type InvestmentThesisCreateManyUserInput = {
   id?: string
   assetId: string
@@ -968,9 +993,6 @@ export type InvestmentThesisCreateManyUserInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -984,13 +1006,11 @@ export type InvestmentThesisUpdateWithoutUserInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   asset?: Prisma.AssetUpdateOneRequiredWithoutThesesNestedInput
   portfolio?: Prisma.PortfolioUpdateOneWithoutThesesNestedInput
+  sections?: Prisma.ThesisSectionUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateWithoutUserInput = {
@@ -1004,11 +1024,9 @@ export type InvestmentThesisUncheckedUpdateWithoutUserInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sections?: Prisma.ThesisSectionUncheckedUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateManyWithoutUserInput = {
@@ -1022,9 +1040,6 @@ export type InvestmentThesisUncheckedUpdateManyWithoutUserInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1040,9 +1055,6 @@ export type InvestmentThesisCreateManyPortfolioInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1056,13 +1068,11 @@ export type InvestmentThesisUpdateWithoutPortfolioInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutThesesNestedInput
   asset?: Prisma.AssetUpdateOneRequiredWithoutThesesNestedInput
+  sections?: Prisma.ThesisSectionUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateWithoutPortfolioInput = {
@@ -1076,11 +1086,9 @@ export type InvestmentThesisUncheckedUpdateWithoutPortfolioInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sections?: Prisma.ThesisSectionUncheckedUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateManyWithoutPortfolioInput = {
@@ -1094,9 +1102,6 @@ export type InvestmentThesisUncheckedUpdateManyWithoutPortfolioInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1112,9 +1117,6 @@ export type InvestmentThesisCreateManyAssetInput = {
   targetPrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: string | null
-  catalysts?: string | null
-  risks?: string | null
-  notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1128,13 +1130,11 @@ export type InvestmentThesisUpdateWithoutAssetInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutThesesNestedInput
   portfolio?: Prisma.PortfolioUpdateOneWithoutThesesNestedInput
+  sections?: Prisma.ThesisSectionUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateWithoutAssetInput = {
@@ -1148,11 +1148,9 @@ export type InvestmentThesisUncheckedUpdateWithoutAssetInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sections?: Prisma.ThesisSectionUncheckedUpdateManyWithoutThesisNestedInput
 }
 
 export type InvestmentThesisUncheckedUpdateManyWithoutAssetInput = {
@@ -1166,13 +1164,39 @@ export type InvestmentThesisUncheckedUpdateManyWithoutAssetInput = {
   targetPrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   stopLoss?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   timeHorizon?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  catalysts?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  risks?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+
+/**
+ * Count Type InvestmentThesisCountOutputType
+ */
+
+export type InvestmentThesisCountOutputType = {
+  sections: number
+}
+
+export type InvestmentThesisCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  sections?: boolean | InvestmentThesisCountOutputTypeCountSectionsArgs
+}
+
+/**
+ * InvestmentThesisCountOutputType without action
+ */
+export type InvestmentThesisCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the InvestmentThesisCountOutputType
+   */
+  select?: Prisma.InvestmentThesisCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * InvestmentThesisCountOutputType without action
+ */
+export type InvestmentThesisCountOutputTypeCountSectionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ThesisSectionWhereInput
+}
 
 
 export type InvestmentThesisSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1187,14 +1211,13 @@ export type InvestmentThesisSelect<ExtArgs extends runtime.Types.Extensions.Inte
   targetPrice?: boolean
   stopLoss?: boolean
   timeHorizon?: boolean
-  catalysts?: boolean
-  risks?: boolean
-  notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
   portfolio?: boolean | Prisma.InvestmentThesis$portfolioArgs<ExtArgs>
+  sections?: boolean | Prisma.InvestmentThesis$sectionsArgs<ExtArgs>
+  _count?: boolean | Prisma.InvestmentThesisCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["investmentThesis"]>
 
 export type InvestmentThesisSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1209,9 +1232,6 @@ export type InvestmentThesisSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   targetPrice?: boolean
   stopLoss?: boolean
   timeHorizon?: boolean
-  catalysts?: boolean
-  risks?: boolean
-  notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1231,9 +1251,6 @@ export type InvestmentThesisSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   targetPrice?: boolean
   stopLoss?: boolean
   timeHorizon?: boolean
-  catalysts?: boolean
-  risks?: boolean
-  notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1253,18 +1270,17 @@ export type InvestmentThesisSelectScalar = {
   targetPrice?: boolean
   stopLoss?: boolean
   timeHorizon?: boolean
-  catalysts?: boolean
-  risks?: boolean
-  notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type InvestmentThesisOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "assetId" | "portfolioId" | "status" | "title" | "summary" | "entryPrice" | "targetPrice" | "stopLoss" | "timeHorizon" | "catalysts" | "risks" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["investmentThesis"]>
+export type InvestmentThesisOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "assetId" | "portfolioId" | "status" | "title" | "summary" | "entryPrice" | "targetPrice" | "stopLoss" | "timeHorizon" | "createdAt" | "updatedAt", ExtArgs["result"]["investmentThesis"]>
 export type InvestmentThesisInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
   portfolio?: boolean | Prisma.InvestmentThesis$portfolioArgs<ExtArgs>
+  sections?: boolean | Prisma.InvestmentThesis$sectionsArgs<ExtArgs>
+  _count?: boolean | Prisma.InvestmentThesisCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type InvestmentThesisIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1283,6 +1299,7 @@ export type $InvestmentThesisPayload<ExtArgs extends runtime.Types.Extensions.In
     user: Prisma.$UserPayload<ExtArgs>
     asset: Prisma.$AssetPayload<ExtArgs>
     portfolio: Prisma.$PortfolioPayload<ExtArgs> | null
+    sections: Prisma.$ThesisSectionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1296,9 +1313,6 @@ export type $InvestmentThesisPayload<ExtArgs extends runtime.Types.Extensions.In
     targetPrice: runtime.Decimal | null
     stopLoss: runtime.Decimal | null
     timeHorizon: string | null
-    catalysts: string | null
-    risks: string | null
-    notes: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["investmentThesis"]>
@@ -1698,6 +1712,7 @@ export interface Prisma__InvestmentThesisClient<T, Null = never, ExtArgs extends
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   asset<T extends Prisma.AssetDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssetDefaultArgs<ExtArgs>>): Prisma.Prisma__AssetClient<runtime.Types.Result.GetResult<Prisma.$AssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   portfolio<T extends Prisma.InvestmentThesis$portfolioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.InvestmentThesis$portfolioArgs<ExtArgs>>): Prisma.Prisma__PortfolioClient<runtime.Types.Result.GetResult<Prisma.$PortfolioPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  sections<T extends Prisma.InvestmentThesis$sectionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.InvestmentThesis$sectionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ThesisSectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1738,9 +1753,6 @@ export interface InvestmentThesisFieldRefs {
   readonly targetPrice: Prisma.FieldRef<"InvestmentThesis", 'Decimal'>
   readonly stopLoss: Prisma.FieldRef<"InvestmentThesis", 'Decimal'>
   readonly timeHorizon: Prisma.FieldRef<"InvestmentThesis", 'String'>
-  readonly catalysts: Prisma.FieldRef<"InvestmentThesis", 'String'>
-  readonly risks: Prisma.FieldRef<"InvestmentThesis", 'String'>
-  readonly notes: Prisma.FieldRef<"InvestmentThesis", 'String'>
   readonly createdAt: Prisma.FieldRef<"InvestmentThesis", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"InvestmentThesis", 'DateTime'>
 }
@@ -2160,6 +2172,30 @@ export type InvestmentThesis$portfolioArgs<ExtArgs extends runtime.Types.Extensi
    */
   include?: Prisma.PortfolioInclude<ExtArgs> | null
   where?: Prisma.PortfolioWhereInput
+}
+
+/**
+ * InvestmentThesis.sections
+ */
+export type InvestmentThesis$sectionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ThesisSection
+   */
+  select?: Prisma.ThesisSectionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ThesisSection
+   */
+  omit?: Prisma.ThesisSectionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ThesisSectionInclude<ExtArgs> | null
+  where?: Prisma.ThesisSectionWhereInput
+  orderBy?: Prisma.ThesisSectionOrderByWithRelationInput | Prisma.ThesisSectionOrderByWithRelationInput[]
+  cursor?: Prisma.ThesisSectionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ThesisSectionScalarFieldEnum | Prisma.ThesisSectionScalarFieldEnum[]
 }
 
 /**

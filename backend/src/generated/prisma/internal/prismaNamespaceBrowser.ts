@@ -64,6 +64,8 @@ export const ModelName = {
   DividendAnnouncement: 'DividendAnnouncement',
   ExchangeRate: 'ExchangeRate',
   InvestmentThesis: 'InvestmentThesis',
+  ThesisSection: 'ThesisSection',
+  ThesisSectionVersion: 'ThesisSectionVersion',
   Transaction: 'Transaction',
   Position: 'Position',
   RebalanceLog: 'RebalanceLog',
@@ -297,14 +299,35 @@ export const InvestmentThesisScalarFieldEnum = {
   targetPrice: 'targetPrice',
   stopLoss: 'stopLoss',
   timeHorizon: 'timeHorizon',
-  catalysts: 'catalysts',
-  risks: 'risks',
-  notes: 'notes',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type InvestmentThesisScalarFieldEnum = (typeof InvestmentThesisScalarFieldEnum)[keyof typeof InvestmentThesisScalarFieldEnum]
+
+
+export const ThesisSectionScalarFieldEnum = {
+  id: 'id',
+  thesisId: 'thesisId',
+  title: 'title',
+  content: 'content',
+  position: 'position',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ThesisSectionScalarFieldEnum = (typeof ThesisSectionScalarFieldEnum)[keyof typeof ThesisSectionScalarFieldEnum]
+
+
+export const ThesisSectionVersionScalarFieldEnum = {
+  id: 'id',
+  sectionId: 'sectionId',
+  content: 'content',
+  createdAt: 'createdAt',
+  savedAt: 'savedAt'
+} as const
+
+export type ThesisSectionVersionScalarFieldEnum = (typeof ThesisSectionVersionScalarFieldEnum)[keyof typeof ThesisSectionVersionScalarFieldEnum]
 
 
 export const TransactionScalarFieldEnum = {

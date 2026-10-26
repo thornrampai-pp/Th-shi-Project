@@ -13,6 +13,32 @@ export const ThesisStatusEnum = builder.enumType('ThesisStatus', {
 });
 
 type ThesisShape = Awaited<ReturnType<typeof thesisService.getThesis>>;
+type SectionShape = ThesisShape['sections'][number];
+type SectionVersionShape = Awaited<ReturnType<typeof thesisService.listSectionVersions>>[number];
+
+const ThesisSectionVersionType = builder.objectRef<SectionVersionShape>('ThesisSectionVersion').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    content: t.exposeString('content'),
+    createdAt: t.field({ type: 'String', resolve: (v) => v.createdAt.toISOString() }),
+    savedAt: t.field({ type: 'String', resolve: (v) => v.savedAt.toISOString() }),
+  }),
+});
+
+const ThesisSectionType = builder.objectRef<SectionShape>('ThesisSection').implement({
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    title: t.exposeString('title'),
+    content: t.exposeString('content'),
+    position: t.exposeInt('position'),
+    updatedAt: t.field({ type: 'String', resolve: (s) => s.updatedAt.toISOString() }),
+    history: t.field({
+      type: [ThesisSectionVersionType],
+      description: 'Newest first. Saves within 10 minutes of each other are merged into one entry.',
+      resolve: (s) => thesisService.listSectionVersions(s.id),
+    }),
+  }),
+});
 
 const InvestmentThesisType = builder.objectRef<ThesisShape>('InvestmentThesis').implement({
   fields: (t) => ({
@@ -38,9 +64,7 @@ const InvestmentThesisType = builder.objectRef<ThesisShape>('InvestmentThesis').
       },
     }),
     timeHorizon: t.exposeString('timeHorizon', { nullable: true }),
-    catalysts: t.exposeString('catalysts', { nullable: true }),
-    risks: t.exposeString('risks', { nullable: true }),
-    notes: t.exposeString('notes', { nullable: true }),
+    sections: t.field({ type: [ThesisSectionType], resolve: (th) => th.sections }),
     createdAt: t.field({ type: 'String', resolve: (th) => th.createdAt.toISOString() }),
     updatedAt: t.field({ type: 'String', resolve: (th) => th.updatedAt.toISOString() }),
     asset: t.field({ type: AssetType, resolve: (th) => th.asset }),
@@ -58,9 +82,6 @@ const ThesisInputType = builder.inputType('InvestmentThesisInput', {
     targetPrice: t.float(),
     stopLoss: t.float(),
     timeHorizon: t.string(),
-    catalysts: t.string(),
-    risks: t.string(),
-    notes: t.string(),
   }),
 });
 
@@ -77,9 +98,6 @@ function toThesisInput(input: typeof ThesisInputType.$inferInput): ThesisInput {
     targetPrice: input.targetPrice ?? undefined,
     stopLoss: input.stopLoss ?? undefined,
     timeHorizon: input.timeHorizon ?? undefined,
-    catalysts: input.catalysts ?? undefined,
-    risks: input.risks ?? undefined,
-    notes: input.notes ?? undefined,
   };
 }
 
@@ -150,6 +168,46 @@ builder.mutationField('deleteInvestmentThesis', (t) =>
     resolve: (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
       return thesisService.deleteThesis(userId, String(args.id));
+    },
+  }),
+);
+
+builder.mutationField('addThesisSection', (t) =>
+  t.field({
+    type: ThesisSectionType,
+    args: {
+      thesisId: t.arg.id({ required: true }),
+      title: t.arg.string({ required: true }),
+      content: t.arg.string(),
+    },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return thesisService.addSection(userId, String(args.thesisId), args.title, args.content ?? undefined);
+    },
+  }),
+);
+
+builder.mutationField('updateThesisSection', (t) =>
+  t.field({
+    type: ThesisSectionType,
+    args: { id: t.arg.id({ required: true }), title: t.arg.string(), content: t.arg.string() },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return thesisService.updateSection(userId, String(args.id), {
+        title: args.title ?? undefined,
+        content: args.content ?? undefined,
+      });
+    },
+  }),
+);
+
+builder.mutationField('deleteThesisSection', (t) =>
+  t.field({
+    type: 'Boolean',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return thesisService.deleteSection(userId, String(args.id));
     },
   }),
 );

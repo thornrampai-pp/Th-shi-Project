@@ -83,6 +83,16 @@ export type ExchangeRate = Prisma.ExchangeRateModel
  */
 export type InvestmentThesis = Prisma.InvestmentThesisModel
 /**
+ * Model ThesisSection
+ * หัวข้อหนึ่งใน Thesis เก็บเนื้อหาล่าสุด ส่วนประวัติอยู่ใน ThesisSectionVersion
+ */
+export type ThesisSection = Prisma.ThesisSectionModel
+/**
+ * Model ThesisSectionVersion
+ * ประวัติเนื้อหาของแต่ละหัวข้อ การบันทึกที่ห่างกันไม่เกิน 10 นาทีจะรวมเป็นเวอร์ชันเดียว
+ */
+export type ThesisSectionVersion = Prisma.ThesisSectionVersionModel
+/**
  * Model Transaction
  * บันทึกประวัติธุรกรรมทั้งหมดในพอร์ต (ซื้อ, ขาย, ฝาก, ถอน, ปันผล ฯลฯ)
  */

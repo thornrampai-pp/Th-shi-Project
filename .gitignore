@@ -64,3 +64,8 @@ Desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# =========================
+# Claude Code (per-machine permissions)
+# =========================
+.claude/

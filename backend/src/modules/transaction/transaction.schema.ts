@@ -3,6 +3,8 @@ import { GraphQLContext, requireAuth } from '../../common/middlewares/auth.middl
 import * as transactionService from './transaction.service';
 import type { TransactionTypeValue } from './transaction.service';
 import * as slipService from './slip.service';
+import * as fxBreakdownService from './fx-breakdown.service';
+import type { PositionFxBreakdown } from './fx-breakdown.service';
 
 export const TransactionTypeEnum = builder.enumType('TransactionType', {
   values: ['BUY', 'SELL', 'DEPOSIT', 'WITHDRAW', 'DIVIDEND', 'REPATRIATION', 'FEE', 'TAX', 'SPLIT', 'ADJUSTMENT'] as const,
@@ -60,6 +62,16 @@ export const TransactionType = builder.objectRef<TransactionShape>('Transaction'
       nullable: true,
       resolve: (tr) => numOrNull(metadataOf(tr).realizedPL),
     }),
+    // SELL only, in THB: realizedPLHome = realizedStockPLHome + realizedFxPLHome.
+    // Null for sells recorded before the FX split existed (or paper trades without a rate).
+    realizedPLHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).realizedPLHome) }),
+    realizedStockPLHome: t.field({
+      type: 'Float',
+      nullable: true,
+      resolve: (tr) => numOrNull(metadataOf(tr).realizedStockPLHome),
+    }),
+    realizedFxPLHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).realizedFxPLHome) }),
+    costBasisHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).costBasisHome) }),
     note: t.field({
       type: 'String',
       nullable: true,
@@ -85,6 +97,9 @@ interface PositionShape {
   avgPrice: unknown;
   realizedPL: unknown;
   totalDiv: unknown;
+  realizedPLHome: unknown;
+  realizedStockPLHome: unknown;
+  realizedFxPLHome: unknown;
   updatedAt: Date;
 }
 
@@ -97,6 +112,9 @@ export const PositionType = builder.objectRef<PositionShape>('Position').impleme
     avgPrice: t.field({ type: 'Float', resolve: (p) => Number(p.avgPrice) }),
     realizedPL: t.field({ type: 'Float', resolve: (p) => Number(p.realizedPL) }),
     totalDiv: t.field({ type: 'Float', resolve: (p) => Number(p.totalDiv) }),
+    realizedPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedPLHome) }),
+    realizedStockPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedStockPLHome) }),
+    realizedFxPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedFxPLHome) }),
     updatedAt: t.field({ type: 'String', resolve: (p) => p.updatedAt.toISOString() }),
   }),
 });
@@ -261,6 +279,64 @@ builder.mutationField('uploadTransactionSlip', (t) =>
         args.imageBase64,
         args.mimeType ?? undefined,
       );
+    },
+  }),
+);
+
+/* ------------------------- FX vs stock P/L breakdown ------------------------- */
+
+const PositionFxBreakdownType = builder.objectRef<PositionFxBreakdown>('PositionFxBreakdown').implement({
+  fields: (t) => ({
+    assetId: t.exposeString('assetId'),
+    symbol: t.exposeString('symbol'),
+    currency: t.exposeString('currency'),
+    quantity: t.exposeFloat('quantity'),
+    marketPrice: t.exposeFloat('marketPrice', { nullable: true }),
+    currentFxRate: t.exposeFloat('currentFxRate', { nullable: true }),
+    costBasis: t.exposeFloat('costBasis'),
+    costBasisHome: t.exposeFloat('costBasisHome', { nullable: true }),
+    marketValueHome: t.exposeFloat('marketValueHome', { nullable: true }),
+    unrealizedPLHome: t.exposeFloat('unrealizedPLHome', { nullable: true }),
+    unrealizedStockPLHome: t.exposeFloat('unrealizedStockPLHome', { nullable: true }),
+    unrealizedFxPLHome: t.exposeFloat('unrealizedFxPLHome', { nullable: true }),
+    realizedPLHome: t.exposeFloat('realizedPLHome'),
+    realizedStockPLHome: t.exposeFloat('realizedStockPLHome'),
+    realizedFxPLHome: t.exposeFloat('realizedFxPLHome'),
+  }),
+});
+
+type PortfolioFxBreakdownShape = Awaited<ReturnType<typeof fxBreakdownService.getPortfolioFxBreakdown>>;
+
+const FxBreakdownTotalsType = builder
+  .objectRef<PortfolioFxBreakdownShape['totals']>('FxBreakdownTotals')
+  .implement({
+    fields: (t) => ({
+      unrealizedPLHome: t.exposeFloat('unrealizedPLHome'),
+      unrealizedStockPLHome: t.exposeFloat('unrealizedStockPLHome'),
+      unrealizedFxPLHome: t.exposeFloat('unrealizedFxPLHome'),
+      realizedPLHome: t.exposeFloat('realizedPLHome'),
+      realizedStockPLHome: t.exposeFloat('realizedStockPLHome'),
+      realizedFxPLHome: t.exposeFloat('realizedFxPLHome'),
+      complete: t.exposeBoolean('complete'),
+    }),
+  });
+
+const PortfolioFxBreakdownType = builder.objectRef<PortfolioFxBreakdownShape>('PortfolioFxBreakdown').implement({
+  fields: (t) => ({
+    homeCurrency: t.exposeString('homeCurrency'),
+    positions: t.field({ type: [PositionFxBreakdownType], resolve: (b) => b.positions }),
+    totals: t.field({ type: FxBreakdownTotalsType, resolve: (b) => b.totals }),
+  }),
+});
+
+builder.queryField('portfolioFxBreakdown', (t) =>
+  t.field({
+    type: PortfolioFxBreakdownType,
+    description: 'P/L in THB split into stock-price and FX components, realized and unrealized',
+    args: { portfolioId: t.arg.id({ required: true }) },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return fxBreakdownService.getPortfolioFxBreakdown(userId, String(args.portfolioId));
     },
   }),
 );

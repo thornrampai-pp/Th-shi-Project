@@ -29,12 +29,14 @@ export type AggregateTaxLot = {
 export type TaxLotAvgAggregateOutputType = {
   remainingQty: runtime.Decimal | null
   purchasePrice: runtime.Decimal | null
+  purchaseFxRate: runtime.Decimal | null
   earnedYear: number | null
 }
 
 export type TaxLotSumAggregateOutputType = {
   remainingQty: runtime.Decimal | null
   purchasePrice: runtime.Decimal | null
+  purchaseFxRate: runtime.Decimal | null
   earnedYear: number | null
 }
 
@@ -45,6 +47,7 @@ export type TaxLotMinAggregateOutputType = {
   transactionId: string | null
   remainingQty: runtime.Decimal | null
   purchasePrice: runtime.Decimal | null
+  purchaseFxRate: runtime.Decimal | null
   earnedYear: number | null
   executedAt: Date | null
   createdAt: Date | null
@@ -57,6 +60,7 @@ export type TaxLotMaxAggregateOutputType = {
   transactionId: string | null
   remainingQty: runtime.Decimal | null
   purchasePrice: runtime.Decimal | null
+  purchaseFxRate: runtime.Decimal | null
   earnedYear: number | null
   executedAt: Date | null
   createdAt: Date | null
@@ -69,6 +73,7 @@ export type TaxLotCountAggregateOutputType = {
   transactionId: number
   remainingQty: number
   purchasePrice: number
+  purchaseFxRate: number
   earnedYear: number
   executedAt: number
   createdAt: number
@@ -79,12 +84,14 @@ export type TaxLotCountAggregateOutputType = {
 export type TaxLotAvgAggregateInputType = {
   remainingQty?: true
   purchasePrice?: true
+  purchaseFxRate?: true
   earnedYear?: true
 }
 
 export type TaxLotSumAggregateInputType = {
   remainingQty?: true
   purchasePrice?: true
+  purchaseFxRate?: true
   earnedYear?: true
 }
 
@@ -95,6 +102,7 @@ export type TaxLotMinAggregateInputType = {
   transactionId?: true
   remainingQty?: true
   purchasePrice?: true
+  purchaseFxRate?: true
   earnedYear?: true
   executedAt?: true
   createdAt?: true
@@ -107,6 +115,7 @@ export type TaxLotMaxAggregateInputType = {
   transactionId?: true
   remainingQty?: true
   purchasePrice?: true
+  purchaseFxRate?: true
   earnedYear?: true
   executedAt?: true
   createdAt?: true
@@ -119,6 +128,7 @@ export type TaxLotCountAggregateInputType = {
   transactionId?: true
   remainingQty?: true
   purchasePrice?: true
+  purchaseFxRate?: true
   earnedYear?: true
   executedAt?: true
   createdAt?: true
@@ -218,6 +228,7 @@ export type TaxLotGroupByOutputType = {
   transactionId: string
   remainingQty: runtime.Decimal
   purchasePrice: runtime.Decimal
+  purchaseFxRate: runtime.Decimal | null
   earnedYear: number
   executedAt: Date
   createdAt: Date
@@ -253,6 +264,7 @@ export type TaxLotWhereInput = {
   transactionId?: Prisma.StringFilter<"TaxLot"> | string
   remainingQty?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.DecimalNullableFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFilter<"TaxLot"> | number
   executedAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
@@ -268,6 +280,7 @@ export type TaxLotOrderByWithRelationInput = {
   transactionId?: Prisma.SortOrder
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrderInput | Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -286,6 +299,7 @@ export type TaxLotWhereUniqueInput = Prisma.AtLeast<{
   transactionId?: Prisma.StringFilter<"TaxLot"> | string
   remainingQty?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.DecimalNullableFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFilter<"TaxLot"> | number
   executedAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
@@ -301,6 +315,7 @@ export type TaxLotOrderByWithAggregationInput = {
   transactionId?: Prisma.SortOrder
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrderInput | Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -321,6 +336,7 @@ export type TaxLotScalarWhereWithAggregatesInput = {
   transactionId?: Prisma.StringWithAggregatesFilter<"TaxLot"> | string
   remainingQty?: Prisma.DecimalWithAggregatesFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalWithAggregatesFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.DecimalNullableWithAggregatesFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntWithAggregatesFilter<"TaxLot"> | number
   executedAt?: Prisma.DateTimeWithAggregatesFilter<"TaxLot"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"TaxLot"> | Date | string
@@ -330,6 +346,7 @@ export type TaxLotCreateInput = {
   id?: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -345,6 +362,7 @@ export type TaxLotUncheckedCreateInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -354,6 +372,7 @@ export type TaxLotUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -369,6 +388,7 @@ export type TaxLotUncheckedUpdateInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -381,6 +401,7 @@ export type TaxLotCreateManyInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -390,6 +411,7 @@ export type TaxLotUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -402,6 +424,7 @@ export type TaxLotUncheckedUpdateManyInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -424,6 +447,7 @@ export type TaxLotCountOrderByAggregateInput = {
   transactionId?: Prisma.SortOrder
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -432,6 +456,7 @@ export type TaxLotCountOrderByAggregateInput = {
 export type TaxLotAvgOrderByAggregateInput = {
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
 }
 
@@ -442,6 +467,7 @@ export type TaxLotMaxOrderByAggregateInput = {
   transactionId?: Prisma.SortOrder
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -454,6 +480,7 @@ export type TaxLotMinOrderByAggregateInput = {
   transactionId?: Prisma.SortOrder
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -462,6 +489,7 @@ export type TaxLotMinOrderByAggregateInput = {
 export type TaxLotSumOrderByAggregateInput = {
   remainingQty?: Prisma.SortOrder
   purchasePrice?: Prisma.SortOrder
+  purchaseFxRate?: Prisma.SortOrder
   earnedYear?: Prisma.SortOrder
 }
 
@@ -595,6 +623,7 @@ export type TaxLotCreateWithoutPortfolioInput = {
   id?: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -608,6 +637,7 @@ export type TaxLotUncheckedCreateWithoutPortfolioInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -649,6 +679,7 @@ export type TaxLotScalarWhereInput = {
   transactionId?: Prisma.StringFilter<"TaxLot"> | string
   remainingQty?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.DecimalNullableFilter<"TaxLot"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFilter<"TaxLot"> | number
   executedAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"TaxLot"> | Date | string
@@ -658,6 +689,7 @@ export type TaxLotCreateWithoutAssetInput = {
   id?: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -671,6 +703,7 @@ export type TaxLotUncheckedCreateWithoutAssetInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -706,6 +739,7 @@ export type TaxLotCreateWithoutTransactionInput = {
   id?: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -719,6 +753,7 @@ export type TaxLotUncheckedCreateWithoutTransactionInput = {
   assetId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -756,6 +791,7 @@ export type TaxLotCreateManyPortfolioInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -765,6 +801,7 @@ export type TaxLotUpdateWithoutPortfolioInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -778,6 +815,7 @@ export type TaxLotUncheckedUpdateWithoutPortfolioInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -789,6 +827,7 @@ export type TaxLotUncheckedUpdateManyWithoutPortfolioInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -800,6 +839,7 @@ export type TaxLotCreateManyAssetInput = {
   transactionId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -809,6 +849,7 @@ export type TaxLotUpdateWithoutAssetInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -822,6 +863,7 @@ export type TaxLotUncheckedUpdateWithoutAssetInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -833,6 +875,7 @@ export type TaxLotUncheckedUpdateManyWithoutAssetInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -844,6 +887,7 @@ export type TaxLotCreateManyTransactionInput = {
   assetId: string
   remainingQty: runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear: number
   executedAt: Date | string
   createdAt?: Date | string
@@ -853,6 +897,7 @@ export type TaxLotUpdateWithoutTransactionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -866,6 +911,7 @@ export type TaxLotUncheckedUpdateWithoutTransactionInput = {
   assetId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -877,6 +923,7 @@ export type TaxLotUncheckedUpdateManyWithoutTransactionInput = {
   assetId?: Prisma.StringFieldUpdateOperationsInput | string
   remainingQty?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   purchasePrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  purchaseFxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   earnedYear?: Prisma.IntFieldUpdateOperationsInput | number
   executedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -891,6 +938,7 @@ export type TaxLotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   transactionId?: boolean
   remainingQty?: boolean
   purchasePrice?: boolean
+  purchaseFxRate?: boolean
   earnedYear?: boolean
   executedAt?: boolean
   createdAt?: boolean
@@ -906,6 +954,7 @@ export type TaxLotSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   transactionId?: boolean
   remainingQty?: boolean
   purchasePrice?: boolean
+  purchaseFxRate?: boolean
   earnedYear?: boolean
   executedAt?: boolean
   createdAt?: boolean
@@ -921,6 +970,7 @@ export type TaxLotSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   transactionId?: boolean
   remainingQty?: boolean
   purchasePrice?: boolean
+  purchaseFxRate?: boolean
   earnedYear?: boolean
   executedAt?: boolean
   createdAt?: boolean
@@ -936,12 +986,13 @@ export type TaxLotSelectScalar = {
   transactionId?: boolean
   remainingQty?: boolean
   purchasePrice?: boolean
+  purchaseFxRate?: boolean
   earnedYear?: boolean
   executedAt?: boolean
   createdAt?: boolean
 }
 
-export type TaxLotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "assetId" | "transactionId" | "remainingQty" | "purchasePrice" | "earnedYear" | "executedAt" | "createdAt", ExtArgs["result"]["taxLot"]>
+export type TaxLotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "assetId" | "transactionId" | "remainingQty" | "purchasePrice" | "purchaseFxRate" | "earnedYear" | "executedAt" | "createdAt", ExtArgs["result"]["taxLot"]>
 export type TaxLotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
   asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
@@ -972,6 +1023,7 @@ export type $TaxLotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     transactionId: string
     remainingQty: runtime.Decimal
     purchasePrice: runtime.Decimal
+    purchaseFxRate: runtime.Decimal | null
     earnedYear: number
     executedAt: Date
     createdAt: Date
@@ -1407,6 +1459,7 @@ export interface TaxLotFieldRefs {
   readonly transactionId: Prisma.FieldRef<"TaxLot", 'String'>
   readonly remainingQty: Prisma.FieldRef<"TaxLot", 'Decimal'>
   readonly purchasePrice: Prisma.FieldRef<"TaxLot", 'Decimal'>
+  readonly purchaseFxRate: Prisma.FieldRef<"TaxLot", 'Decimal'>
   readonly earnedYear: Prisma.FieldRef<"TaxLot", 'Int'>
   readonly executedAt: Prisma.FieldRef<"TaxLot", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"TaxLot", 'DateTime'>

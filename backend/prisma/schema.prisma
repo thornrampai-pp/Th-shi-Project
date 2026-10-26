@@ -463,6 +463,12 @@ model Position {
   avgPrice     Decimal  @db.Decimal(24, 8) // ราคาต้นทุนเฉลี่ยต่อหน่วย (Average Cost)
   realizedPL   Decimal  @default(0) @db.Decimal(24, 8) // กำไร/ขาดทุนที่ขายไปแล้วสะสม
   totalDiv     Decimal  @default(0) @db.Decimal(24, 8) // เงินปันผลรับสะสมทั้งหมดจากตัวนี้
+
+  // กำไร/ขาดทุนที่รับรู้แล้ว คิดเป็นสกุลเงินบ้าน (THB) แยกส่วนราคาหุ้นกับส่วนค่าเงิน
+  // realizedPLHome = realizedStockPLHome + realizedFxPLHome (สะสมเฉพาะการขายที่มีเรทครบ)
+  realizedPLHome      Decimal @default(0) @db.Decimal(24, 8)
+  realizedStockPLHome Decimal @default(0) @db.Decimal(24, 8) // ส่วนที่มาจากราคาหุ้นเปลี่ยน (แปลงด้วยเรทวันขาย)
+  realizedFxPLHome    Decimal @default(0) @db.Decimal(24, 8) // ส่วนที่มาจากค่าเงินเปลี่ยน (FX gain/loss)
   targetWeight Decimal? @db.Decimal(5, 2) // เปอร์เซ็นต์สัดส่วนเป้าหมาย (Target %) สำหรับทำ Rebalancing
   updatedAt    DateTime @updatedAt
 
@@ -534,6 +540,7 @@ model TaxLot {
   transactionId String // ธุรกรรมซื้อล็อตนี้
   remainingQty  Decimal  @db.Decimal(24, 8) // จำนวนหุ้นคงเหลือในล็อตนี้
   purchasePrice Decimal  @db.Decimal(24, 8) // ราคาซื้อต่อหน่วยในล็อตนี้
+  purchaseFxRate Decimal? @db.Decimal(18, 6) // เรท สกุลของล็อต → THB ณ วันซื้อ (ใช้แยก FX gain/loss ตอนขาย)
   earnedYear    Int // ปี ค.ศ. ที่เกิดรายการ
   executedAt    DateTime // วันเวลาที่ซื้อ
   createdAt     DateTime @default(now())

@@ -338,6 +338,9 @@ export const PositionScalarFieldEnum = {
   avgPrice: 'avgPrice',
   realizedPL: 'realizedPL',
   totalDiv: 'totalDiv',
+  realizedPLHome: 'realizedPLHome',
+  realizedStockPLHome: 'realizedStockPLHome',
+  realizedFxPLHome: 'realizedFxPLHome',
   targetWeight: 'targetWeight',
   updatedAt: 'updatedAt'
 } as const
@@ -391,6 +394,7 @@ export const TaxLotScalarFieldEnum = {
   transactionId: 'transactionId',
   remainingQty: 'remainingQty',
   purchasePrice: 'purchasePrice',
+  purchaseFxRate: 'purchaseFxRate',
   earnedYear: 'earnedYear',
   executedAt: 'executedAt',
   createdAt: 'createdAt'

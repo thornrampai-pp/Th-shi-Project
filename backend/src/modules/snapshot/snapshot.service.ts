@@ -1,11 +1,11 @@
 import { prisma } from "../../config/prisma";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
-import { createRateResolver } from "../fx/fx.service";
+import { HOME_CURRENCY, createRateResolver } from "../fx/fx.service";
 import { endOfUtcDay, utcDay } from "../../common/utils/date.util";
 import { replayPositions } from "./replay";
 
 /** Currency that cross-portfolio totals (net worth, combined dashboard) are reported in. */
-export const REPORTING_CURRENCY = "THB";
+export const REPORTING_CURRENCY = HOME_CURRENCY;
 
 export type SnapshotGranularityValue = "DAILY" | "MONTHLY" | "YEARLY";
 

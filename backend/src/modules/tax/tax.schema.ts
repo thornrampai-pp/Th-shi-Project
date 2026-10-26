@@ -74,6 +74,11 @@ const TaxLotType = builder.objectRef<TaxLotShape>('TaxLot').implement({
     transactionId: t.exposeString('transactionId'),
     remainingQty: t.field({ type: 'Float', resolve: (l) => Number(l.remainingQty) }),
     purchasePrice: t.field({ type: 'Float', resolve: (l) => Number(l.purchasePrice) }),
+    purchaseFxRate: t.field({
+      type: 'Float',
+      nullable: true,
+      resolve: (l) => (l.purchaseFxRate == null ? null : Number(l.purchaseFxRate)),
+    }),
     earnedYear: t.exposeInt('earnedYear'),
     executedAt: t.field({ type: 'String', resolve: (l) => l.executedAt.toISOString() }),
     asset: t.field({ type: AssetType, resolve: (l) => l.asset }),

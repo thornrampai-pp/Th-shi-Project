@@ -31,6 +31,9 @@ export type PositionAvgAggregateOutputType = {
   avgPrice: runtime.Decimal | null
   realizedPL: runtime.Decimal | null
   totalDiv: runtime.Decimal | null
+  realizedPLHome: runtime.Decimal | null
+  realizedStockPLHome: runtime.Decimal | null
+  realizedFxPLHome: runtime.Decimal | null
   targetWeight: runtime.Decimal | null
 }
 
@@ -39,6 +42,9 @@ export type PositionSumAggregateOutputType = {
   avgPrice: runtime.Decimal | null
   realizedPL: runtime.Decimal | null
   totalDiv: runtime.Decimal | null
+  realizedPLHome: runtime.Decimal | null
+  realizedStockPLHome: runtime.Decimal | null
+  realizedFxPLHome: runtime.Decimal | null
   targetWeight: runtime.Decimal | null
 }
 
@@ -50,6 +56,9 @@ export type PositionMinAggregateOutputType = {
   avgPrice: runtime.Decimal | null
   realizedPL: runtime.Decimal | null
   totalDiv: runtime.Decimal | null
+  realizedPLHome: runtime.Decimal | null
+  realizedStockPLHome: runtime.Decimal | null
+  realizedFxPLHome: runtime.Decimal | null
   targetWeight: runtime.Decimal | null
   updatedAt: Date | null
 }
@@ -62,6 +71,9 @@ export type PositionMaxAggregateOutputType = {
   avgPrice: runtime.Decimal | null
   realizedPL: runtime.Decimal | null
   totalDiv: runtime.Decimal | null
+  realizedPLHome: runtime.Decimal | null
+  realizedStockPLHome: runtime.Decimal | null
+  realizedFxPLHome: runtime.Decimal | null
   targetWeight: runtime.Decimal | null
   updatedAt: Date | null
 }
@@ -74,6 +86,9 @@ export type PositionCountAggregateOutputType = {
   avgPrice: number
   realizedPL: number
   totalDiv: number
+  realizedPLHome: number
+  realizedStockPLHome: number
+  realizedFxPLHome: number
   targetWeight: number
   updatedAt: number
   _all: number
@@ -85,6 +100,9 @@ export type PositionAvgAggregateInputType = {
   avgPrice?: true
   realizedPL?: true
   totalDiv?: true
+  realizedPLHome?: true
+  realizedStockPLHome?: true
+  realizedFxPLHome?: true
   targetWeight?: true
 }
 
@@ -93,6 +111,9 @@ export type PositionSumAggregateInputType = {
   avgPrice?: true
   realizedPL?: true
   totalDiv?: true
+  realizedPLHome?: true
+  realizedStockPLHome?: true
+  realizedFxPLHome?: true
   targetWeight?: true
 }
 
@@ -104,6 +125,9 @@ export type PositionMinAggregateInputType = {
   avgPrice?: true
   realizedPL?: true
   totalDiv?: true
+  realizedPLHome?: true
+  realizedStockPLHome?: true
+  realizedFxPLHome?: true
   targetWeight?: true
   updatedAt?: true
 }
@@ -116,6 +140,9 @@ export type PositionMaxAggregateInputType = {
   avgPrice?: true
   realizedPL?: true
   totalDiv?: true
+  realizedPLHome?: true
+  realizedStockPLHome?: true
+  realizedFxPLHome?: true
   targetWeight?: true
   updatedAt?: true
 }
@@ -128,6 +155,9 @@ export type PositionCountAggregateInputType = {
   avgPrice?: true
   realizedPL?: true
   totalDiv?: true
+  realizedPLHome?: true
+  realizedStockPLHome?: true
+  realizedFxPLHome?: true
   targetWeight?: true
   updatedAt?: true
   _all?: true
@@ -227,6 +257,9 @@ export type PositionGroupByOutputType = {
   avgPrice: runtime.Decimal
   realizedPL: runtime.Decimal
   totalDiv: runtime.Decimal
+  realizedPLHome: runtime.Decimal
+  realizedStockPLHome: runtime.Decimal
+  realizedFxPLHome: runtime.Decimal
   targetWeight: runtime.Decimal | null
   updatedAt: Date
   _count: PositionCountAggregateOutputType | null
@@ -262,6 +295,9 @@ export type PositionWhereInput = {
   avgPrice?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.DecimalNullableFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFilter<"Position"> | Date | string
   portfolio?: Prisma.XOR<Prisma.PortfolioScalarRelationFilter, Prisma.PortfolioWhereInput>
@@ -277,6 +313,9 @@ export type PositionOrderByWithRelationInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   portfolio?: Prisma.PortfolioOrderByWithRelationInput
@@ -296,6 +335,9 @@ export type PositionWhereUniqueInput = Prisma.AtLeast<{
   avgPrice?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.DecimalNullableFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFilter<"Position"> | Date | string
   portfolio?: Prisma.XOR<Prisma.PortfolioScalarRelationFilter, Prisma.PortfolioWhereInput>
@@ -311,6 +353,9 @@ export type PositionOrderByWithAggregationInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PositionCountOrderByAggregateInput
@@ -331,6 +376,9 @@ export type PositionScalarWhereWithAggregatesInput = {
   avgPrice?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.DecimalNullableWithAggregatesFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Position"> | Date | string
 }
@@ -341,6 +389,9 @@ export type PositionCreateInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutPositionsInput
@@ -356,6 +407,9 @@ export type PositionUncheckedCreateInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedCreateNestedManyWithoutPositionInput
@@ -367,6 +421,9 @@ export type PositionUpdateInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutPositionsNestedInput
@@ -382,6 +439,9 @@ export type PositionUncheckedUpdateInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedUpdateManyWithoutPositionNestedInput
@@ -395,6 +455,9 @@ export type PositionCreateManyInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
 }
@@ -405,6 +468,9 @@ export type PositionUpdateManyMutationInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -417,6 +483,9 @@ export type PositionUncheckedUpdateManyInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -449,6 +518,9 @@ export type PositionCountOrderByAggregateInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -458,6 +530,9 @@ export type PositionAvgOrderByAggregateInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrder
 }
 
@@ -469,6 +544,9 @@ export type PositionMaxOrderByAggregateInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -481,6 +559,9 @@ export type PositionMinOrderByAggregateInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -490,6 +571,9 @@ export type PositionSumOrderByAggregateInput = {
   avgPrice?: Prisma.SortOrder
   realizedPL?: Prisma.SortOrder
   totalDiv?: Prisma.SortOrder
+  realizedPLHome?: Prisma.SortOrder
+  realizedStockPLHome?: Prisma.SortOrder
+  realizedFxPLHome?: Prisma.SortOrder
   targetWeight?: Prisma.SortOrder
 }
 
@@ -599,6 +683,9 @@ export type PositionCreateWithoutPortfolioInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   asset: Prisma.AssetCreateNestedOneWithoutPositionsInput
@@ -612,6 +699,9 @@ export type PositionUncheckedCreateWithoutPortfolioInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedCreateNestedManyWithoutPositionInput
@@ -654,6 +744,9 @@ export type PositionScalarWhereInput = {
   avgPrice?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.DecimalNullableFilter<"Position"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFilter<"Position"> | Date | string
 }
@@ -664,6 +757,9 @@ export type PositionCreateWithoutLedgerEntriesInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutPositionsInput
@@ -678,6 +774,9 @@ export type PositionUncheckedCreateWithoutLedgerEntriesInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
 }
@@ -704,6 +803,9 @@ export type PositionUpdateWithoutLedgerEntriesInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutPositionsNestedInput
@@ -718,6 +820,9 @@ export type PositionUncheckedUpdateWithoutLedgerEntriesInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -728,6 +833,9 @@ export type PositionCreateWithoutAssetInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutPositionsInput
@@ -741,6 +849,9 @@ export type PositionUncheckedCreateWithoutAssetInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedCreateNestedManyWithoutPositionInput
@@ -779,6 +890,9 @@ export type PositionCreateManyPortfolioInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
 }
@@ -789,6 +903,9 @@ export type PositionUpdateWithoutPortfolioInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   asset?: Prisma.AssetUpdateOneRequiredWithoutPositionsNestedInput
@@ -802,6 +919,9 @@ export type PositionUncheckedUpdateWithoutPortfolioInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedUpdateManyWithoutPositionNestedInput
@@ -814,6 +934,9 @@ export type PositionUncheckedUpdateManyWithoutPortfolioInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -825,6 +948,9 @@ export type PositionCreateManyAssetInput = {
   avgPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Date | string
 }
@@ -835,6 +961,9 @@ export type PositionUpdateWithoutAssetInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutPositionsNestedInput
@@ -848,6 +977,9 @@ export type PositionUncheckedUpdateWithoutAssetInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   ledgerEntries?: Prisma.LedgerEntryUncheckedUpdateManyWithoutPositionNestedInput
@@ -860,6 +992,9 @@ export type PositionUncheckedUpdateManyWithoutAssetInput = {
   avgPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   realizedPL?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   totalDiv?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedStockPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  realizedFxPLHome?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   targetWeight?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -903,6 +1038,9 @@ export type PositionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   avgPrice?: boolean
   realizedPL?: boolean
   totalDiv?: boolean
+  realizedPLHome?: boolean
+  realizedStockPLHome?: boolean
+  realizedFxPLHome?: boolean
   targetWeight?: boolean
   updatedAt?: boolean
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
@@ -919,6 +1057,9 @@ export type PositionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   avgPrice?: boolean
   realizedPL?: boolean
   totalDiv?: boolean
+  realizedPLHome?: boolean
+  realizedStockPLHome?: boolean
+  realizedFxPLHome?: boolean
   targetWeight?: boolean
   updatedAt?: boolean
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
@@ -933,6 +1074,9 @@ export type PositionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   avgPrice?: boolean
   realizedPL?: boolean
   totalDiv?: boolean
+  realizedPLHome?: boolean
+  realizedStockPLHome?: boolean
+  realizedFxPLHome?: boolean
   targetWeight?: boolean
   updatedAt?: boolean
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
@@ -947,11 +1091,14 @@ export type PositionSelectScalar = {
   avgPrice?: boolean
   realizedPL?: boolean
   totalDiv?: boolean
+  realizedPLHome?: boolean
+  realizedStockPLHome?: boolean
+  realizedFxPLHome?: boolean
   targetWeight?: boolean
   updatedAt?: boolean
 }
 
-export type PositionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "assetId" | "quantity" | "avgPrice" | "realizedPL" | "totalDiv" | "targetWeight" | "updatedAt", ExtArgs["result"]["position"]>
+export type PositionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "assetId" | "quantity" | "avgPrice" | "realizedPL" | "totalDiv" | "realizedPLHome" | "realizedStockPLHome" | "realizedFxPLHome" | "targetWeight" | "updatedAt", ExtArgs["result"]["position"]>
 export type PositionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
   asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
@@ -982,6 +1129,9 @@ export type $PositionPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     avgPrice: runtime.Decimal
     realizedPL: runtime.Decimal
     totalDiv: runtime.Decimal
+    realizedPLHome: runtime.Decimal
+    realizedStockPLHome: runtime.Decimal
+    realizedFxPLHome: runtime.Decimal
     targetWeight: runtime.Decimal | null
     updatedAt: Date
   }, ExtArgs["result"]["position"]>
@@ -1417,6 +1567,9 @@ export interface PositionFieldRefs {
   readonly avgPrice: Prisma.FieldRef<"Position", 'Decimal'>
   readonly realizedPL: Prisma.FieldRef<"Position", 'Decimal'>
   readonly totalDiv: Prisma.FieldRef<"Position", 'Decimal'>
+  readonly realizedPLHome: Prisma.FieldRef<"Position", 'Decimal'>
+  readonly realizedStockPLHome: Prisma.FieldRef<"Position", 'Decimal'>
+  readonly realizedFxPLHome: Prisma.FieldRef<"Position", 'Decimal'>
   readonly targetWeight: Prisma.FieldRef<"Position", 'Decimal'>
   readonly updatedAt: Prisma.FieldRef<"Position", 'DateTime'>
 }

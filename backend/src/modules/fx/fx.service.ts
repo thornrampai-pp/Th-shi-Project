@@ -7,6 +7,12 @@ import {
 } from "../../common/integrations/yahoo-finance.util";
 import { addDays, utcDay } from "../../common/utils/date.util";
 
+/**
+ * The user's home currency: tax is filed in it, cross-portfolio totals are reported in
+ * it, and FX gain/loss is measured against it.
+ */
+export const HOME_CURRENCY = "THB";
+
 const FX_LIVE_TTL_SECONDS = 60 * 60; // 1h — good enough for valuation/net worth
 // How far back a stored rate may be used for a given day (weekends, holidays).
 const FX_LOOKBACK_DAYS = 7;
@@ -168,4 +174,24 @@ export async function listExchangeRates(fromCurrency: string, toCurrency: string
     },
     orderBy: { date: "asc" },
   });
+}
+
+/**
+ * Rate to the home currency for P/L splitting. REAL portfolios must have it (throws if
+ * no rate can be found); PAPER portfolios degrade to null so a Yahoo outage never
+ * blocks simulated trading — the FX split is then just skipped for that trade.
+ */
+export async function resolveHomeFxRate(
+  portfolio: { type: string },
+  currency: string,
+  date: Date,
+): Promise<number | null> {
+  if (normalizeCurrency(currency) === HOME_CURRENCY) return 1;
+  if (portfolio.type === "REAL") return getExchangeRate(currency, HOME_CURRENCY, date);
+  try {
+    return await getExchangeRate(currency, HOME_CURRENCY, date);
+  } catch (err) {
+    console.warn(`⚠️ No ${currency}/${HOME_CURRENCY} rate for paper trade — FX split skipped:`, err instanceof Error ? err.message : err);
+    return null;
+  }
 }

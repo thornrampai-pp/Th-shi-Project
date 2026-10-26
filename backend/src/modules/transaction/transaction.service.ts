@@ -6,7 +6,9 @@ import type { LedgerEntryInput, LedgerTxClient } from "../ledger/ledger.service"
 import { notifyEvent } from "../notification/notification.service";
 import { normalizeCountryCode } from "../../common/utils/source-country.util";
 import { repairIfBackdated } from "../history/history.service";
-import { getExchangeRate } from "../fx/fx.service";
+import { getExchangeRate, resolveHomeFxRate } from "../fx/fx.service";
+import { splitPL } from "./fx-pl";
+import type { FxLot } from "./fx-pl";
 import {
   TAX_CURRENCY,
   recordTax,
@@ -257,16 +259,26 @@ async function createBuyTransaction(
 
   assertNonNegative(fee, "fee");
 
+  const executedAt = input.executedAt ?? new Date();
+
+  // Rate at purchase is stored on the lot so a later SELL can split FX from stock P/L.
+  // Fetched before the DB transaction — never hold row locks across a network call.
+  const assetForFx = await prisma.asset.findUnique({ where: { id: assetId } });
+  if (!assetForFx) {
+    throw AppError.notFound("Asset not found");
+  }
+  const purchaseFxRate = await resolveHomeFxRate(
+    portfolio,
+    input.currency ?? assetForFx.currency,
+    executedAt,
+  );
+
   return prisma.$transaction(async (tx) => {
-    const asset = await tx.asset.findUnique({
+    const asset = await tx.asset.findUniqueOrThrow({
       where: {
         id: assetId,
       },
     });
-
-    if (!asset) {
-      throw AppError.notFound("Asset not found");
-    }
 
     const cashAccount = await getCashAccount(
       tx,
@@ -278,8 +290,6 @@ async function createBuyTransaction(
 
     const effectiveUnitCost = totalCost / quantity;
 
-    const executedAt = input.executedAt ?? new Date();
-
     const transaction = await tx.transaction.create({
       data: {
         portfolioId,
@@ -288,6 +298,7 @@ async function createBuyTransaction(
         mainQuantity: quantity,
         mainPrice: price,
         baseCurrAmount: totalCost,
+        exchangeRate: purchaseFxRate,
         fee,
         executedAt,
         metadata: { currency: cashAccount.currency, note: input.note },
@@ -361,6 +372,7 @@ async function createBuyTransaction(
         transactionId: transaction.id,
         remainingQty: quantity,
         purchasePrice: effectiveUnitCost,
+        purchaseFxRate,
         earnedYear: executedAt.getFullYear(),
         executedAt,
       },
@@ -382,7 +394,8 @@ async function createBuyTransaction(
  * Plus:
  * - FIFO TaxLot consumption
  * - update Position
- * - calculate realizedPL
+ * - calculate realizedPL, and split it (in THB) into stock-price vs FX components
+ *   using each consumed lot's purchase rate and the rate at sale (see fx-pl.ts)
  * - CAPITAL_GAIN TaxRecord when there's a gain in a REAL portfolio
  */
 async function createSellTransaction(
@@ -407,10 +420,14 @@ async function createSellTransaction(
   if (!assetForFx) {
     throw AppError.notFound("Asset not found");
   }
-  const taxFxRate = await resolveTaxFxRate(
+  const sellCurrency = input.currency ?? assetForFx.currency;
+  const sellFxRate = await resolveHomeFxRate(portfolio, sellCurrency, executedAt);
+  const taxFxRate = portfolio.type === "REAL" ? sellFxRate : null;
+  const missingLotRates = await resolveMissingLotFxRates(
     portfolio,
-    input.currency ?? assetForFx.currency,
-    executedAt,
+    portfolioId,
+    assetId,
+    sellCurrency,
   );
 
   return prisma.$transaction(async (tx) => {
@@ -467,6 +484,8 @@ async function createSellTransaction(
 
     let remainingToSell = quantity;
     let costBasisRemoved = 0;
+    const consumedLots: FxLot[] = [];
+    let allLotRatesKnown = true;
 
     for (const lot of openLots) {
       if (remainingToSell <= 0) {
@@ -477,16 +496,35 @@ async function createSellTransaction(
 
       const consumeQty = Math.min(lotRemaining, remainingToSell);
 
+      const lotFxRate =
+        lot.purchaseFxRate != null
+          ? Number(lot.purchaseFxRate)
+          : (missingLotRates.get(lot.id) ?? null);
+
       await tx.taxLot.update({
         where: {
           id: lot.id,
         },
         data: {
           remainingQty: lotRemaining - consumeQty,
+          // Legacy lots (before rates were recorded) get theirs filled in on first sale.
+          ...(lot.purchaseFxRate == null && lotFxRate != null
+            ? { purchaseFxRate: lotFxRate }
+            : {}),
         },
       });
 
       costBasisRemoved += consumeQty * Number(lot.purchasePrice);
+
+      if (lotFxRate == null) {
+        allLotRatesKnown = false;
+      } else {
+        consumedLots.push({
+          quantity: consumeQty,
+          unitCost: Number(lot.purchasePrice),
+          fxRate: lotFxRate,
+        });
+      }
 
       remainingToSell -= consumeQty;
     }
@@ -499,6 +537,12 @@ async function createSellTransaction(
 
     const realizedPL = netCashIn - costBasisRemoved;
 
+    // Null when any rate is missing (only possible for PAPER) — no partial splits.
+    const fxSplit =
+      sellFxRate != null && allLotRatesKnown
+        ? splitPL(consumedLots, netCashIn, sellFxRate)
+        : null;
+
     const transaction = await tx.transaction.create({
       data: {
         portfolioId,
@@ -507,12 +551,23 @@ async function createSellTransaction(
         mainQuantity: quantity,
         mainPrice: price,
         baseCurrAmount: netCashIn,
+        exchangeRate: sellFxRate,
         fee,
         executedAt,
         metadata: {
           currency: cashAccount.currency,
           costBasis: costBasisRemoved,
           realizedPL,
+          ...(fxSplit
+            ? {
+                homeCurrency: TAX_CURRENCY,
+                costBasisHome: fxSplit.costBasisHome,
+                proceedsHome: fxSplit.valueHome,
+                realizedPLHome: fxSplit.plHome,
+                realizedStockPLHome: fxSplit.stockPLHome,
+                realizedFxPLHome: fxSplit.fxPLHome,
+              }
+            : {}),
           note: input.note,
         },
       },
@@ -564,6 +619,14 @@ async function createSellTransaction(
         quantity: Number(position.quantity) - quantity,
 
         realizedPL: Number(position.realizedPL) + realizedPL,
+
+        ...(fxSplit
+          ? {
+              realizedPLHome: { increment: fxSplit.plHome },
+              realizedStockPLHome: { increment: fxSplit.stockPLHome },
+              realizedFxPLHome: { increment: fxSplit.fxPLHome },
+            }
+          : {}),
       },
     });
 
@@ -581,6 +644,28 @@ async function createSellTransaction(
 
     return transaction;
   });
+}
+
+/**
+ * Purchase rates for open lots recorded before rates were stored. Looked up BEFORE the
+ * sell's DB transaction (network call), keyed by lot id.
+ */
+async function resolveMissingLotFxRates(
+  portfolio: Portfolio,
+  portfolioId: string,
+  assetId: string,
+  currency: string,
+): Promise<Map<string, number>> {
+  const lots = await prisma.taxLot.findMany({
+    where: { portfolioId, assetId, remainingQty: { gt: 0 }, purchaseFxRate: null },
+  });
+
+  const rates = new Map<string, number>();
+  for (const lot of lots) {
+    const rate = await resolveHomeFxRate(portfolio, currency, lot.executedAt);
+    if (rate != null) rates.set(lot.id, rate);
+  }
+  return rates;
 }
 
 type CashMovementType = "DEPOSIT" | "WITHDRAW" | "FEE" | "TAX" | "ADJUSTMENT";

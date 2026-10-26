@@ -158,6 +158,8 @@ query { dashboard { currency netWorth pl dividendYtd assetAllocation { symbol va
 # ภาษี
 query { calculatePersonalIncomeTax(input: { taxYear: 2026, totalIncome: 900000, expenses: 100000,
   deductions: [{ label: "ส่วนตัว", amount: 60000 }], taxCredits: 5000 }) { netIncome grossTax taxPayable refund brackets { rate taxableAmount tax } disclaimer } }
+query { portfolioFxBreakdown(portfolioId: "<id>") { homeCurrency totals { realizedStockPLHome realizedFxPLHome unrealizedStockPLHome unrealizedFxPLHome complete }
+  positions { symbol unrealizedPLHome unrealizedStockPLHome unrealizedFxPLHome realizedFxPLHome } } }
 query { taxSummary(taxYear: 2026) { totalIncomeTHB foreignIncomeTHB withheldTaxTHB repatriatedTHB breakdown { taxType sourceCountry incomeTHB } } }
 
 # Paper trading
@@ -186,6 +188,9 @@ mutation { placeOrder(portfolioId: "seed-paper-portfolio", assetId: "<AAPL>", si
 **กันเงินติดลบ** — หลังลง ledger จะอ่านยอดใหม่ใน transaction เดียวกัน ถ้าติดลบจะ rollback (ปลอดภัยกับ request พร้อมกันเพราะ row lock) พอร์ตที่ `isMargin = true` ซื้อเกินเงินสดได้
 
 **ต้นทุนและกำไร** — BUY ใช้ต้นทุนเฉลี่ยถ่วงน้ำหนัก (รวม fee) และสร้าง TaxLot, SELL ตัด TaxLot แบบ FIFO แล้วคำนวณ realizedPL
+
+**กำไรจากหุ้น vs กำไรจากค่าเงิน** — ทุก TaxLot เก็บ `purchaseFxRate` (สกุลของล็อต → THB ณ วันซื้อ) ตอน SELL จะแยก P/L เป็น THB ด้วยสูตรใน `transaction/fx-pl.ts` (pure function มี test):
+ต้นทุน THB = Σ ต้นทุนล็อต × เรทวันซื้อของล็อต, กำไรหุ้น = (เงินขาย − ต้นทุน) ในสกุลหุ้น × เรทวันขาย, กำไร FX = Σ ต้นทุนล็อต × (เรทวันขาย − เรทวันซื้อ) — สองส่วนรวมกันเท่ากับกำไรรวม THB พอดี ผลเก็บใน SELL transaction (`realizedPLHome`, `realizedStockPLHome`, `realizedFxPLHome`) และสะสมใน Position; ส่วนที่ยังไม่ขายดูได้จาก `portfolioFxBreakdown` สินทรัพย์ที่เป็น THB อยู่แล้ว FX = 0 เสมอ `realizedPL` เดิม (สกุลของหุ้น) ไม่เปลี่ยน
 
 **Snapshot ตามวันที่** — snapshot วันที่ D คือมูลค่า ณ สิ้นวัน D (UTC) โดยใช้เฉพาะข้อมูลที่มี ณ ตอนนั้น: position replay จาก transaction (`snapshot/replay.ts`, pure function), เงินสดจาก ledger, ราคาปิดล่าสุด ≤ D จาก `AssetPrice` และเรท FX ของวัน D จาก `ExchangeRate` ดังนั้นสร้างย้อนหลังกี่ครั้งก็ได้ผลเท่าเดิม
 
@@ -249,6 +254,8 @@ Model ของ Phase 10–11 (`BacktestRun`) มีอยู่ใน `schema.p
 
 - `SlipVerification.imageUrl` (base64) ยังคงอยู่เป็น nullable สำหรับข้อมูลเก่า — รัน `npm run slips:migrate-to-r2` แล้วค่อยลบคอลัมน์ใน migration ถัดไป
 - ลบธุรกรรม/พอร์ตไม่ได้ลบรูปใน R2 ตามไปด้วย (ตอนนี้ยังไม่มีการลบธุรกรรมจริง พอร์ตเป็น soft delete)
+- การขายที่บันทึกก่อนมีการแยก FX ไม่มีตัวเลขแยก (`realizedFxPLHome` ของ Position เริ่มนับจาก 0) ล็อตเก่าที่ยังถืออยู่จะได้เรทวันซื้อจาก history sync อัตโนมัติ
+- CAPITAL_GAIN TaxRecord ยังคิดจาก `realizedPL` (สกุลหุ้น) × เรทวันขาย ไม่ใช่ `realizedPLHome` (ต้นทุน THB ตามเรทวันซื้อ)
 - ค่าใน Position table คิดตามลำดับที่บันทึก ส่วน snapshot replay ตามลำดับ `executedAt` — ถ้าบันทึก BUY ย้อนหลังไปก่อน SELL ที่บันทึกไว้แล้ว ตัวเลข FIFO สองที่อาจต่างกัน
 - Order รองรับการ fill ครั้งเดียวทั้งจำนวน (ยังไม่มี partial fill), Alert เป็นแบบยิงครั้งเดียวแล้วปิดตัวเอง (เปิดใหม่ด้วย `updateAlert(isActive: true)`)
 - แหล่งข้อมูลตลาดมีแค่ Yahoo Finance (FMP วางแผนไว้แต่ยังไม่ได้ทำ)

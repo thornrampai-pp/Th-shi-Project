@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../common/errors/AppError";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
-import { getExchangeRate } from "../fx/fx.service";
+import { HOME_CURRENCY, getExchangeRate } from "../fx/fx.service";
 import type { LedgerTxClient } from "../ledger/ledger.service";
 import { normalizeCountryCode } from "../../common/utils/source-country.util";
 
@@ -11,7 +11,7 @@ export type TaxTypeValue = "PERSONAL_INCOME" | "CAPITAL_GAIN" | "WITHHOLDING";
 export type TaxStatusValue = "PENDING" | "FILED" | "PAID";
 
 /** Thai personal income tax is filed in THB, so every TaxRecord is converted to it. */
-export const TAX_CURRENCY = "THB";
+export const TAX_CURRENCY = HOME_CURRENCY;
 
 /**
  * Fetches the FX rate a TaxRecord needs BEFORE the caller opens its DB transaction —

@@ -4,7 +4,7 @@ import { acquireOnceLock } from "../../common/utils/cache.util";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
 import { DAY_MS, addDays, utcDay } from "../../common/utils/date.util";
 import { backfillAssetPrices } from "../asset/asset.service";
-import { backfillExchangeRates, getStoredRateRange } from "../fx/fx.service";
+import { backfillExchangeRates, getStoredRateRange, resolveHomeFxRate } from "../fx/fx.service";
 import { createSnapshot } from "../snapshot/snapshot.service";
 import { REPORTING_CURRENCY } from "../snapshot/snapshot.service";
 
@@ -213,6 +213,31 @@ async function findRebuildStart(portfolioId: string): Promise<Date | null> {
 }
 
 /**
+ * Open lots bought before purchase rates were recorded get their rate from the FX
+ * history (filled just before this runs), so unrealized FX P/L works for them too.
+ * Lots whose currency is the home currency resolve to 1.
+ */
+async function backfillLotPurchaseRates(): Promise<void> {
+  const lots = await prisma.taxLot.findMany({
+    where: { purchaseFxRate: null, remainingQty: { gt: 0 }, portfolio: { deletedAt: null } },
+    include: { asset: true, portfolio: true },
+  });
+
+  let filled = 0;
+  for (const lot of lots) {
+    try {
+      const rate = await resolveHomeFxRate(lot.portfolio, lot.asset.currency, lot.executedAt);
+      if (rate == null) continue;
+      await prisma.taxLot.update({ where: { id: lot.id }, data: { purchaseFxRate: rate } });
+      filled += 1;
+    } catch (err) {
+      console.error(`❌ Could not fill purchase FX rate for lot ${lot.id}:`, err instanceof Error ? err.message : err);
+    }
+  }
+  if (filled > 0) console.log(`💱 Filled purchase FX rates for ${filled} older tax lot(s)`);
+}
+
+/**
  * Startup + daily entry point: fill missing price/FX history, then (re)build any
  * missing or outdated snapshots. Guarded by a Redis lock so only one instance runs it.
  */
@@ -224,6 +249,7 @@ export async function syncHistory(): Promise<void> {
 
   try {
     await ensureHistoryCoverage();
+    await backfillLotPurchaseRates();
 
     const portfolios = await prisma.portfolio.findMany({ where: { deletedAt: null }, select: { id: true } });
     for (const { id } of portfolios) {

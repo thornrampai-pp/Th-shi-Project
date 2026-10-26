@@ -20,11 +20,14 @@ const commands = [
   },
   {
     name: 'upload-slip',
-    description: 'แนบสลิปโอนเงินให้กับธุรกรรม',
-    options: [
-      { type: OPTION_STRING, name: 'transaction_id', description: 'ID ของธุรกรรม', required: true },
-      { type: OPTION_ATTACHMENT, name: 'image', description: 'รูปสลิป', required: true },
-    ],
+    description: 'แนบสลิป (สูงสุด 5 รูป) — จับคู่กับธุรกรรมให้อัตโนมัติ',
+    // Option names must match SLIP_IMAGE_OPTIONS in discord-interactions.service.ts.
+    options: [1, 2, 3, 4, 5].map((n) => ({
+      type: OPTION_ATTACHMENT,
+      name: `image${n}`,
+      description: `รูปสลิปที่ ${n}`,
+      required: n === 1,
+    })),
   },
 ];
 

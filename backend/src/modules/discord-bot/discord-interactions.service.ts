@@ -1,9 +1,15 @@
 import { prisma } from '../../config/prisma';
 import { redis } from '../../config/redis';
 import { env } from '../../config/env';
-import { uploadTransactionSlip } from '../transaction/slip.service';
+import { GEMINI_MAX_ATTEMPTS, autoMatchSlip } from '../transaction/slip.service';
+import type { SlipExtraction } from '../../common/integrations/gemini.util';
 
 const DISCORD_API = 'https://discord.com/api/v10';
+const DISCORD_MESSAGE_LIMIT = 2000;
+
+// Must match the option names in scripts/register-discord-commands.ts.
+const SLIP_IMAGE_OPTIONS = ['image1', 'image2', 'image3', 'image4', 'image5'];
+const SLIP_NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
 
 // Discord interaction type numbers (from Discord's API spec, not ours to rename).
 const INTERACTION_TYPE_PING = 1;
@@ -110,6 +116,11 @@ async function handleLinkCommand(
   };
 }
 
+/**
+ * Slips are processed one at a time (Gemini rate limits, and two slips in one batch
+ * must never race for the same transaction). One status line per slip, and the
+ * deferred reply is re-rendered every time a line changes.
+ */
 async function processUploadSlipAsync(interaction: DiscordInteraction, discordUserId: string): Promise<void> {
   const followupUrl = `${DISCORD_API}/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`;
 
@@ -120,35 +131,36 @@ async function processUploadSlipAsync(interaction: DiscordInteraction, discordUs
       return;
     }
 
-    const transactionId = interaction.data?.options?.find((o) => o.name === 'transaction_id')?.value;
-    const attachmentId = interaction.data?.options?.find((o) => o.name === 'image')?.value;
-    const attachment = attachmentId ? interaction.data?.resolved?.attachments?.[attachmentId] : undefined;
+    const attachments = SLIP_IMAGE_OPTIONS.map((name) => {
+      const attachmentId = interaction.data?.options?.find((o) => o.name === name)?.value;
+      return attachmentId ? interaction.data?.resolved?.attachments?.[attachmentId] : undefined;
+    }).filter((a): a is DiscordAttachment => a != null);
 
-    if (!transactionId || !attachment) {
-      await patchFollowup(followupUrl, '❌ ต้องระบุทั้ง transaction_id และแนบรูปสลิป');
+    if (attachments.length === 0) {
+      await patchFollowup(followupUrl, '❌ กรุณาแนบรูปสลิปอย่างน้อย 1 รูป');
       return;
     }
 
-    if (attachment.size != null && attachment.size > env.SLIP_MAX_BYTES) {
-      await patchFollowup(
+    const lines = attachments.map(() => '⏳ รอคิว...');
+    const render = () =>
+      patchFollowup(
         followupUrl,
-        `❌ ไฟล์ใหญ่เกินไป (สูงสุด ${(env.SLIP_MAX_BYTES / (1024 * 1024)).toFixed(1)} MB)`,
+        `📥 กำลังตรวจสลิป ${attachments.length} รูป\n\n` +
+          lines.map((line, i) => `${SLIP_NUMBER_EMOJI[i]} ${line}`).join('\n\n'),
       );
-      return;
+
+    for (const [i, attachment] of attachments.entries()) {
+      lines[i] = '⏳ กำลังอ่านสลิป...';
+      await render();
+      lines[i] = await processOneSlip(user.id, attachment, async (attempt, max) => {
+        lines[i] =
+          attempt < max
+            ? `⏳ attempt ${attempt}/${max} failed, retrying...`
+            : `❌ attempt ${attempt}/${max} failed — ข้ามสลิปนี้`;
+        await render();
+      });
+      await render();
     }
-
-    const imageResponse = await fetch(attachment.url);
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-    const imageBase64 = imageBuffer.toString('base64');
-
-    const slip = await uploadTransactionSlip(user.id, transactionId, imageBase64, attachment.content_type);
-
-    const statusEmoji = slip.isAmountMatched ? '✅' : '⚠️';
-    const statusText = slip.isAmountMatched ? 'ยอดตรงกัน' : 'ยอดไม่ตรง — กรุณาตรวจสอบ';
-    await patchFollowup(
-      followupUrl,
-      `${statusEmoji} อ่านสลิปสำเร็จ\nยอดเงิน: ${Number(slip.amount).toLocaleString()} ${slip.currency}\nเลขอ้างอิง: ${slip.transRef}\nสถานะ: ${statusText}`,
-    );
   } catch (err) {
     await patchFollowup(
       followupUrl,
@@ -157,10 +169,69 @@ async function processUploadSlipAsync(interaction: DiscordInteraction, discordUs
   }
 }
 
+/** Returns the final status line for one slip; never throws. */
+async function processOneSlip(
+  userId: string,
+  attachment: DiscordAttachment,
+  onAttemptFailed: (attempt: number, maxAttempts: number) => Promise<void>,
+): Promise<string> {
+  if (attachment.size != null && attachment.size > env.SLIP_MAX_BYTES) {
+    return `❌ ไฟล์ใหญ่เกินไป (สูงสุด ${(env.SLIP_MAX_BYTES / (1024 * 1024)).toFixed(1)} MB)`;
+  }
+
+  try {
+    const imageResponse = await fetch(attachment.url);
+    if (!imageResponse.ok) {
+      return `❌ ดาวน์โหลดรูปจาก Discord ไม่สำเร็จ (${imageResponse.status})`;
+    }
+    const imageBase64 = Buffer.from(await imageResponse.arrayBuffer()).toString('base64');
+
+    const result = await autoMatchSlip(userId, imageBase64, attachment.content_type, { onAttemptFailed });
+
+    if (result.status === 'extraction_failed') {
+      return `❌ attempt ${GEMINI_MAX_ATTEMPTS}/${GEMINI_MAX_ATTEMPTS} failed — ข้ามสลิปนี้`;
+    }
+
+    const summary = describeSlip(result.extracted);
+
+    switch (result.status) {
+      case 'matched':
+        return result.slip.isAmountMatched
+          ? `✅ ${summary} → Transaction \`${result.slip.transactionId}\``
+          : `✅ ${summary} → Transaction \`${result.slip.transactionId}\`\n   ⚠️ จับคู่ผ่านอัตราแลกเปลี่ยน — ยอดไม่ตรงเป๊ะ กรุณาตรวจสอบ`;
+      case 'duplicate':
+        return `❌ ${summary}\n   สลิปนี้เคยถูกใช้กับธุรกรรมอื่นแล้ว`;
+      case 'ambiguous':
+        return (
+          `⚠️ ${summary}\n   พบธุรกรรมที่ตรงกันหลายรายการ — ไม่ได้บันทึก\n` +
+          `   ${result.candidateIds.map((id) => `\`${id}\``).join(', ')}\n` +
+          `   ใช้ uploadTransactionSlip ในแอประบุ transaction เอง`
+        );
+      case 'not_found':
+        return (
+          `❌ ${summary}\n   assetSymbol: ${result.extracted.assetSymbol ?? '-'}\n` +
+          `   ⚠️ ไม่พบธุรกรรม สร้าง transaction ใหม่แล้ว upload อีกครั้ง`
+        );
+    }
+  } catch (err) {
+    return `❌ อ่านสลิปไม่สำเร็จ: ${err instanceof Error ? err.message : 'unknown error'}`;
+  }
+}
+
+function describeSlip(extracted: SlipExtraction): string {
+  const amount =
+    extracted.amount != null
+      ? extracted.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '-';
+  return `ยอด ${amount} ${extracted.currency ?? 'THB'}, Ref: ${extracted.transRef ?? '-'}`;
+}
+
 async function patchFollowup(url: string, content: string): Promise<void> {
+  const truncated =
+    content.length > DISCORD_MESSAGE_LIMIT ? `${content.slice(0, DISCORD_MESSAGE_LIMIT - 1)}…` : content;
   await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content: truncated }),
   });
 }

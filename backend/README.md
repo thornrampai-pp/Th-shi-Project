@@ -1,6 +1,6 @@
 # Personal Investment Platform — Backend
 
-Backend สำหรับแพลตฟอร์มลงทุนส่วนตัว: จัดการพอร์ต, ธุรกรรมซื้อขาย (double-entry ledger), ข้อมูลตลาด, สรุปผลการลงทุน (TWR), ภาษี, งานวิจัย (Thesis/Watchlist/Alert), คำสั่งซื้อขาย (Paper/Real) และอ่านสลิปด้วย Gemini พร้อมแจ้งเตือนผ่าน Discord
+Backend สำหรับแพลตฟอร์มลงทุนส่วนตัว: จัดการพอร์ต, ธุรกรรมซื้อขาย (double-entry ledger), ข้อมูลตลาด, สรุปผลการลงทุน (TWR), ภาษี, งานวิจัย (Thesis/Watchlist/Alert), คำสั่งซื้อขาย (Paper/Real), อ่านสลิปด้วย Gemini พร้อมจับคู่ธุรกรรมอัตโนมัติ และแจ้งเตือนผ่าน Discord
 
 ## Tech Stack
 
@@ -94,7 +94,7 @@ npm run dev          # http://localhost:4000/graphql
 | `GEMINI_MODEL` | | default `gemini-2.5-flash` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | | ต้องครบทั้ง 4 ตัวเพื่อเปิดใช้อัปโหลดสลิป |
 | `R2_PRESIGN_TTL_SECONDS` | | default `600` — อายุลิงก์อ่านรูป |
-| `SLIP_MAX_BYTES` | | default `5242880` (5 MB) |
+| `SLIP_MAX_BYTES` | | default `5242880` (5 MB) — ขนาดสูงสุดต่อรูป |
 | `R2_STORAGE_QUOTA_BYTES` | | default `10737418240` (10 GB = R2 free tier) |
 | `R2_STORAGE_ALERT_PERCENTS` | | default `80,90,100` — เกณฑ์แจ้งเตือนพื้นที่ (%) |
 | `R2_ENDPOINT` | | override endpoint (เช่น MinIO ตอนเทสต์) ปกติไม่ต้องตั้ง |
@@ -118,7 +118,7 @@ npm run dev          # http://localhost:4000/graphql
 | `npm run db:seed` | seed ข้อมูลทดสอบ |
 | `npm run prisma:generate` | generate Prisma client ไปที่ `src/generated/prisma` |
 | `npm run prisma:migrate` | `prisma migrate dev` |
-| `npm run discord:register-commands` | ลงทะเบียน slash commands กับ Discord |
+| `npm run discord:register-commands` | ลงทะเบียน slash commands กับ Discord (ต้องรันทุกครั้งที่เปลี่ยนนิยาม command) |
 | `npm run slips:migrate-to-r2` | ย้ายรูปสลิป base64 เก่าใน DB ไป R2 (`-- --dry` เพื่อดูก่อน) |
 
 ### Integration test
@@ -149,7 +149,8 @@ mutation { createTransaction(portfolioId: "<id>", type: DIVIDEND, assetId: "<AAP
 mutation { createTransaction(portfolioId: "<id>", type: REPATRIATION, currency: "USD", amount: 1000, price: 33.9) { id baseCurrAmount } }
 
 # สลิป — imageUrl เป็น presigned URL อายุสั้น ขอใหม่ทุกครั้งที่จะแสดง
-query { transactionSlip(transactionId: "<id>") { amount isAmountMatched imageUrl imageMimeType imageSize } }
+# auto-match: ส่งผ่าน Discord `/upload-slip` หรือเรียก mutation uploadTransactionSlip กับ transactionId ต่อเป็นปกติ
+query { transactionSlip(transactionId: "<id>") { amount netAmount fxRate targetAmount targetCurrency isAmountMatched imageUrl imageMimeType imageSize } }
 
 # สรุปผล
 mutation { triggerSnapshot(portfolioId: "seed-real-portfolio") { equity cash unrealizedPL twrReturn } }
@@ -201,6 +202,8 @@ mutation { placeOrder(portfolioId: "seed-paper-portfolio", assetId: "<AAPL>", si
 **สกุลเงิน** — ทุกตัวเลขของพอร์ตคิดเป็น `baseCurrency` ของพอร์ตนั้น (เงินสด/หุ้นสกุลอื่นแปลงด้วยเรทปัจจุบัน) ส่วน `netWorth` และ `dashboard` ที่รวมทุกพอร์ตแปลงเป็น THB (ฟิลด์ `currency` บอกว่าเป็นสกุลไหน) เรทมาจาก Yahoo (`USDTHB=X`) แคชใน Redis 1 ชม. และบันทึกลงตาราง `ExchangeRate` ซึ่งใช้เป็น fallback ตอน Yahoo ล่ม
 
 **สลิป** — รูปเก็บใน Cloudflare R2 (bucket private) DB เก็บแค่ `imageKey`, `imageMimeType`, `imageSize` ตอนอัปโหลดตรวจชนิดไฟล์จาก magic bytes (jpeg/png/webp/heic) ไม่เชื่อ MIME ที่ client ส่งมา และจำกัดขนาดตาม `SLIP_MAX_BYTES` — ตรวจก่อนส่งไป Gemini/R2 เสมอ อ่านรูปผ่าน presigned URL เท่านั้น
+- **Gemini ดึง:** amount, currency, transactionDate (พร้อม timezone), transRef, sendingBank, receivingBank, senderName, fee, vat, netAmount, fxRate, targetAmount, targetCurrency, assetSymbol (คอด asset ที่ซื้อ/ขาย/แลก), transactionType (BUY/SELL/EXCHANGE), confidence
+- **Auto-match (Discord):** ค้นหาธุรกรรมที่เหมาะสม ถ้าเจอแล้วบันทึกเลย ถ้าเจอหลายรายการหรือไม่เจอจะขึ้นข้อความแจ้ง ไม่บันทึก
 
 **ภาษี (Phase 7)** — พอร์ต REAL เท่านั้น (PAPER ไม่เสียภาษี) สร้าง `TaxRecord` อัตโนมัติใน transaction เดียวกับธุรกรรม: DIVIDEND → `PERSONAL_INCOME` หรือ `WITHHOLDING` (ถ้ามี taxWithheld) คิดจากยอดก่อนหักภาษี, SELL ที่มีกำไร → `CAPITAL_GAIN` แปลงเป็น THB ด้วยเรท ณ วันทำรายการ `taxSummary` สรุปรายปี + ยอดนำเงินกลับไทย (REPATRIATION) เพราะตั้งแต่ปี 2567 เงินได้ต่างประเทศต้องเสียภาษีในปีที่นำเข้า
 
@@ -223,12 +226,21 @@ mutation { placeOrder(portfolioId: "seed-paper-portfolio", assetId: "<AAPL>", si
 **ส่งสลิป (Slash Commands)** ใช้ HTTP Interactions Endpoint ไม่ต้องมี gateway connection
 
 1. สร้าง application ที่ Discord Developer Portal แล้วใส่ `DISCORD_PUBLIC_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_APPLICATION_ID` ใน `.env`
-2. รัน `npm run discord:register-commands`
+2. รัน `npm run discord:register-commands` (**ต้องรันใหม่ทุกครั้งที่เปลี่ยน option**)
 3. ตั้ง **Interactions Endpoint URL** เป็น `https://<your-domain>/discord/interactions` (ต้องเป็น HTTPS สาธารณะ ใช้ ngrok ตอน dev ได้)
 4. ในแอปเรียก `generateDiscordLinkCode` แล้วพิมพ์ `/link code:<โค้ด>` ใน Discord เพื่อผูกบัญชี (โค้ดหมดอายุใน 10 นาที)
-5. ส่งสลิปด้วย `/upload-slip transaction_id:<id> image:<รูป>`
+5. ส่งสลิป (สูงสุด 5 รูป) ด้วย `/upload-slip image1:<รูป> image2:<รูป> ...` → **จับคู่ธุรกรรมอัตโนมัติ**
+   - ค้นหาเฉพาะธุรกรรมที่ยังไม่มีสลิป
+   - **เรตแม่น:** ยอดเงินต้องตรงหรือ targetAmount (เช่น slip THB แลก USD ได้)
+   - **วันที่:** executedAt ห่างจากวันบน slip ไม่เกิน ±36 ชั่วโมง
+   - **transRef:** ถ้ามี transRef ในหมายเหตุธุรกรรมจะตรงทันที
+   - **Type/Symbol:** จัดลำดับชั้นความเหมาะสม
+   - **ไม่เจอ:** ขึ้น ⚠️ ยังไม่บันทึก บอก assetSymbol ให้สร้าง transaction ใหม่แล้ว upload อีกครั้ง
+   - **เจอหลายรายการ:** ขึ้น ⚠️ ยังไม่บันทึก บอก ID ให้ขึ้นแอปเลือกเอง
+   - **Gemini ล้มเหลว:** ลอง 5 ครั้งอัตโนมัติ (delay 1–4 วินาที) แล้วข้ามรูปนั้น
+6. **Retry + Live status:** ทุกรูปประมวลผลตามลำดับ ข้อความ Discord อัปเดตคงที่ แสดง 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ ตามลำดับ
 
-ฝั่งแอปใช้ mutation `uploadTransactionSlip` ได้เช่นกัน ทั้งสองทางใช้ `slip.service.ts` ตัวเดียวกัน
+**ในแอปใช้ mutation `uploadTransactionSlip` ตามปกติ** (ระบุ transactionId ต้องการ, auto-match ใน Discord เท่านั้น) ทั้งสองทางใช้ logic ตัวเดียวกัน
 
 ## สถานะการพัฒนา
 

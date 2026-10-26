@@ -1,19 +1,12 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 
+/** Hidden easter-egg entry to /register: white-on-white until hovered or focused. */
 export default function RegisterButton() {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <Link
       href="/register"
-      className={`fixed bottom-8 right-8 w-16 h-16 rounded-full shadow-2xl z-50 transition-all duration-300 hover:scale-110 hover:shadow-black/50 cursor-pointer
-        ${isHovered ? "bg-[#141414]" : "bg-white"}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      aria-label="Register"
+      aria-label="สมัครสมาชิก"
+      className="fixed right-8 bottom-8 z-50 size-16 rounded-full bg-white transition-all duration-300 outline-none hover:scale-110 hover:bg-[#141414] hover:shadow-2xl focus-visible:bg-[#141414]"
     />
   );
 }

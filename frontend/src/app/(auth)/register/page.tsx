@@ -23,6 +23,7 @@ export default function RegisterPage() {
         {/* แยกเป็น firstName และ lastName ตาม Mutation */}
         <input 
           name="firstName" 
+          defaultValue={state?.values.firstName}
           type="text" 
           placeholder="First Name" 
           required 
@@ -30,6 +31,7 @@ export default function RegisterPage() {
         />
         <input 
           name="lastName" 
+          defaultValue={state?.values.lastName}
           type="text" 
           placeholder="Last Name" 
           required 
@@ -37,6 +39,7 @@ export default function RegisterPage() {
         />
         <input 
           name="email" 
+          defaultValue={state?.values.email}
           type="email" 
           placeholder="Email" 
           required 

@@ -6,7 +6,20 @@ import { graphql } from "@/gql";
 import { backendRequest } from "@/lib/graphql/backend";
 import { REFRESH_COOKIE, clearedCookies, toTokens, tokenCookies, type Tokens } from "@/lib/auth/tokens";
 
-export type AuthFormState = { error: string } | null;
+export type AuthFormState = { error: string; values: Record<string, string> } | null;
+
+// React resets a form after its action runs, so echo the non-secret fields
+// back for the inputs' defaultValue — otherwise a typo'd password also wipes the email.
+const ECHOED_FIELDS = ["email", "firstName", "lastName"];
+
+function fail(formData: FormData, error: string): AuthFormState {
+  const values: Record<string, string> = {};
+  for (const name of ECHOED_FIELDS) {
+    const value = formData.get(name);
+    if (typeof value === "string") values[name] = value;
+  }
+  return { error, values };
+}
 
 const LoginMutation = graphql(`
   mutation Login($email: String!, $password: String!) {
@@ -51,16 +64,16 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   const email = field(formData, "email");
   const password = formData.get("password");
   if (!email || typeof password !== "string" || !password) {
-    return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
+    return fail(formData, "กรุณากรอกอีเมลและรหัสผ่าน");
   }
 
   let tokens: Tokens | null;
   try {
     const res = await backendRequest(LoginMutation, { email, password });
     tokens = toTokens(res.data?.login);
-    if (!tokens) return { error: res.errors?.[0]?.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
+    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
   } catch {
-    return { error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
+    return fail(formData, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
   }
 
   await setSession(tokens);
@@ -71,7 +84,7 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   const email = field(formData, "email");
   const password = formData.get("password");
   if (!email || typeof password !== "string" || !password) {
-    return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
+    return fail(formData, "กรุณากรอกอีเมลและรหัสผ่าน");
   }
 
   let tokens: Tokens | null;
@@ -83,9 +96,9 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
       lastName: field(formData, "lastName") || null,
     });
     tokens = toTokens(res.data?.register);
-    if (!tokens) return { error: res.errors?.[0]?.message ?? "สมัครสมาชิกไม่สำเร็จ" };
+    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "สมัครสมาชิกไม่สำเร็จ");
   } catch {
-    return { error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
+    return fail(formData, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
   }
 
   await setSession(tokens);

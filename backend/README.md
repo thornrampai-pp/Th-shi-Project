@@ -205,6 +205,94 @@ mutation { placeOrder(portfolioId: "seed-paper-portfolio", assetId: "<AAPL>", si
 - **Gemini ดึง:** amount, currency, transactionDate (พร้อม timezone), transRef, sendingBank, receivingBank, senderName, fee, vat, netAmount, fxRate, targetAmount, targetCurrency, assetSymbol (คอด asset ที่ซื้อ/ขาย/แลก), transactionType (BUY/SELL/EXCHANGE), confidence
 - **Auto-match (Discord):** ค้นหาธุรกรรมที่เหมาะสม ถ้าเจอแล้วบันทึกเลย ถ้าเจอหลายรายการหรือไม่เจอจะขึ้นข้อความแจ้ง ไม่บันทึก
 
+### Slip Auto-Match Logic
+
+```typescript
+// ไฟล์: src/modules/transaction/slip-matcher.ts
+// Purpose: Pure matching logic — unit testable, reusable
+```
+
+**เลือกธุรกรรมให้สลิป:**
+1. **ผู้สมัครควรเป็น:**
+   - ธุรกรรมของผู้ใช้
+   - ยังไม่มีสลิป attached (`slipVerification is null`)
+   - อยู่ในช่วงวันที่ที่เหมาะสม (`executedAt` ห่างจากวันบนสลิป ≤ ±36 ชม.)
+
+2. **เกณฑ์จับคู่:**
+   - **ยอดเงินตรงในสกุลเดียวกัน (50 คะแนน):** ต่างกันไม่เกิน 0.01 (เทียบทั้ง amount, netAmount, targetAmount)
+   - **ยอดเงินตรงผ่าน FX rate ของธุรกรรม (20 คะแนน):** ใช้ได้เฉพาะเมื่อ asset symbol ตรงด้วย
+     - เช่น สลิป THB 335 กับธุรกรรม USD 10 ที่บันทึก exchange rate 33.5 ไว้
+   - ถ้ายอดไม่ตรงเลยและไม่มี transRef ใน note → ตัดทิ้ง ไม่นับเป็นผู้สมัคร
+   - **Asset Symbol (10 คะแนน):** แอสเสทสัญลักษณ์ตรง (e.g. slip USD ซื้อ LLY = LLY transaction)
+   - **Type (5 คะแนน):** ประเภทธุรกรรมสัมพันธ์ (BUY → BUY, EXCHANGE → DEPOSIT/WITHDRAW/REPATRIATION)
+   - **transRef in note (100 คะแนน):** ถ้า note มี transRef ของสลิป ชนะทันที (ไม่ต้องดูวันที่)
+
+3. **Breaking ties:** ถ้าคะแนนเท่ากัน เลือกอันที่วันที่ใกล้สลิปที่สุด ถ้ายังเสมอ (หรือไม่มีวันที่บนสลิป) ตอบ `ambiguous` ไม่เดา
+
+**ผลลัพธ์:**
+```typescript
+type SlipMatchResult =
+  | { status: 'matched'; candidate; isAmountMatched: boolean }
+  | { status: 'not_found' }
+  | { status: 'ambiguous'; candidates: SlipMatchCandidate[] }
+```
+
+---
+
+### Slip Upload Flow
+
+```typescript
+// ไฟล์: src/modules/transaction/slip.service.ts
+// Path 1: uploadTransactionSlip() — ระบุ transaction ID (แอป)
+// Path 2: autoMatchSlip() — ให้ระบบหาเอง (Discord)
+```
+
+**ขั้นตอน:**
+1. **Validate image:** ตรวจ magic bytes, ขนาด, MIME type
+2. **Extract (Gemini):** ดึงข้อมูลจากรูป — retry max 5 ครั้ง (รอ 1s, 2s, 3s, 4s ระหว่างครั้ง)
+   - Fail → throw `AppError.badRequest()`
+3. **Require fields:** amount, transRef ต้องมี ไม่เช่นไม่บันทึก
+4. **Check duplicate:** transRef เคยใช้แล้ว? → error
+5. **Match transaction:** (`autoMatchSlip` เท่านั้น)
+   - เจอ 1 อัน → บันทึก
+   - เจอหลาย / ไม่เจอ → return status, don't save
+6. **Save:** Upload รูปไป R2 + เขียน SlipVerification row
+
+---
+
+### Discord Batch Upload
+
+```typescript
+// ไฟล์: src/modules/discord-bot/discord-interactions.service.ts
+// Command: /upload-slip image1:<f1> image2:<f2> ... image5:<f5>
+```
+
+**วิธีการ:**
+- ประมวลผล **ทีละรูปตามลำดับ** (ป้องกัน race condition ที่จับคู่ธุรกรรมเดียวกัน)
+- **Live status:** อัปเดตข้อความ Discord เรื่อยๆ แสดง 1️⃣–5️⃣ ตามสถานะ
+- **Callback on retry:** `onAttemptFailed(attempt, max)` ให้ UI อัปเดต "attempt 2/5 failed, retrying..."
+
+**ตัวอย่าง status:**
+```
+📥 กำลังตรวจสลิป 3 รูป
+
+1️⃣ ✅ ยอด 200.85 THB, Ref: ABC123 → Transaction `tx-1`
+2️⃣ ⏳ attempt 1/5 failed, retrying...
+3️⃣ ⏳ รอคิว...
+```
+
+---
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `slip-matcher.ts` | Pure matching logic (testable) |
+| `slip.service.ts` | Image validation → Gemini → save (shared) |
+| `discord-interactions.service.ts` | Batch upload + live status |
+| `gemini.util.ts` | Extraction prompt + parsing |
+| `slip-matcher.test.ts` | 12 unit tests |
+
 **ภาษี (Phase 7)** — พอร์ต REAL เท่านั้น (PAPER ไม่เสียภาษี) สร้าง `TaxRecord` อัตโนมัติใน transaction เดียวกับธุรกรรม: DIVIDEND → `PERSONAL_INCOME` หรือ `WITHHOLDING` (ถ้ามี taxWithheld) คิดจากยอดก่อนหักภาษี, SELL ที่มีกำไร → `CAPITAL_GAIN` แปลงเป็น THB ด้วยเรท ณ วันทำรายการ `taxSummary` สรุปรายปี + ยอดนำเงินกลับไทย (REPATRIATION) เพราะตั้งแต่ปี 2567 เงินได้ต่างประเทศต้องเสียภาษีในปีที่นำเข้า
 
 **TaxCalculator** (`tax/tax-calculator.ts`) — แยกจากข้อมูลดิบ: รับปีภาษี, เงินได้รวม, ค่าใช้จ่าย, ค่าลดหย่อน, เครดิตภาษี แล้วคำนวณตามขั้นบันไดภาษีเงินได้บุคคลธรรมดา (ตาราง พ.ศ. 2560 เป็นต้นไป) เป็น pure function มี unit test ครบทุกขั้น ไม่ได้คำนวณค่าใช้จ่ายตามประเภทเงินได้, วิธี 0.5% ของเงินได้, หรือเครดิตภาษีเงินปันผล — ผู้เรียกต้องคิดก่อนส่งเข้า **ผลลัพธ์เป็นการประมาณการ ควรตรวจกับนักบัญชีหรือกรมสรรพากรอีกครั้ง เพราะกฎอาจเปลี่ยนตามปี** เมื่อกฎเปลี่ยนให้เพิ่มตารางใหม่ใน `BRACKET_TABLES` (ไม่แก้ตารางเดิม)

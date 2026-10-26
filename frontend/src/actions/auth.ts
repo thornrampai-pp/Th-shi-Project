@@ -1,45 +1,104 @@
 "use server";
 
-import { client } from "../graphql/client";
-import { LOGIN_MUTATION } from "../graphql/mutations/loginMutation";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { graphql } from "@/gql";
+import { backendRequest } from "@/lib/graphql/backend";
+import { REFRESH_COOKIE, clearedCookies, toTokens, tokenCookies, type Tokens } from "@/lib/auth/tokens";
 
-interface LoginResponse {
-  login: {
-    accessToken: string;
-    user: { id: string; email: string };
-  };
+export type AuthFormState = { error: string } | null;
+
+const LoginMutation = graphql(`
+  mutation Login($email: String!, $password: String!) {
+    login(email: $email, password: $password) {
+      accessToken
+      refreshToken
+    }
+  }
+`);
+
+const RegisterMutation = graphql(`
+  mutation Register($email: String!, $password: String!, $firstName: String, $lastName: String) {
+    register(email: $email, password: $password, firstName: $firstName, lastName: $lastName) {
+      accessToken
+      refreshToken
+    }
+  }
+`);
+
+const LogoutMutation = graphql(`
+  mutation Logout($refreshToken: String!) {
+    logout(refreshToken: $refreshToken)
+  }
+`);
+
+async function setSession(tokens: Tokens) {
+  const store = await cookies();
+  for (const c of tokenCookies(tokens)) store.set(c.name, c.value, c.options);
 }
 
-// 🌟 รับ prevState เพิ่มเข้ามาเพื่อทำ useActionState
-export async function loginAction(prevState: any, formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+/** Only follow same-origin paths, so `?next=` can't be used as an open redirect. */
+function safeNext(value: FormDataEntryValue | null) {
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
 
-  try {
-    if (!email || !password) {
-      return { error: "กรุณากรอกข้อมูลให้ครบถ้วน" };
-    }
-    // 🎯 เติม <LoginResponse> ตรงนี้ เพื่อให้รู้ว่ามี property 'login' แน่นอน
-    const { data } = await client.mutate<LoginResponse>({
-      mutation: LOGIN_MUTATION,
-      variables: { email, password },
-    });
+function field(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return typeof value === "string" ? value.trim() : "";
+}
 
-    const token = data?.login?.accessToken;
-
-    if (!token) {
-      return { error: "Email หรือ Password ไม่ถูกต้อง" };
-    }
-
-    // 🏎️ ล็อกอินผ่าน สั่งย้ายหน้าได้เลย
-    redirect("/dashboard");
-  } catch (error) {
-    console.error("Login Error:", error);
-
-    if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) {
-      throw error;
-    }
-    return { error: "เกิดข้อผิดพลาดในการเชื่อมต่อระบบหลังบ้าน" };
+export async function loginAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const email = field(formData, "email");
+  const password = formData.get("password");
+  if (!email || typeof password !== "string" || !password) {
+    return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
   }
+
+  let tokens: Tokens | null;
+  try {
+    const res = await backendRequest(LoginMutation, { email, password });
+    tokens = toTokens(res.data?.login);
+    if (!tokens) return { error: res.errors?.[0]?.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
+  } catch {
+    return { error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
+  }
+
+  await setSession(tokens);
+  redirect(safeNext(formData.get("next")));
+}
+
+export async function registerAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const email = field(formData, "email");
+  const password = formData.get("password");
+  if (!email || typeof password !== "string" || !password) {
+    return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
+  }
+
+  let tokens: Tokens | null;
+  try {
+    const res = await backendRequest(RegisterMutation, {
+      email,
+      password,
+      firstName: field(formData, "firstName") || null,
+      lastName: field(formData, "lastName") || null,
+    });
+    tokens = toTokens(res.data?.register);
+    if (!tokens) return { error: res.errors?.[0]?.message ?? "สมัครสมาชิกไม่สำเร็จ" };
+  } catch {
+    return { error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
+  }
+
+  await setSession(tokens);
+  redirect("/");
+}
+
+export async function logoutAction() {
+  const store = await cookies();
+  const refreshToken = store.get(REFRESH_COOKIE)?.value;
+  if (refreshToken) {
+    // Best effort — the cookies are cleared either way.
+    await backendRequest(LogoutMutation, { refreshToken }).catch(() => undefined);
+  }
+  for (const c of clearedCookies()) store.set(c.name, c.value, c.options);
+  redirect("/login");
 }

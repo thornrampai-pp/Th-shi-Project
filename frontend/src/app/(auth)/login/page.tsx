@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useRef } from "react";
-import { loginAction } from "../../actions/auth";
-import RegisterButton from "@/src/components/RegisterButton";
+import { use, useActionState, useRef } from "react";
+import { loginAction } from "@/actions/auth";
+import RegisterButton from "@/components/RegisterButton";
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: PageProps<"/login">) {
+  const { next } = use(searchParams);
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +47,7 @@ export default function LoginPage() {
             action={formAction}
             className="w-full flex flex-col items-center relative"
           >
+            {typeof next === "string" && <input type="hidden" name="next" value={next} />}
             {/* 🔄 เปลี่ยนจาก onClick เป็น onMouseDown */}
             <div
               onMouseDown={handleRobotMouseDown}

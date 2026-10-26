@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { registerAction } from '../../actions/auth-register';
+import { registerAction } from '@/actions/auth';
 
 export default function RegisterPage() {
   const [state, formAction, pending] = useActionState(registerAction, null);

@@ -16,14 +16,15 @@ export interface ThesisInput {
   timeHorizon?: string;
 }
 
-// Keep in sync with the backfill in migration 20261026164441_thesis_sections.
+// Theses backfilled by migration 20261026164441_thesis_sections got Thai titles;
+// users can rename those.
 export const DEFAULT_SECTION_TITLES = [
-  "ธุรกิจและรายได้",
-  "ปัจจัยการเติบโต",
-  "ความเสี่ยง",
-  "คู่แข่ง",
-  "จุดซื้อ/จุดขาย",
-  "ปันผล",
+  "Business & Revenue",
+  "Growth Drivers",
+  "Risks",
+  "Competitors",
+  "Entry & Exit Points",
+  "Dividends",
 ];
 
 // Saves to a section within this window update the latest history entry instead

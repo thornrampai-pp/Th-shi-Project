@@ -64,16 +64,16 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   const email = field(formData, "email");
   const password = formData.get("password");
   if (!email || typeof password !== "string" || !password) {
-    return fail(formData, "กรุณากรอกอีเมลและรหัสผ่าน");
+    return fail(formData, "Please enter your email and password");
   }
 
   let tokens: Tokens | null;
   try {
     const res = await backendRequest(LoginMutation, { email, password });
     tokens = toTokens(res.data?.login);
-    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "Incorrect email or password");
   } catch {
-    return fail(formData, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+    return fail(formData, "Couldn't reach the server");
   }
 
   await setSession(tokens);
@@ -84,7 +84,7 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   const email = field(formData, "email");
   const password = formData.get("password");
   if (!email || typeof password !== "string" || !password) {
-    return fail(formData, "กรุณากรอกอีเมลและรหัสผ่าน");
+    return fail(formData, "Please enter your email and password");
   }
 
   let tokens: Tokens | null;
@@ -96,9 +96,9 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
       lastName: field(formData, "lastName") || null,
     });
     tokens = toTokens(res.data?.register);
-    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "สมัครสมาชิกไม่สำเร็จ");
+    if (!tokens) return fail(formData, res.errors?.[0]?.message ?? "Sign up failed");
   } catch {
-    return fail(formData, "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+    return fail(formData, "Couldn't reach the server");
   }
 
   await setSession(tokens);

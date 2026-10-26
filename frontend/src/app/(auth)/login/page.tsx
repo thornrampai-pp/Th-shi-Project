@@ -87,7 +87,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
               <h1 className="text-center text-sm font-bold tracking-wider text-black/80 uppercase">Welcome Back</h1>
 
               <label className="sr-only" htmlFor="email">
-                อีเมล
+                Email
               </label>
               <input
                 ref={emailRef}
@@ -102,7 +102,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
               />
 
               <label className="sr-only" htmlFor="password">
-                รหัสผ่าน
+                Password
               </label>
               <input
                 id="password"

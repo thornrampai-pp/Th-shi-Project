@@ -20,8 +20,7 @@ export default function RegisterPage() {
           </p>
         )}
         
-        {/* แยกเป็น firstName และ lastName ตาม Mutation */}
-        <input 
+                <input 
           name="firstName" 
           defaultValue={state?.values.firstName}
           type="text" 

@@ -17,9 +17,9 @@ export default async function DashboardPage() {
   if (!me) redirect("/login");
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold">สวัสดี {me.firstName ?? me.email}</h1>
-      <p className="text-muted-foreground">Dashboard กำลังจะมา</p>
+    <div className="mx-auto w-full max-w-6xl space-y-2 px-4 py-8">
+      <h1 className="text-2xl font-semibold">Hello, {me.firstName ?? me.email}</h1>
+      <p className="text-muted-foreground">Dashboard coming soon</p>
     </div>
   );
 }

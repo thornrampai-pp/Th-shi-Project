@@ -7,7 +7,8 @@ export type NotificationEventType =
   | 'ALERT_TRIGGERED'
   | 'DAILY_SUMMARY'
   | 'BACKTEST_COMPLETED'
-  | 'ORDER_FILLED';
+  | 'ORDER_FILLED'
+  | 'SYSTEM_ALERT';
 
 export async function listNotificationChannels(userId: string) {
   return prisma.notificationChannel.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
@@ -23,17 +24,25 @@ export async function connectDiscordChannel(
     throw AppError.badRequest('This does not look like a valid Discord webhook URL');
   }
 
-  const channel = await prisma.notificationChannel.create({
+  // Verify the webhook actually works BEFORE persisting anything. Previously this sent
+  // the test message through dispatchToChannel(), which swallows delivery failures into
+  // a NotificationLog row and never rethrows — so connectDiscordChannel would report
+  // success even for a typo'd or already-deleted webhook URL, and the user would only
+  // find out the connection never worked when a real alert silently failed days later.
+  // Calling sendDiscordWebhookMessage directly here lets that failure propagate.
+  try {
+    await sendDiscordWebhookMessage(webhookUrl, {
+      text: `✅ เชื่อมต่อสำเร็จ! ช่องทางนี้ (${label ?? 'Discord'}) พร้อมรับข้อมูลการลงทุนแล้ว`,
+    });
+  } catch (err) {
+    throw AppError.badRequest(
+      `Could not send a test message to this Discord webhook: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+
+  return prisma.notificationChannel.create({
     data: { userId, type: 'DISCORD', webhookUrl, events, label },
   });
-
-  await dispatchToChannel(
-    channel,
-    { text: `✅ เชื่อมต่อสำเร็จ! ช่องทางนี้ (${label ?? 'Discord'}) พร้อมรับข้อมูลการลงทุนแล้ว` },
-    'DAILY_SUMMARY',
-  );
-
-  return channel;
 }
 
 export async function updateNotificationChannel(

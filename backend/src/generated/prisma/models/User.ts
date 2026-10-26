@@ -42,6 +42,7 @@ export type UserMinAggregateOutputType = {
   firstName: string | null
   lastName: string | null
   imageUrl: string | null
+  discordUserId: string | null
   role: $Enums.UserRole | null
   taxResidency: string | null
   isActive: boolean | null
@@ -58,6 +59,7 @@ export type UserMaxAggregateOutputType = {
   firstName: string | null
   lastName: string | null
   imageUrl: string | null
+  discordUserId: string | null
   role: $Enums.UserRole | null
   taxResidency: string | null
   isActive: boolean | null
@@ -74,6 +76,7 @@ export type UserCountAggregateOutputType = {
   firstName: number
   lastName: number
   imageUrl: number
+  discordUserId: number
   role: number
   taxResidency: number
   isActive: number
@@ -100,6 +103,7 @@ export type UserMinAggregateInputType = {
   firstName?: true
   lastName?: true
   imageUrl?: true
+  discordUserId?: true
   role?: true
   taxResidency?: true
   isActive?: true
@@ -116,6 +120,7 @@ export type UserMaxAggregateInputType = {
   firstName?: true
   lastName?: true
   imageUrl?: true
+  discordUserId?: true
   role?: true
   taxResidency?: true
   isActive?: true
@@ -132,6 +137,7 @@ export type UserCountAggregateInputType = {
   firstName?: true
   lastName?: true
   imageUrl?: true
+  discordUserId?: true
   role?: true
   taxResidency?: true
   isActive?: true
@@ -235,6 +241,7 @@ export type UserGroupByOutputType = {
   firstName: string | null
   lastName: string | null
   imageUrl: string | null
+  discordUserId: string | null
   role: $Enums.UserRole
   taxResidency: string
   isActive: boolean
@@ -274,6 +281,7 @@ export type UserWhereInput = {
   firstName?: Prisma.StringNullableFilter<"User"> | string | null
   lastName?: Prisma.StringNullableFilter<"User"> | string | null
   imageUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  discordUserId?: Prisma.StringNullableFilter<"User"> | string | null
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   taxResidency?: Prisma.StringFilter<"User"> | string
   isActive?: Prisma.BoolFilter<"User"> | boolean
@@ -297,6 +305,7 @@ export type UserOrderByWithRelationInput = {
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  discordUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   role?: Prisma.SortOrder
   taxResidency?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -315,6 +324,7 @@ export type UserOrderByWithRelationInput = {
 export type UserWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   email?: string
+  discordUserId?: string
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
@@ -336,7 +346,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   theses?: Prisma.InvestmentThesisListRelationFilter
   backtestRuns?: Prisma.BacktestRunListRelationFilter
   notificationChannels?: Prisma.NotificationChannelListRelationFilter
-}, "id" | "email">
+}, "id" | "email" | "discordUserId">
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -346,6 +356,7 @@ export type UserOrderByWithAggregationInput = {
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  discordUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   role?: Prisma.SortOrder
   taxResidency?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -370,6 +381,7 @@ export type UserScalarWhereWithAggregatesInput = {
   firstName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   lastName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   imageUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  discordUserId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
   taxResidency?: Prisma.StringWithAggregatesFilter<"User"> | string
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
@@ -386,6 +398,7 @@ export type UserCreateInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -409,6 +422,7 @@ export type UserUncheckedCreateInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -432,6 +446,7 @@ export type UserUpdateInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -455,6 +470,7 @@ export type UserUncheckedUpdateInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -478,6 +494,7 @@ export type UserCreateManyInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -494,6 +511,7 @@ export type UserUpdateManyMutationInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -510,6 +528,7 @@ export type UserUncheckedUpdateManyInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -526,6 +545,7 @@ export type UserCountOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
+  discordUserId?: Prisma.SortOrder
   role?: Prisma.SortOrder
   taxResidency?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -546,6 +566,7 @@ export type UserMaxOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
+  discordUserId?: Prisma.SortOrder
   role?: Prisma.SortOrder
   taxResidency?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -562,6 +583,7 @@ export type UserMinOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
+  discordUserId?: Prisma.SortOrder
   role?: Prisma.SortOrder
   taxResidency?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
@@ -717,6 +739,7 @@ export type UserCreateWithoutPortfoliosInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -739,6 +762,7 @@ export type UserUncheckedCreateWithoutPortfoliosInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -777,6 +801,7 @@ export type UserUpdateWithoutPortfoliosInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -799,6 +824,7 @@ export type UserUncheckedUpdateWithoutPortfoliosInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -821,6 +847,7 @@ export type UserCreateWithoutThesesInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -843,6 +870,7 @@ export type UserUncheckedCreateWithoutThesesInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -881,6 +909,7 @@ export type UserUpdateWithoutThesesInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -903,6 +932,7 @@ export type UserUncheckedUpdateWithoutThesesInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -925,6 +955,7 @@ export type UserCreateWithoutBacktestRunsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -947,6 +978,7 @@ export type UserUncheckedCreateWithoutBacktestRunsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -985,6 +1017,7 @@ export type UserUpdateWithoutBacktestRunsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1007,6 +1040,7 @@ export type UserUncheckedUpdateWithoutBacktestRunsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1029,6 +1063,7 @@ export type UserCreateWithoutWatchListsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1051,6 +1086,7 @@ export type UserUncheckedCreateWithoutWatchListsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1089,6 +1125,7 @@ export type UserUpdateWithoutWatchListsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1111,6 +1148,7 @@ export type UserUncheckedUpdateWithoutWatchListsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1133,6 +1171,7 @@ export type UserCreateWithoutAlertsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1155,6 +1194,7 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1193,6 +1233,7 @@ export type UserUpdateWithoutAlertsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1215,6 +1256,7 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1237,6 +1279,7 @@ export type UserCreateWithoutAuditLogsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1259,6 +1302,7 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1297,6 +1341,7 @@ export type UserUpdateWithoutAuditLogsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1319,6 +1364,7 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1341,6 +1387,7 @@ export type UserCreateWithoutNotificationChannelsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1363,6 +1410,7 @@ export type UserUncheckedCreateWithoutNotificationChannelsInput = {
   firstName?: string | null
   lastName?: string | null
   imageUrl?: string | null
+  discordUserId?: string | null
   role?: $Enums.UserRole
   taxResidency?: string
   isActive?: boolean
@@ -1401,6 +1449,7 @@ export type UserUpdateWithoutNotificationChannelsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1423,6 +1472,7 @@ export type UserUncheckedUpdateWithoutNotificationChannelsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discordUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   taxResidency?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1530,6 +1580,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   firstName?: boolean
   lastName?: boolean
   imageUrl?: boolean
+  discordUserId?: boolean
   role?: boolean
   taxResidency?: boolean
   isActive?: boolean
@@ -1554,6 +1605,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   firstName?: boolean
   lastName?: boolean
   imageUrl?: boolean
+  discordUserId?: boolean
   role?: boolean
   taxResidency?: boolean
   isActive?: boolean
@@ -1570,6 +1622,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   firstName?: boolean
   lastName?: boolean
   imageUrl?: boolean
+  discordUserId?: boolean
   role?: boolean
   taxResidency?: boolean
   isActive?: boolean
@@ -1586,6 +1639,7 @@ export type UserSelectScalar = {
   firstName?: boolean
   lastName?: boolean
   imageUrl?: boolean
+  discordUserId?: boolean
   role?: boolean
   taxResidency?: boolean
   isActive?: boolean
@@ -1594,7 +1648,7 @@ export type UserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "tokenVersion" | "firstName" | "lastName" | "imageUrl" | "role" | "taxResidency" | "isActive" | "deletedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "tokenVersion" | "firstName" | "lastName" | "imageUrl" | "discordUserId" | "role" | "taxResidency" | "isActive" | "deletedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   portfolios?: boolean | Prisma.User$portfoliosArgs<ExtArgs>
   watchLists?: boolean | Prisma.User$watchListsArgs<ExtArgs>
@@ -1627,6 +1681,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     firstName: string | null
     lastName: string | null
     imageUrl: string | null
+    discordUserId: string | null
     role: $Enums.UserRole
     taxResidency: string
     isActive: boolean
@@ -2070,6 +2125,7 @@ export interface UserFieldRefs {
   readonly firstName: Prisma.FieldRef<"User", 'String'>
   readonly lastName: Prisma.FieldRef<"User", 'String'>
   readonly imageUrl: Prisma.FieldRef<"User", 'String'>
+  readonly discordUserId: Prisma.FieldRef<"User", 'String'>
   readonly role: Prisma.FieldRef<"User", 'UserRole'>
   readonly taxResidency: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>

@@ -5,9 +5,9 @@ import { env } from '../../config/env';
 const SALT_ROUNDS = 12;
 
 export interface RefreshTokenPayload {
-  sub: string; // userId
+  sub: string;
   tokenVersion: number;
-  jti: string; // unique id per refresh token, lets us revoke a single session
+  jti: string;
   exp: number;
 }
 

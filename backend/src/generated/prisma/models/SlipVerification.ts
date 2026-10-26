@@ -27,6 +27,7 @@ export type AggregateSlipVerification = {
 }
 
 export type SlipVerificationAvgAggregateOutputType = {
+  imageSize: number | null
   amount: runtime.Decimal | null
   fee: runtime.Decimal | null
   vat: runtime.Decimal | null
@@ -36,6 +37,7 @@ export type SlipVerificationAvgAggregateOutputType = {
 }
 
 export type SlipVerificationSumAggregateOutputType = {
+  imageSize: number | null
   amount: runtime.Decimal | null
   fee: runtime.Decimal | null
   vat: runtime.Decimal | null
@@ -47,6 +49,9 @@ export type SlipVerificationSumAggregateOutputType = {
 export type SlipVerificationMinAggregateOutputType = {
   id: string | null
   transactionId: string | null
+  imageKey: string | null
+  imageMimeType: string | null
+  imageSize: number | null
   imageUrl: string | null
   transRef: string | null
   sendingBank: string | null
@@ -67,6 +72,9 @@ export type SlipVerificationMinAggregateOutputType = {
 export type SlipVerificationMaxAggregateOutputType = {
   id: string | null
   transactionId: string | null
+  imageKey: string | null
+  imageMimeType: string | null
+  imageSize: number | null
   imageUrl: string | null
   transRef: string | null
   sendingBank: string | null
@@ -87,6 +95,9 @@ export type SlipVerificationMaxAggregateOutputType = {
 export type SlipVerificationCountAggregateOutputType = {
   id: number
   transactionId: number
+  imageKey: number
+  imageMimeType: number
+  imageSize: number
   imageUrl: number
   transRef: number
   sendingBank: number
@@ -108,6 +119,7 @@ export type SlipVerificationCountAggregateOutputType = {
 
 
 export type SlipVerificationAvgAggregateInputType = {
+  imageSize?: true
   amount?: true
   fee?: true
   vat?: true
@@ -117,6 +129,7 @@ export type SlipVerificationAvgAggregateInputType = {
 }
 
 export type SlipVerificationSumAggregateInputType = {
+  imageSize?: true
   amount?: true
   fee?: true
   vat?: true
@@ -128,6 +141,9 @@ export type SlipVerificationSumAggregateInputType = {
 export type SlipVerificationMinAggregateInputType = {
   id?: true
   transactionId?: true
+  imageKey?: true
+  imageMimeType?: true
+  imageSize?: true
   imageUrl?: true
   transRef?: true
   sendingBank?: true
@@ -148,6 +164,9 @@ export type SlipVerificationMinAggregateInputType = {
 export type SlipVerificationMaxAggregateInputType = {
   id?: true
   transactionId?: true
+  imageKey?: true
+  imageMimeType?: true
+  imageSize?: true
   imageUrl?: true
   transRef?: true
   sendingBank?: true
@@ -168,6 +187,9 @@ export type SlipVerificationMaxAggregateInputType = {
 export type SlipVerificationCountAggregateInputType = {
   id?: true
   transactionId?: true
+  imageKey?: true
+  imageMimeType?: true
+  imageSize?: true
   imageUrl?: true
   transRef?: true
   sendingBank?: true
@@ -276,7 +298,10 @@ export type SlipVerificationGroupByArgs<ExtArgs extends runtime.Types.Extensions
 export type SlipVerificationGroupByOutputType = {
   id: string
   transactionId: string
-  imageUrl: string
+  imageKey: string | null
+  imageMimeType: string | null
+  imageSize: number | null
+  imageUrl: string | null
   transRef: string
   sendingBank: string | null
   receivingBank: string | null
@@ -320,7 +345,10 @@ export type SlipVerificationWhereInput = {
   NOT?: Prisma.SlipVerificationWhereInput | Prisma.SlipVerificationWhereInput[]
   id?: Prisma.StringFilter<"SlipVerification"> | string
   transactionId?: Prisma.StringFilter<"SlipVerification"> | string
-  imageUrl?: Prisma.StringFilter<"SlipVerification"> | string
+  imageKey?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
+  imageMimeType?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
+  imageSize?: Prisma.IntNullableFilter<"SlipVerification"> | number | null
+  imageUrl?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   transRef?: Prisma.StringFilter<"SlipVerification"> | string
   sendingBank?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   receivingBank?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
@@ -342,7 +370,10 @@ export type SlipVerificationWhereInput = {
 export type SlipVerificationOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   transactionId?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrder
+  imageKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageSize?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   transRef?: Prisma.SortOrder
   sendingBank?: Prisma.SortOrderInput | Prisma.SortOrder
   receivingBank?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -364,11 +395,14 @@ export type SlipVerificationOrderByWithRelationInput = {
 export type SlipVerificationWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   transactionId?: string
+  imageKey?: string
   transRef?: string
   AND?: Prisma.SlipVerificationWhereInput | Prisma.SlipVerificationWhereInput[]
   OR?: Prisma.SlipVerificationWhereInput[]
   NOT?: Prisma.SlipVerificationWhereInput | Prisma.SlipVerificationWhereInput[]
-  imageUrl?: Prisma.StringFilter<"SlipVerification"> | string
+  imageMimeType?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
+  imageSize?: Prisma.IntNullableFilter<"SlipVerification"> | number | null
+  imageUrl?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   sendingBank?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   receivingBank?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   senderName?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
@@ -384,12 +418,15 @@ export type SlipVerificationWhereUniqueInput = Prisma.AtLeast<{
   rawPayload?: Prisma.JsonNullableFilter<"SlipVerification">
   isAmountMatched?: Prisma.BoolFilter<"SlipVerification"> | boolean
   transaction?: Prisma.XOR<Prisma.TransactionScalarRelationFilter, Prisma.TransactionWhereInput>
-}, "id" | "transactionId" | "transRef">
+}, "id" | "transactionId" | "imageKey" | "transRef">
 
 export type SlipVerificationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   transactionId?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrder
+  imageKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageSize?: Prisma.SortOrderInput | Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   transRef?: Prisma.SortOrder
   sendingBank?: Prisma.SortOrderInput | Prisma.SortOrder
   receivingBank?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -418,7 +455,10 @@ export type SlipVerificationScalarWhereWithAggregatesInput = {
   NOT?: Prisma.SlipVerificationScalarWhereWithAggregatesInput | Prisma.SlipVerificationScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"SlipVerification"> | string
   transactionId?: Prisma.StringWithAggregatesFilter<"SlipVerification"> | string
-  imageUrl?: Prisma.StringWithAggregatesFilter<"SlipVerification"> | string
+  imageKey?: Prisma.StringNullableWithAggregatesFilter<"SlipVerification"> | string | null
+  imageMimeType?: Prisma.StringNullableWithAggregatesFilter<"SlipVerification"> | string | null
+  imageSize?: Prisma.IntNullableWithAggregatesFilter<"SlipVerification"> | number | null
+  imageUrl?: Prisma.StringNullableWithAggregatesFilter<"SlipVerification"> | string | null
   transRef?: Prisma.StringWithAggregatesFilter<"SlipVerification"> | string
   sendingBank?: Prisma.StringNullableWithAggregatesFilter<"SlipVerification"> | string | null
   receivingBank?: Prisma.StringNullableWithAggregatesFilter<"SlipVerification"> | string | null
@@ -438,7 +478,10 @@ export type SlipVerificationScalarWhereWithAggregatesInput = {
 
 export type SlipVerificationCreateInput = {
   id?: string
-  imageUrl: string
+  imageKey?: string | null
+  imageMimeType?: string | null
+  imageSize?: number | null
+  imageUrl?: string | null
   transRef: string
   sendingBank?: string | null
   receivingBank?: string | null
@@ -460,7 +503,10 @@ export type SlipVerificationCreateInput = {
 export type SlipVerificationUncheckedCreateInput = {
   id?: string
   transactionId: string
-  imageUrl: string
+  imageKey?: string | null
+  imageMimeType?: string | null
+  imageSize?: number | null
+  imageUrl?: string | null
   transRef: string
   sendingBank?: string | null
   receivingBank?: string | null
@@ -480,7 +526,10 @@ export type SlipVerificationUncheckedCreateInput = {
 
 export type SlipVerificationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -502,7 +551,10 @@ export type SlipVerificationUpdateInput = {
 export type SlipVerificationUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -523,7 +575,10 @@ export type SlipVerificationUncheckedUpdateInput = {
 export type SlipVerificationCreateManyInput = {
   id?: string
   transactionId: string
-  imageUrl: string
+  imageKey?: string | null
+  imageMimeType?: string | null
+  imageSize?: number | null
+  imageUrl?: string | null
   transRef: string
   sendingBank?: string | null
   receivingBank?: string | null
@@ -543,7 +598,10 @@ export type SlipVerificationCreateManyInput = {
 
 export type SlipVerificationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -564,7 +622,10 @@ export type SlipVerificationUpdateManyMutationInput = {
 export type SlipVerificationUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -590,6 +651,9 @@ export type SlipVerificationNullableScalarRelationFilter = {
 export type SlipVerificationCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   transactionId?: Prisma.SortOrder
+  imageKey?: Prisma.SortOrder
+  imageMimeType?: Prisma.SortOrder
+  imageSize?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   transRef?: Prisma.SortOrder
   sendingBank?: Prisma.SortOrder
@@ -609,6 +673,7 @@ export type SlipVerificationCountOrderByAggregateInput = {
 }
 
 export type SlipVerificationAvgOrderByAggregateInput = {
+  imageSize?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   fee?: Prisma.SortOrder
   vat?: Prisma.SortOrder
@@ -620,6 +685,9 @@ export type SlipVerificationAvgOrderByAggregateInput = {
 export type SlipVerificationMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   transactionId?: Prisma.SortOrder
+  imageKey?: Prisma.SortOrder
+  imageMimeType?: Prisma.SortOrder
+  imageSize?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   transRef?: Prisma.SortOrder
   sendingBank?: Prisma.SortOrder
@@ -640,6 +708,9 @@ export type SlipVerificationMaxOrderByAggregateInput = {
 export type SlipVerificationMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   transactionId?: Prisma.SortOrder
+  imageKey?: Prisma.SortOrder
+  imageMimeType?: Prisma.SortOrder
+  imageSize?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   transRef?: Prisma.SortOrder
   sendingBank?: Prisma.SortOrder
@@ -658,6 +729,7 @@ export type SlipVerificationMinOrderByAggregateInput = {
 }
 
 export type SlipVerificationSumOrderByAggregateInput = {
+  imageSize?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   fee?: Prisma.SortOrder
   vat?: Prisma.SortOrder
@@ -700,7 +772,10 @@ export type SlipVerificationUncheckedUpdateOneWithoutTransactionNestedInput = {
 
 export type SlipVerificationCreateWithoutTransactionInput = {
   id?: string
-  imageUrl: string
+  imageKey?: string | null
+  imageMimeType?: string | null
+  imageSize?: number | null
+  imageUrl?: string | null
   transRef: string
   sendingBank?: string | null
   receivingBank?: string | null
@@ -720,7 +795,10 @@ export type SlipVerificationCreateWithoutTransactionInput = {
 
 export type SlipVerificationUncheckedCreateWithoutTransactionInput = {
   id?: string
-  imageUrl: string
+  imageKey?: string | null
+  imageMimeType?: string | null
+  imageSize?: number | null
+  imageUrl?: string | null
   transRef: string
   sendingBank?: string | null
   receivingBank?: string | null
@@ -756,7 +834,10 @@ export type SlipVerificationUpdateToOneWithWhereWithoutTransactionInput = {
 
 export type SlipVerificationUpdateWithoutTransactionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -776,7 +857,10 @@ export type SlipVerificationUpdateWithoutTransactionInput = {
 
 export type SlipVerificationUncheckedUpdateWithoutTransactionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  imageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  imageSize?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   transRef?: Prisma.StringFieldUpdateOperationsInput | string
   sendingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   receivingBank?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -799,6 +883,9 @@ export type SlipVerificationUncheckedUpdateWithoutTransactionInput = {
 export type SlipVerificationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   transactionId?: boolean
+  imageKey?: boolean
+  imageMimeType?: boolean
+  imageSize?: boolean
   imageUrl?: boolean
   transRef?: boolean
   sendingBank?: boolean
@@ -821,6 +908,9 @@ export type SlipVerificationSelect<ExtArgs extends runtime.Types.Extensions.Inte
 export type SlipVerificationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   transactionId?: boolean
+  imageKey?: boolean
+  imageMimeType?: boolean
+  imageSize?: boolean
   imageUrl?: boolean
   transRef?: boolean
   sendingBank?: boolean
@@ -843,6 +933,9 @@ export type SlipVerificationSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
 export type SlipVerificationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   transactionId?: boolean
+  imageKey?: boolean
+  imageMimeType?: boolean
+  imageSize?: boolean
   imageUrl?: boolean
   transRef?: boolean
   sendingBank?: boolean
@@ -865,6 +958,9 @@ export type SlipVerificationSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
 export type SlipVerificationSelectScalar = {
   id?: boolean
   transactionId?: boolean
+  imageKey?: boolean
+  imageMimeType?: boolean
+  imageSize?: boolean
   imageUrl?: boolean
   transRef?: boolean
   sendingBank?: boolean
@@ -883,7 +979,7 @@ export type SlipVerificationSelectScalar = {
   isAmountMatched?: boolean
 }
 
-export type SlipVerificationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "transactionId" | "imageUrl" | "transRef" | "sendingBank" | "receivingBank" | "senderName" | "amount" | "currency" | "fee" | "vat" | "netAmount" | "fxRate" | "targetAmount" | "targetCurrency" | "verifiedAt" | "rawPayload" | "isAmountMatched", ExtArgs["result"]["slipVerification"]>
+export type SlipVerificationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "transactionId" | "imageKey" | "imageMimeType" | "imageSize" | "imageUrl" | "transRef" | "sendingBank" | "receivingBank" | "senderName" | "amount" | "currency" | "fee" | "vat" | "netAmount" | "fxRate" | "targetAmount" | "targetCurrency" | "verifiedAt" | "rawPayload" | "isAmountMatched", ExtArgs["result"]["slipVerification"]>
 export type SlipVerificationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   transaction?: boolean | Prisma.TransactionDefaultArgs<ExtArgs>
 }
@@ -902,7 +998,10 @@ export type $SlipVerificationPayload<ExtArgs extends runtime.Types.Extensions.In
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     transactionId: string
-    imageUrl: string
+    imageKey: string | null
+    imageMimeType: string | null
+    imageSize: number | null
+    imageUrl: string | null
     transRef: string
     sendingBank: string | null
     receivingBank: string | null
@@ -1344,6 +1443,9 @@ export interface Prisma__SlipVerificationClient<T, Null = never, ExtArgs extends
 export interface SlipVerificationFieldRefs {
   readonly id: Prisma.FieldRef<"SlipVerification", 'String'>
   readonly transactionId: Prisma.FieldRef<"SlipVerification", 'String'>
+  readonly imageKey: Prisma.FieldRef<"SlipVerification", 'String'>
+  readonly imageMimeType: Prisma.FieldRef<"SlipVerification", 'String'>
+  readonly imageSize: Prisma.FieldRef<"SlipVerification", 'Int'>
   readonly imageUrl: Prisma.FieldRef<"SlipVerification", 'String'>
   readonly transRef: Prisma.FieldRef<"SlipVerification", 'String'>
   readonly sendingBank: Prisma.FieldRef<"SlipVerification", 'String'>

@@ -38,7 +38,8 @@ export type PortfolioType = (typeof PortfolioType)[keyof typeof PortfolioType]
 
 export const AccountType = {
   CASH: 'CASH',
-  ASSET: 'ASSET'
+  ASSET: 'ASSET',
+  EQUITY: 'EQUITY'
 } as const
 
 export type AccountType = (typeof AccountType)[keyof typeof AccountType]
@@ -192,7 +193,8 @@ export const NotificationEventType = {
   ALERT_TRIGGERED: 'ALERT_TRIGGERED',
   DAILY_SUMMARY: 'DAILY_SUMMARY',
   BACKTEST_COMPLETED: 'BACKTEST_COMPLETED',
-  ORDER_FILLED: 'ORDER_FILLED'
+  ORDER_FILLED: 'ORDER_FILLED',
+  SYSTEM_ALERT: 'SYSTEM_ALERT'
 } as const
 
 export type NotificationEventType = (typeof NotificationEventType)[keyof typeof NotificationEventType]

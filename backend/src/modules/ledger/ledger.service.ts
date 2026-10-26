@@ -1,42 +1,48 @@
-import { prisma } from '../../config/prisma';
-import { AppError } from '../../common/errors/AppError';
-import { assertPortfolioOwnership } from '../../common/utils/portfolio-ownership.util';
+import { prisma } from "../../config/prisma";
+import { AppError } from "../../common/errors/AppError";
+import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
 
-export type AccountTypeValue = 'CASH' | 'ASSET';
-export type EntrySideValue = 'DEBIT' | 'CREDIT';
+export type AccountTypeValue = "CASH" | "ASSET" | "EQUITY";
+export type EntrySideValue = "DEBIT" | "CREDIT";
 
 export interface LedgerEntryInput {
   portfolioId: string;
   accountType: AccountTypeValue;
   side: EntrySideValue;
-  amount: number; // always positive — direction comes from `side`, never from sign
+  amount: number;
   assetSymbol: string;
   cashAccountId?: string;
   positionId?: string;
   assetId?: string;
 }
 
-// Minimal shape this function needs from a Prisma transaction client — defined locally
-// instead of importing Prisma.TransactionClient, so this file has no dependency on the
-// generated client's exact export path.
-export interface LedgerTxClient {
-  ledgerEntry: { create: (args: { data: Record<string, unknown> }) => Promise<unknown> };
-  cashAccount: {
-    update: (args: {
-      where: { id: string };
-      data: { balance: { increment: number } };
-    }) => Promise<unknown>;
-  };
-}
+/**
+ * Prisma transaction client type.
+ *
+ * This is inferred directly from prisma.$transaction(),
+ * so we don't need to manually maintain a fake Prisma client type.
+ */
+export type LedgerTxClient = Parameters<
+  Parameters<typeof prisma.$transaction>[0]
+>[0];
 
 /**
- * The ONE place money gets written in this system. Every batch must balance —
- * sum(DEBIT) === sum(CREDIT) — or nothing is written at all.
+ * The ONE place ledger entries are written.
  *
- * Takes a transaction client rather than opening its own `prisma.$transaction`, so
- * callers (the Transaction service in Phase 5, Order fills in Phase 9) can compose
- * this together with their OWN writes — creating the Transaction row, updating
- * Position — as a single atomic unit. This function never commits on its own.
+ * IMPORTANT:
+ * This function does NOT create its own transaction.
+ * The caller owns the transaction boundary.
+ *
+ * Example:
+ *
+ * prisma.$transaction(async (tx) => {
+ *   const transaction = await tx.transaction.create(...);
+ *   await postLedgerEntries(tx, transaction.id, entries);
+ *   await tx.position.update(...);
+ * });
+ *
+ * This guarantees that Transaction + Ledger + Position
+ * can commit or rollback together.
  */
 export async function postLedgerEntries(
   tx: LedgerTxClient,
@@ -44,28 +50,35 @@ export async function postLedgerEntries(
   entries: LedgerEntryInput[],
 ) {
   if (entries.length === 0) {
-    throw AppError.badRequest('A ledger posting must contain at least one entry');
+    throw AppError.badRequest(
+      "A ledger posting must contain at least one entry",
+    );
   }
 
   for (const entry of entries) {
-    if (entry.amount <= 0) {
+    if (!Number.isFinite(entry.amount) || entry.amount <= 0) {
       throw AppError.badRequest(
-        'Ledger entry amounts must be positive — direction comes from `side`, not sign',
+        "Ledger entry amounts must be positive — direction comes from `side`, not sign",
       );
     }
-    if (entry.accountType === 'CASH' && !entry.cashAccountId) {
-      throw AppError.badRequest('CASH ledger entries must include cashAccountId');
+
+    if (entry.accountType === "CASH" && !entry.cashAccountId) {
+      throw AppError.badRequest(
+        "CASH ledger entries must include cashAccountId",
+      );
     }
-    if (entry.accountType === 'ASSET' && !entry.assetId) {
-      throw AppError.badRequest('ASSET ledger entries must include assetId');
+
+    if (entry.accountType === "ASSET" && !entry.assetId) {
+      throw AppError.badRequest("ASSET ledger entries must include assetId");
     }
+
+    // EQUITY entries don't require cashAccountId or assetId.
   }
 
-  const totalDebit = sumBySide(entries, 'DEBIT');
-  const totalCredit = sumBySide(entries, 'CREDIT');
+  const totalDebit = sumBySide(entries, "DEBIT");
+  const totalCredit = sumBySide(entries, "CREDIT");
 
-  // Compare in integer cents — comparing raw floats (0.1 + 0.2 !== 0.3) would reject a
-  // perfectly valid posting due to binary floating point rounding, not a real imbalance.
+  // Compare integer cents instead of raw floating point numbers.
   if (toCents(totalDebit) !== toCents(totalCredit)) {
     throw AppError.badRequest(
       `Ledger entries do not balance: debit ${totalDebit} !== credit ${totalCredit}`,
@@ -90,15 +103,26 @@ export async function postLedgerEntries(
     ),
   );
 
-  // CashAccount carries a running balance — kept in sync in the SAME transaction as the
-  // entries above. ASSET-side entries don't drive anything here; Position.quantity /
-  // avgPrice is maintained separately by whichever service calls this function.
-  const cashEntries = entries.filter((e) => e.accountType === 'CASH');
+  /**
+   * CashAccount maintains a running balance.
+   *
+   * DEBIT  = money enters cash account
+   * CREDIT = money leaves cash account
+   */
+  const cashEntries = entries.filter((entry) => entry.accountType === "CASH");
+
   for (const entry of cashEntries) {
-    const signedAmount = entry.side === 'DEBIT' ? entry.amount : -entry.amount;
+    const signedAmount = entry.side === "DEBIT" ? entry.amount : -entry.amount;
+
     await tx.cashAccount.update({
-      where: { id: entry.cashAccountId! },
-      data: { balance: { increment: signedAmount } },
+      where: {
+        id: entry.cashAccountId!,
+      },
+      data: {
+        balance: {
+          increment: signedAmount,
+        },
+      },
     });
   }
 
@@ -108,7 +132,11 @@ export async function postLedgerEntries(
 export async function getLedgerEntries(
   userId: string,
   portfolioId: string,
-  filters: { from?: Date; to?: Date; accountType?: AccountTypeValue },
+  filters: {
+    from?: Date;
+    to?: Date;
+    accountType?: AccountTypeValue;
+  },
 ) {
   await assertPortfolioOwnership(userId, portfolioId);
 
@@ -116,14 +144,21 @@ export async function getLedgerEntries(
     where: {
       portfolioId,
       accountType: filters.accountType,
-      createdAt: { gte: filters.from, lte: filters.to },
+      createdAt: {
+        gte: filters.from,
+        lte: filters.to,
+      },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 }
 
 function sumBySide(entries: LedgerEntryInput[], side: EntrySideValue): number {
-  return entries.filter((e) => e.side === side).reduce((sum, e) => sum + e.amount, 0);
+  return entries
+    .filter((entry) => entry.side === side)
+    .reduce((sum, entry) => sum + entry.amount, 0);
 }
 
 function toCents(amount: number): number {

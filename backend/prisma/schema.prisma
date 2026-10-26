@@ -25,6 +25,7 @@ model User {
   firstName    String? // ชื่อจริง
   lastName     String? // นามสกุล
   imageUrl     String? // รูปโปรไฟล์
+  discordUserId String?  @unique // 🆕 ผูกบัญชี Discord กับบัญชีในแอป สำหรับ slash command
   role         UserRole  @default(USER) // สิทธิ์การใช้งาน (USER หรือ ADMIN)
   taxResidency String    @default("TH") // ถิ่นที่อยู่ทางภาษี (เช่น TH, US) ใช้คำนวณภาษี
   isActive     Boolean   @default(true) // สถานะบัญชี (ใช้งานอยู่ / ถูกระงับ)
@@ -172,6 +173,7 @@ model LedgerEntry {
 enum AccountType {
   CASH // บัญชีเงินสด
   ASSET // บัญชีสินทรัพย์ลงทุน
+  EQUITY // บัญชีส่วนของเจ้าของ (ทุน)
 }
 
 /// ฝั่งรายการบัญชี (ตามหลักบัญชี Double-Entry)
@@ -493,7 +495,10 @@ model RebalanceLog {
 model SlipVerification {
   id            String  @id @default(uuid())
   transactionId String  @unique // ผูกกับ Transaction หลัก 1:1
-  imageUrl      String // ลิงก์รูปภาพสลิปบน Cloud Storage (S3, Supabase)
+  imageKey      String? @unique // object key ของรูปสลิปใน Cloudflare R2 (อ่านผ่าน presigned URL เท่านั้น)
+  imageMimeType String? // MIME type ที่ตรวจจาก magic bytes ตอนอัปโหลด (image/jpeg, image/png, ...)
+  imageSize     Int? // ขนาดไฟล์ (bytes)
+  imageUrl      String? // LEGACY: data URI base64 จากเวอร์ชันก่อนใช้ R2 — ย้ายด้วย npm run slips:migrate-to-r2 แล้วจะเป็น null
   transRef      String  @unique // รหัสอ้างอิงสลิปจาก QR Code (ป้องกันสลิปซ้ำ)
   sendingBank   String? // ธนาคารต้นทางผู้โอน
   receivingBank String? // ธนาคารปลายทางผู้รับ
@@ -829,6 +834,7 @@ enum NotificationEventType {
   DAILY_SUMMARY
   BACKTEST_COMPLETED
   ORDER_FILLED
+  SYSTEM_ALERT // แจ้งเตือนระดับระบบ (เช่น พื้นที่ R2 ใกล้เต็ม) — ส่งให้ user ที่เป็น ADMIN เท่านั้น
 }
 
 model NotificationLog {

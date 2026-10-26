@@ -9,11 +9,20 @@ import {
   signRefreshTokenWithJti,
   verifyRefreshToken,
 } from './auth.utils';
+import type { UserShape } from '../user/user.service';
 
+// Exported: other files import * as authService (and now the Pothos schema imports
+// this type directly), so TypeScript needs to be able to name it.
+//
+// `user` is typed as the FULL UserShape, not a narrow { id, email, firstName, lastName }
+// subset — Prisma's create()/findUnique() already return every scalar column by default,
+// so role/imageUrl/taxResidency/isActive/createdAt were always present on the actual
+// object at runtime; the old narrow type just didn't admit it, which meant TypeScript
+// would (wrongly) flag `user.role` as an error anywhere this type was used directly.
 export interface AuthPayload {
   accessToken: string;
   refreshToken: string;
-  user: { id: string; email: string; firstName: string | null; lastName: string | null };
+  user: UserShape;
 }
 
 async function issueTokens(userId: string, tokenVersion: number) {
@@ -37,31 +46,20 @@ export async function register(
   lastName?: string,
 ): Promise<AuthPayload> {
   const existing = await prisma.user.findUnique({ where: { email } });
-
   if (existing) {
     throw AppError.conflict('An account with this email already exists');
   }
 
   const passwordHash = await hashPassword(password);
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      firstName: firstName ?? null,
-      lastName: lastName ?? null,
-    },
-  });
+  const user = await prisma.user.create({ data: { email, passwordHash, firstName, lastName } });
 
   const tokens = await issueTokens(user.id, user.tokenVersion);
-
   return { ...tokens, user };
 }
 
 export async function login(email: string, password: string): Promise<AuthPayload> {
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Same error for "no such user" and "wrong password" — don't leak which one it was
   if (!user || user.deletedAt || !user.isActive) {
     throw AppError.unauthorized('Invalid email or password');
   }
@@ -93,8 +91,6 @@ export async function refreshAccessToken(refreshToken: string): Promise<AuthPayl
     throw AppError.unauthorized('Invalid or expired refresh token');
   }
 
-  // Rotate on every refresh: burn the old token, issue a fresh pair.
-  // Limits the blast radius if a refresh token ever leaks.
   await revokeJti(payload.jti, payload.exp);
   const tokens = await issueTokens(user.id, user.tokenVersion);
   return { ...tokens, user };
@@ -111,12 +107,7 @@ export async function logout(refreshToken: string): Promise<boolean> {
 }
 
 export async function revokeAllSessions(userId: string): Promise<boolean> {
-  // Bumping tokenVersion invalidates every access + refresh token issued
-  // before this moment, across all devices, in one write.
-  await prisma.user.update({
-    where: { id: userId },
-    data: { tokenVersion: { increment: 1 } },
-  });
+  await prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
   return true;
 }
 
@@ -133,10 +124,9 @@ export async function changePassword(
   }
 
   const passwordHash = await hashPassword(newPassword);
-
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash, tokenVersion: { increment: 1 } }, // kills every other session too
+    data: { passwordHash, tokenVersion: { increment: 1 } },
   });
 
   return true;

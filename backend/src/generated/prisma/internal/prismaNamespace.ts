@@ -2638,6 +2638,7 @@ export const UserScalarFieldEnum = {
   firstName: 'firstName',
   lastName: 'lastName',
   imageUrl: 'imageUrl',
+  discordUserId: 'discordUserId',
   role: 'role',
   taxResidency: 'taxResidency',
   isActive: 'isActive',
@@ -2891,6 +2892,9 @@ export type RebalanceLogScalarFieldEnum = (typeof RebalanceLogScalarFieldEnum)[k
 export const SlipVerificationScalarFieldEnum = {
   id: 'id',
   transactionId: 'transactionId',
+  imageKey: 'imageKey',
+  imageMimeType: 'imageMimeType',
+  imageSize: 'imageSize',
   imageUrl: 'imageUrl',
   transRef: 'transRef',
   sendingBank: 'sendingBank',

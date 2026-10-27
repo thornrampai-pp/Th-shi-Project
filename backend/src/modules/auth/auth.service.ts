@@ -9,6 +9,7 @@ import {
   signRefreshTokenWithJti,
   verifyRefreshToken,
 } from './auth.utils';
+import { assertPasswordPolicy } from './password-policy';
 import type { UserShape } from '../user/user.service';
 
 // Exported: other files import * as authService (and now the Pothos schema imports
@@ -45,6 +46,8 @@ export async function register(
   firstName?: string,
   lastName?: string,
 ): Promise<AuthPayload> {
+  assertPasswordPolicy(password);
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw AppError.conflict('An account with this email already exists');
@@ -125,6 +128,7 @@ export async function changePassword(
     throw AppError.badRequest('Current password is incorrect');
   }
 
+  assertPasswordPolicy(newPassword);
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({
     where: { id: userId },

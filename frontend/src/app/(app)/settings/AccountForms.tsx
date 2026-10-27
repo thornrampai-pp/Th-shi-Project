@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { changePasswordAction, updateProfileAction } from "@/actions/settings";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/auth/password";
 
 const fieldClass = "w-full rounded-md bg-background px-3 py-2 text-sm outline-none";
 
@@ -80,8 +81,6 @@ export function ProfileForm({ initial }: { initial: { firstName: string; lastNam
   );
 }
 
-const MIN_PASSWORD = 8;
-
 export function PasswordForm() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -125,7 +124,7 @@ export function PasswordForm() {
             type="password"
             autoComplete="new-password"
             required
-            minLength={MIN_PASSWORD}
+            minLength={MIN_PASSWORD_LENGTH}
             value={next}
             onChange={(e) => setNext(e.target.value)}
             className={fieldClass}
@@ -143,9 +142,10 @@ export function PasswordForm() {
         </Field>
       </div>
       {mismatch && <p className="text-xs text-loss">Passwords don&apos;t match</p>}
+      {next !== "" && passwordProblem(next) && <p className="text-xs text-loss">{passwordProblem(next)}</p>}
       <SubmitRow
         pending={pending}
-        disabled={mismatch || next.length < MIN_PASSWORD || !current}
+        disabled={mismatch || passwordProblem(next) != null || !current}
         label="Change password"
         message={message}
       />

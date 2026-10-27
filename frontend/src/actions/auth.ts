@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { graphql } from "@/gql";
 import { backendRequest } from "@/lib/graphql/backend";
+import { passwordProblem } from "@/lib/auth/password";
 import { REFRESH_COOKIE, clearedCookies, toTokens, tokenCookies, type Tokens } from "@/lib/auth/tokens";
 
 export type AuthFormState = { error: string; values: Record<string, string> } | null;
@@ -86,6 +87,8 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   if (!email || typeof password !== "string" || !password) {
     return fail(formData, "Please enter your email and password");
   }
+  const problem = passwordProblem(password);
+  if (problem) return fail(formData, problem);
 
   let tokens: Tokens | null;
   try {

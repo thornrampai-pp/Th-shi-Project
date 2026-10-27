@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { registerAction } from '@/actions/auth';
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
 
 export default function RegisterPage() {
   const [state, formAction, pending] = useActionState(registerAction, null);
@@ -44,14 +45,22 @@ export default function RegisterPage() {
           required 
           className="w-full p-3 bg-[#f5f5f5] border border-[#333] rounded-lg outline-none focus:border-[#333] text-[#333] placeholder-gray-500"
         />
-        <input 
-          name="password" 
-          type="password" 
-          placeholder="Password" 
-          required 
-          className="w-full p-3 bg-[#f5f5f5] border border-[#333] rounded-lg outline-none focus:border-[#333] text-[#333] placeholder-gray-500"
-        />
-        
+        <div className="flex flex-col gap-1">
+          <input
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            aria-describedby="password-hint"
+            className="w-full p-3 bg-[#f5f5f5] border border-[#333] rounded-lg outline-none focus:border-[#333] text-[#333] placeholder-gray-500"
+          />
+          <p id="password-hint" className="text-xs text-gray-500">
+            At least {MIN_PASSWORD_LENGTH} characters
+          </p>
+        </div>
+
         <button 
           type="submit" 
           disabled={pending}

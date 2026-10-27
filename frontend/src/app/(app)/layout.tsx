@@ -45,7 +45,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <span className="hidden sm:inline">{name}</span>
               </Link>
             )}
-            <form action={logoutAction}>
+            {/* No room on phones — Settings (the avatar) has Log out there. */}
+            <form action={logoutAction} className="hidden sm:block">
               <button
                 type="submit"
                 className="rounded-md px-3 py-1.5 text-sm whitespace-nowrap text-white/70 transition hover:bg-white/10 hover:text-white"

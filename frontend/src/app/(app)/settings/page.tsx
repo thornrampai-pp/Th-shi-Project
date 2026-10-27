@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { logoutAction } from "@/actions/auth";
 import PageContainer from "@/components/PageContainer";
 import { graphql } from "@/gql";
 import { compact } from "@/lib/graphql/normalize";
@@ -48,7 +49,16 @@ export default async function SettingsPage() {
   );
 
   return (
-    <PageContainer title="Settings">
+    <PageContainer
+      title="Settings"
+      actions={
+        <form action={logoutAction}>
+          <button type="submit" className="rounded-md bg-field px-4 py-2 text-sm hover:bg-field/70">
+            Log out
+          </button>
+        </form>
+      }
+    >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Profile" description={me.email ?? undefined}>
           <ProfileForm

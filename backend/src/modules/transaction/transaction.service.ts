@@ -5,7 +5,7 @@ import { postLedgerEntries } from "../ledger/ledger.service";
 import type { LedgerEntryInput, LedgerTxClient } from "../ledger/ledger.service";
 import { notifyEvent } from "../notification/notification.service";
 import { normalizeCountryCode } from "../../common/utils/source-country.util";
-import { repairIfBackdated } from "../history/history.service";
+import { refreshHistoryAfterTransaction } from "../history/history.service";
 import { getExchangeRate, resolveHomeFxRate } from "../fx/fx.service";
 import { splitPL } from "./fx-pl";
 import type { FxLot } from "./fx-pl";
@@ -124,9 +124,10 @@ export async function createTransaction(
     console.error("❌ Failed to send transaction notification:", err);
   });
 
-  // A past-dated transaction makes every snapshot from that day on stale.
-  repairIfBackdated(input.portfolioId, transaction.executedAt).catch((err) => {
-    console.error("❌ Failed to schedule snapshot repair:", err);
+  // Fetch history for anything new (so holdings are valued at market, not cost), and
+  // rebuild snapshots if this was dated into the past. Never blocks the response.
+  refreshHistoryAfterTransaction(input.portfolioId, transaction.executedAt).catch((err) => {
+    console.error("❌ Failed to refresh history after transaction:", err);
   });
 
   return transaction;

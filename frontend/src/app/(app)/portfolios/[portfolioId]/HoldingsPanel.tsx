@@ -6,6 +6,7 @@ import { formatMoney, formatQuantity, formatSignedMoney, formatSignedPct, plColo
 import type { Holding } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
 import SlipUploadDialog from "./SlipUploadDialog";
+import RecordTransactionDialog from "./transactions/RecordTransactionDialog";
 import Select from "@/components/Select";
 
 const SORTS = {
@@ -24,6 +25,7 @@ type Props = { portfolioId: string; currency: string; holdings: Holding[] };
 export default function HoldingsPanel({ portfolioId, currency, holdings }: Props) {
   const [sort, setSort] = useState<SortKey>("weight");
   const [dialog, setDialog] = useState<"slip" | "asset" | null>(null);
+  const [selling, setSelling] = useState<string | null>(null); // assetId
   const rows = useMemo(() => [...holdings].sort(SORTS[sort].compare), [holdings, sort]);
 
   return (
@@ -64,12 +66,15 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
               <th className="px-4 py-2.5 text-right">Price</th>
               <th className="px-4 py-2.5 text-right">Value</th>
               <th className="px-4 py-2.5 text-right">Profit / Loss</th>
+              <th className="px-4 py-2.5">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 tabular-nums">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                   No holdings yet. Use “+ Add asset” to record one.
                 </td>
               </tr>
@@ -91,6 +96,16 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
                   {formatSignedMoney(h.unrealizedPL)}
                   <p className="text-xs">{formatSignedPct(h.unrealizedPLPct)}</p>
                 </td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setSelling(h.assetId)}
+                    aria-label={`Sell ${h.symbol}`}
+                    className="rounded-md border border-border px-3 py-1 text-xs hover:bg-background"
+                  >
+                    Sell
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -100,6 +115,21 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
 
       {dialog === "slip" && <SlipUploadDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
       {dialog === "asset" && <AddAssetDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
+      {selling && (
+        <RecordTransactionDialog
+          portfolioId={portfolioId}
+          holdings={holdings.map((h) => ({
+            assetId: h.assetId,
+            symbol: h.symbol,
+            quantity: h.quantity,
+            currency: h.assetCurrency,
+          }))}
+          currencies={[...new Set(["THB", "USD", ...holdings.flatMap((h) => (h.assetCurrency ? [h.assetCurrency] : []))])]}
+          initialKind="SELL"
+          initialAssetId={selling}
+          onClose={() => setSelling(null)}
+        />
+      )}
     </section>
   );
 }

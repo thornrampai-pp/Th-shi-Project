@@ -48,13 +48,23 @@ type Props = {
   holdings: HoldingOption[];
   currencies: string[];
   onClose: () => void;
+  /** Opened from a holding's "Sell" button: start on SELL with that asset picked. */
+  initialKind?: Kind;
+  initialAssetId?: string;
 };
 
 /** SELL / DEPOSIT / WITHDRAW / DIVIDEND. BUY lives in “+ Add asset” on the Holdings tab. */
-export default function RecordTransactionDialog({ portfolioId, holdings, currencies, onClose }: Props) {
+export default function RecordTransactionDialog({
+  portfolioId,
+  holdings,
+  currencies,
+  onClose,
+  initialKind,
+  initialAssetId,
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [kind, setKind] = useState<Kind>(holdings.length ? "SELL" : "DEPOSIT");
-  const [assetId, setAssetId] = useState(holdings[0]?.assetId ?? "");
+  const [kind, setKind] = useState<Kind>(initialKind ?? (holdings.length ? "SELL" : "DEPOSIT"));
+  const [assetId, setAssetId] = useState(initialAssetId ?? holdings[0]?.assetId ?? "");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [amount, setAmount] = useState("");

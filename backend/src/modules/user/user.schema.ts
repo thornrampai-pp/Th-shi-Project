@@ -16,6 +16,8 @@ export const UserType = builder.objectRef<UserShape>('User').implement({
     taxResidency: t.exposeString('taxResidency'),
     isActive: t.exposeBoolean('isActive'),
     createdAt: t.field({ type: 'String', resolve: (u) => u.createdAt.toISOString() }),
+    // Whether /link has been run — the Discord user id itself isn't exposed.
+    discordLinked: t.boolean({ resolve: (u) => !!u.discordUserId }),
   }),
 });
 

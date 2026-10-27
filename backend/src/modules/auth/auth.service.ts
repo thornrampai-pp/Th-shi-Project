@@ -120,7 +120,9 @@ export async function changePassword(
 
   const valid = await verifyPassword(oldPassword, user.passwordHash);
   if (!valid) {
-    throw AppError.unauthorized('Current password is incorrect');
+    // Not UNAUTHORIZED: the session is fine, the input isn't. Clients treat
+    // UNAUTHORIZED as "session ended" and log the user out.
+    throw AppError.badRequest('Current password is incorrect');
   }
 
   const passwordHash = await hashPassword(newPassword);

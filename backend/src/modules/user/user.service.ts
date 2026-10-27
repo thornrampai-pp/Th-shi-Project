@@ -17,6 +17,7 @@ export interface UserShape {
   taxResidency: string;
   isActive: boolean;
   createdAt: Date;
+  discordUserId?: string | null;
 }
 
 export async function getUserById(userId: string) {

@@ -6,6 +6,7 @@ import { formatMoney, formatQuantity, formatSignedMoney, formatSignedPct, plColo
 import type { Holding } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
 import SlipUploadDialog from "./SlipUploadDialog";
+import Select from "@/components/Select";
 
 const SORTS = {
   weight: { label: "Largest first", compare: (a: Holding, b: Holding) => b.weight - a.weight },
@@ -28,7 +29,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <select
+        <Select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
           aria-label="Sort holdings"
@@ -39,7 +40,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
               Sort: {s.label}
             </option>
           ))}
-        </select>
+        </Select>
         <button type="button" onClick={() => setDialog("slip")} className={toolbarButton}>
           Upload slips
         </button>

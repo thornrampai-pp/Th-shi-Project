@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/dates";
 import { formatMoney, formatQuantity, formatSignedMoney, plColor } from "@/lib/format";
 import type { Transaction } from "../../data";
 import RecordTransactionDialog, { type HoldingOption } from "./RecordTransactionDialog";
+import Select from "@/components/Select";
 
 const TYPE_LABEL: Record<string, string> = {
   BUY: "Buy",
@@ -38,7 +39,7 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <select
+        <Select
           value={type}
           onChange={(e) => setType(e.target.value)}
           aria-label="Filter by type"
@@ -50,7 +51,7 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
               {TYPE_LABEL[t] ?? t}
             </option>
           ))}
-        </select>
+        </Select>
         <button
           type="button"
           onClick={() => setRecording(true)}

@@ -6,6 +6,7 @@ import { searchAssetsAction } from "@/actions/watchlist";
 import type { AlertCondition } from "@/gql/graphql";
 import type { Asset } from "@/lib/graphql/normalize";
 import { CONDITIONS } from "./conditions";
+import Select from "@/components/Select";
 
 const fieldClass = "w-full rounded-md bg-muted px-3 py-2 text-sm outline-none";
 
@@ -113,13 +114,13 @@ export default function NewAlertDialog({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
               <label className="block space-y-1 text-sm">
                 <span className="text-muted-foreground">When</span>
-                <select value={condition} onChange={(e) => setCondition(e.target.value as AlertCondition)} className={fieldClass}>
+                <Select block value={condition} onChange={(e) => setCondition(e.target.value as AlertCondition)} className={fieldClass}>
                   {CONDITIONS.map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="block space-y-1 text-sm">
                 <span className="text-muted-foreground">{unit === "%" ? "Value (%)" : unit === "x" ? "Value" : "Price"}</span>

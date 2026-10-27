@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortfolioAction } from "@/actions/portfolio";
 import type { PortfolioType, StrategyType } from "@/gql/graphql";
+import Select from "@/components/Select";
 
 const STRATEGIES: { value: StrategyType; label: string }[] = [
   { value: "VALUE", label: "Value — long-term hold" },
@@ -68,29 +69,29 @@ export default function CreatePortfolioDialog({ onClose }: { onClose: () => void
 
         <label className="block space-y-1 text-sm">
           <span className="text-muted-foreground">Strategy</span>
-          <select value={strategy} onChange={(e) => setStrategy(e.target.value as StrategyType)} className={fieldClass}>
+          <Select block value={strategy} onChange={(e) => setStrategy(e.target.value as StrategyType)} className={fieldClass}>
             {STRATEGIES.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block space-y-1 text-sm">
             <span className="text-muted-foreground">Base currency</span>
-            <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className={fieldClass}>
+            <Select block value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className={fieldClass}>
               <option value="THB">THB</option>
               <option value="USD">USD</option>
-            </select>
+            </Select>
           </label>
           <label className="block space-y-1 text-sm">
             <span className="text-muted-foreground">Type</span>
-            <select value={type} onChange={(e) => setType(e.target.value as PortfolioType)} className={fieldClass}>
+            <Select block value={type} onChange={(e) => setType(e.target.value as PortfolioType)} className={fieldClass}>
               <option value="REAL">Real money</option>
               <option value="PAPER">Paper (simulated)</option>
-            </select>
+            </Select>
           </label>
         </div>
 

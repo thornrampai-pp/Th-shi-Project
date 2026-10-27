@@ -6,6 +6,7 @@ import type { TaxStatus } from "@/gql/graphql";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { TAX_TYPE_LABEL } from "./labels";
+import Select from "@/components/Select";
 
 const STATUSES: TaxStatus[] = ["PENDING", "FILED", "PAID"];
 
@@ -81,7 +82,7 @@ function StatusSelect({ id, status }: { id: string; status: TaxStatus }) {
 
   return (
     <>
-      <select
+      <Select
         value={shown}
         disabled={pending}
         aria-label="Status"
@@ -101,7 +102,7 @@ function StatusSelect({ id, status }: { id: string; status: TaxStatus }) {
             {s.charAt(0) + s.slice(1).toLowerCase()}
           </option>
         ))}
-      </select>
+      </Select>
       {error && <p className="text-xs text-loss">{error}</p>}
     </>
   );

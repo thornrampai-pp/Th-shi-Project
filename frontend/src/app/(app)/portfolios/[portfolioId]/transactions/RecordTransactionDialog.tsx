@@ -5,6 +5,7 @@ import { recordTransactionAction, type NewTransaction } from "@/actions/portfoli
 import { todayLocal } from "@/lib/dates";
 import { formatQuantity } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import Select from "@/components/Select";
 
 export type HoldingOption = { assetId: string; symbol: string; quantity: number; currency: string | null };
 
@@ -148,13 +149,13 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
 
         {needsAsset && (
           <Field label="Asset">
-            <select value={assetId} onChange={(e) => pickAsset(e.target.value)} className={fieldClass}>
+            <Select block value={assetId} onChange={(e) => pickAsset(e.target.value)} className={fieldClass}>
               {holdings.map((h) => (
                 <option key={h.assetId} value={h.assetId}>
                   {h.symbol} — holding {formatQuantity(h.quantity)}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         )}
 
@@ -179,13 +180,13 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
               <NumberInput value={amount} onChange={setAmount} required />
             </Field>
             <Field label="Currency">
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={fieldClass}>
+              <Select block value={currency} onChange={(e) => setCurrency(e.target.value)} className={fieldClass}>
                 {currencies.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             {kind === "DIVIDEND" && (
               <Field label="Tax withheld (optional)">

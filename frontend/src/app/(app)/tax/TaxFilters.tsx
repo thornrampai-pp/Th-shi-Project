@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import Select from "@/components/Select";
 
 const selectClass = "rounded-md bg-field px-4 py-2 text-sm outline-none hover:bg-field/70";
 
@@ -23,14 +24,14 @@ export default function TaxFilters({ year, portfolioId, portfolios }: Props) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      <select value={year} onChange={(e) => go({ year: Number(e.target.value) })} aria-label="Tax year" className={selectClass}>
+      <Select value={year} onChange={(e) => go({ year: Number(e.target.value) })} aria-label="Tax year" className={selectClass}>
         {years.map((y) => (
           <option key={y} value={y}>
             {y} (พ.ศ. {y + 543})
           </option>
         ))}
-      </select>
-      <select
+      </Select>
+      <Select
         value={portfolioId}
         onChange={(e) => go({ portfolio: e.target.value })}
         aria-label="Portfolio"
@@ -42,7 +43,7 @@ export default function TaxFilters({ year, portfolioId, portfolios }: Props) {
             {p.name}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

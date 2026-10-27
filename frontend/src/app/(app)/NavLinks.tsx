@@ -5,17 +5,19 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/", label: "Dashboard" },
+  { href: "/portfolios", label: "Portfolios" },
   { href: "/watchlist", label: "Watchlist" },
+  { href: "/alerts", label: "Alerts" },
+  { href: "/tax", label: "Tax" },
 ];
 
 export default function NavLinks() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1">
       {LINKS.map(({ href, label }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const active = pathname.startsWith(href);
         return (
           <Link
             key={href}

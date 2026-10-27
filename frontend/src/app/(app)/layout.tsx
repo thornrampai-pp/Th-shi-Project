@@ -22,24 +22,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-full flex-1 flex-col">
       <header className="sticky top-0 z-30 bg-chrome text-white shadow-sm">
         <div className="flex h-14 items-center gap-3 px-4 sm:gap-6 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/portfolios" className="flex shrink-0 items-center gap-2.5">
             <FaceLogo className="size-7" />
             <span className="hidden text-sm font-semibold tracking-wide sm:inline">Tōshi</span>
           </Link>
 
           <NavLinks />
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-3">
             {name && (
-              <span className="hidden items-center gap-2 text-sm text-white/80 sm:flex">
+              <Link
+                href="/settings"
+                aria-label="Settings"
+                className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
                 <span
                   aria-hidden
                   className="flex size-7 items-center justify-center rounded-full bg-white/15 text-xs font-semibold uppercase"
                 >
                   {name[0]}
                 </span>
-                {name}
-              </span>
+                <span className="hidden sm:inline">{name}</span>
+              </Link>
             )}
             <form action={logoutAction}>
               <button

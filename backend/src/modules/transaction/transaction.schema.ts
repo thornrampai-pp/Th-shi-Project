@@ -241,10 +241,14 @@ builder.mutationField('createTransaction', (t) =>
       sourceCountry: t.arg.string({ description: 'ISO 2-letter country for the tax record; default from the asset exchange' }),
       note: t.arg.string(),
       executedAt: t.arg.string(),
+      fundWithDeposit: t.arg.boolean({
+        description: 'BUY only: deposit the full cost first in the same DB transaction (for holdings bought elsewhere)',
+      }),
     },
     resolve: (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
       return transactionService.createTransaction(userId, {
+        fundWithDeposit: args.fundWithDeposit ?? undefined,
         portfolioId: String(args.portfolioId),
         type: args.type as TransactionTypeValue,
         assetId: args.assetId ? String(args.assetId) : undefined,
@@ -279,6 +283,63 @@ builder.mutationField('uploadTransactionSlip', (t) =>
         args.imageBase64,
         args.mimeType ?? undefined,
       );
+    },
+  }),
+);
+
+const SlipMatchStatusEnum = builder.enumType('SlipMatchStatus', {
+  values: ['MATCHED', 'NOT_FOUND', 'AMBIGUOUS', 'DUPLICATE', 'EXTRACTION_FAILED'] as const,
+});
+
+interface SlipMatchResultShape {
+  status: 'MATCHED' | 'NOT_FOUND' | 'AMBIGUOUS' | 'DUPLICATE' | 'EXTRACTION_FAILED';
+  transactionId: string | null;
+  isAmountMatched: boolean;
+  amount: number | null;
+  currency: string | null;
+  transRef: string | null;
+  assetSymbol: string | null;
+  candidateIds: string[];
+}
+
+const SlipMatchResultType = builder.objectRef<SlipMatchResultShape>('SlipMatchResult').implement({
+  fields: (t) => ({
+    status: t.field({ type: SlipMatchStatusEnum, resolve: (r) => r.status }),
+    transactionId: t.exposeString('transactionId', { nullable: true }),
+    isAmountMatched: t.exposeBoolean('isAmountMatched'),
+    amount: t.exposeFloat('amount', { nullable: true }),
+    currency: t.exposeString('currency', { nullable: true }),
+    transRef: t.exposeString('transRef', { nullable: true }),
+    assetSymbol: t.exposeString('assetSymbol', { nullable: true }),
+    candidateIds: t.exposeStringList('candidateIds'),
+  }),
+});
+
+builder.mutationField('autoMatchSlip', (t) =>
+  t.field({
+    type: SlipMatchResultType,
+    description: 'Reads a slip and attaches it to the one matching transaction; saves nothing otherwise',
+    args: {
+      imageBase64: t.arg.string({ required: true }),
+      mimeType: t.arg.string(),
+      portfolioId: t.arg.id({ description: 'Only match transactions in this portfolio' }),
+    },
+    resolve: async (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      const result = await slipService.autoMatchSlip(userId, args.imageBase64, args.mimeType ?? undefined, {
+        portfolioId: args.portfolioId ? String(args.portfolioId) : undefined,
+      });
+      const extracted = result.status === 'extraction_failed' ? null : result.extracted;
+      return {
+        status: result.status.toUpperCase() as SlipMatchResultShape['status'],
+        transactionId: result.status === 'matched' ? result.slip.transactionId : null,
+        isAmountMatched: result.status === 'matched' && result.slip.isAmountMatched,
+        amount: extracted?.amount ?? null,
+        currency: extracted?.currency ?? null,
+        transRef: extracted?.transRef ?? null,
+        assetSymbol: extracted?.assetSymbol ?? null,
+        candidateIds: result.status === 'ambiguous' ? result.candidateIds : [],
+      };
     },
   }),
 );

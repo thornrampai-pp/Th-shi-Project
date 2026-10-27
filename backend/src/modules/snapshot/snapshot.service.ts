@@ -12,6 +12,7 @@ export type SnapshotGranularityValue = "DAILY" | "MONTHLY" | "YEARLY";
 interface PositionValuation {
   assetId: string;
   symbol: string;
+  name: string;
   quantity: number;
   avgPrice: number;
   marketPrice: number;
@@ -120,6 +121,7 @@ async function valuatePortfolio(
       return {
         assetId: position.assetId,
         symbol: asset.symbol,
+        name: asset.name,
         quantity: position.quantity,
         avgPrice: position.avgPrice * fx,
         marketPrice: marketPrice * fx,
@@ -402,6 +404,130 @@ export async function getDashboard(userId: string, portfolioId?: string) {
     assetAllocation: Array.from(allocationMap.entries()).map(
       ([symbol, value]) => ({ symbol, value }),
     ),
+  };
+}
+
+export interface HoldingSummary {
+  assetId: string;
+  symbol: string;
+  name: string;
+  quantity: number;
+  avgPrice: number;
+  marketPrice: number;
+  marketValue: number;
+  costBasis: number;
+  unrealizedPL: number;
+  unrealizedPLPct: number;
+  /** Share of the portfolio's holdings market value (cash excluded), in %. */
+  weight: number;
+}
+
+export interface PortfolioHoldingsSummary {
+  portfolioId: string;
+  name: string;
+  strategy: string;
+  type: string;
+  currency: string;
+  cash: number;
+  equity: number;
+  marketValue: number;
+  costBasis: number;
+  unrealizedPL: number;
+  unrealizedPLPct: number;
+  realizedPL: number;
+  totalDividend: number;
+  holdings: HoldingSummary[];
+}
+
+function percentOf(part: number, whole: number): number {
+  return whole > 0 ? (part / whole) * 100 : 0;
+}
+
+/** Open positions only, largest first; all figures in the portfolio's baseCurrency. */
+function summarizeHoldings(
+  portfolio: { id: string; name: string; strategy: string; type: string },
+  valuation: PortfolioValuation,
+): PortfolioHoldingsSummary {
+  const holdings = valuation.positions
+    .filter((p) => p.quantity > 0)
+    .map((p) => ({
+      assetId: p.assetId,
+      symbol: p.symbol,
+      name: p.name,
+      quantity: p.quantity,
+      avgPrice: p.avgPrice,
+      marketPrice: p.marketPrice,
+      marketValue: p.marketValue,
+      costBasis: p.costBasis,
+      unrealizedPL: p.marketValue - p.costBasis,
+      unrealizedPLPct: percentOf(p.marketValue - p.costBasis, p.costBasis),
+      weight: percentOf(p.marketValue, valuation.positionsMarketValue),
+    }))
+    .sort((a, b) => b.marketValue - a.marketValue);
+
+  return {
+    portfolioId: portfolio.id,
+    name: portfolio.name,
+    strategy: portfolio.strategy,
+    type: portfolio.type,
+    currency: valuation.currency,
+    cash: valuation.cash,
+    equity: valuation.equity,
+    marketValue: valuation.positionsMarketValue,
+    costBasis: valuation.costBasis,
+    unrealizedPL: valuation.unrealizedPL,
+    unrealizedPLPct: percentOf(valuation.unrealizedPL, valuation.costBasis),
+    realizedPL: valuation.realizedPL,
+    totalDividend: valuation.totalDividend,
+    holdings,
+  };
+}
+
+export async function getPortfolioHoldings(userId: string, portfolioId: string) {
+  const portfolio = await assertPortfolioOwnership(userId, portfolioId);
+  return summarizeHoldings(portfolio, await valuatePortfolio(portfolioId));
+}
+
+/**
+ * Every portfolio's holdings (each in its own baseCurrency) plus combined totals
+ * converted to THB — the numbers behind the portfolio overview screen.
+ */
+export async function getPortfolioOverview(userId: string) {
+  const portfolios = await prisma.portfolio.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const summaries = await Promise.all(
+    portfolios.map(async (p) => summarizeHoldings(p, await valuatePortfolio(p.id))),
+  );
+
+  const rateTo = createRateResolver();
+  const converted = await Promise.all(
+    summaries.map(async (s) => {
+      const fx = await rateTo(s.currency, REPORTING_CURRENCY);
+      return {
+        marketValue: s.marketValue * fx,
+        costBasis: s.costBasis * fx,
+        unrealizedPL: s.unrealizedPL * fx,
+        realizedPL: s.realizedPL * fx,
+      };
+    }),
+  );
+  const sum = (pick: (c: (typeof converted)[number]) => number) =>
+    converted.reduce((acc, c) => acc + pick(c), 0);
+
+  const costBasis = sum((c) => c.costBasis);
+  const unrealizedPL = sum((c) => c.unrealizedPL);
+
+  return {
+    currency: REPORTING_CURRENCY,
+    marketValue: sum((c) => c.marketValue),
+    costBasis,
+    unrealizedPL,
+    unrealizedPLPct: percentOf(unrealizedPL, costBasis),
+    realizedPL: sum((c) => c.realizedPL),
+    portfolios: summaries,
   };
 }
 

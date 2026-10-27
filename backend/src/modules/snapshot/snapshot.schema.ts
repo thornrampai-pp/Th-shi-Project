@@ -101,6 +101,80 @@ const DashboardSummaryType = builder.objectRef<DashboardSummaryShape>('Dashboard
   }),
 });
 
+const HoldingType = builder.objectRef<snapshotService.HoldingSummary>('Holding').implement({
+  fields: (t) => ({
+    assetId: t.exposeString('assetId'),
+    symbol: t.exposeString('symbol'),
+    name: t.exposeString('name'),
+    quantity: t.exposeFloat('quantity'),
+    avgPrice: t.exposeFloat('avgPrice'),
+    marketPrice: t.exposeFloat('marketPrice'),
+    marketValue: t.exposeFloat('marketValue'),
+    costBasis: t.exposeFloat('costBasis'),
+    unrealizedPL: t.exposeFloat('unrealizedPL'),
+    unrealizedPLPct: t.exposeFloat('unrealizedPLPct'),
+    weight: t.exposeFloat('weight', { description: 'Share of holdings market value (cash excluded), in %' }),
+  }),
+});
+
+const PortfolioHoldingsType = builder
+  .objectRef<snapshotService.PortfolioHoldingsSummary>('PortfolioHoldings')
+  .implement({
+    description: "Open positions valued now; every figure is in the portfolio's baseCurrency (`currency`)",
+    fields: (t) => ({
+      portfolioId: t.exposeID('portfolioId'),
+      name: t.exposeString('name'),
+      strategy: t.exposeString('strategy'),
+      type: t.exposeString('type'),
+      currency: t.exposeString('currency'),
+      cash: t.exposeFloat('cash'),
+      equity: t.exposeFloat('equity'),
+      marketValue: t.exposeFloat('marketValue'),
+      costBasis: t.exposeFloat('costBasis'),
+      unrealizedPL: t.exposeFloat('unrealizedPL'),
+      unrealizedPLPct: t.exposeFloat('unrealizedPLPct'),
+      realizedPL: t.exposeFloat('realizedPL'),
+      totalDividend: t.exposeFloat('totalDividend'),
+      holdings: t.field({ type: [HoldingType], resolve: (p) => p.holdings }),
+    }),
+  });
+
+type PortfolioOverviewShape = Awaited<ReturnType<typeof snapshotService.getPortfolioOverview>>;
+
+const PortfolioOverviewType = builder.objectRef<PortfolioOverviewShape>('PortfolioOverview').implement({
+  description: 'Totals are converted to `currency` (THB); each portfolio stays in its own currency',
+  fields: (t) => ({
+    currency: t.exposeString('currency'),
+    marketValue: t.exposeFloat('marketValue'),
+    costBasis: t.exposeFloat('costBasis'),
+    unrealizedPL: t.exposeFloat('unrealizedPL'),
+    unrealizedPLPct: t.exposeFloat('unrealizedPLPct'),
+    realizedPL: t.exposeFloat('realizedPL'),
+    portfolios: t.field({ type: [PortfolioHoldingsType], resolve: (o) => o.portfolios }),
+  }),
+});
+
+builder.queryField('portfolioHoldings', (t) =>
+  t.field({
+    type: PortfolioHoldingsType,
+    args: { portfolioId: t.arg.id({ required: true }) },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return snapshotService.getPortfolioHoldings(userId, String(args.portfolioId));
+    },
+  }),
+);
+
+builder.queryField('portfolioOverview', (t) =>
+  t.field({
+    type: PortfolioOverviewType,
+    resolve: (_root, _args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return snapshotService.getPortfolioOverview(userId);
+    },
+  }),
+);
+
 builder.queryField('portfolioSnapshots', (t) =>
   t.field({
     type: [PortfolioSnapshotType],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ActionResult } from "@/actions/watchlist";
+import type { ActionResult } from "@/actions/run";
 
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 

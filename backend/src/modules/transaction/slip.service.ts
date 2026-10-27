@@ -26,6 +26,11 @@ export interface SlipExtractionHooks {
   onAttemptFailed?: (attempt: number, maxAttempts: number, error: unknown) => Promise<void> | void;
 }
 
+export interface AutoMatchSlipOptions extends SlipExtractionHooks {
+  /** Only consider transactions in this portfolio (ownership is checked). */
+  portfolioId?: string;
+}
+
 export type AutoMatchSlipResult =
   | { status: 'matched'; extracted: SlipExtraction; slip: Awaited<ReturnType<typeof saveSlip>> }
   | { status: 'not_found'; extracted: SlipExtraction }
@@ -83,13 +88,14 @@ export async function autoMatchSlip(
   userId: string,
   imageBase64: string,
   mimeType?: string,
-  hooks: SlipExtractionHooks = {},
+  options: AutoMatchSlipOptions = {},
 ): Promise<AutoMatchSlipResult> {
   const image = validateSlipImage(imageBase64, mimeType);
+  if (options.portfolioId) await assertPortfolioOwnership(userId, options.portfolioId);
 
   let extracted: SlipExtraction;
   try {
-    extracted = await extractSlipWithRetry(image, hooks);
+    extracted = await extractSlipWithRetry(image, options);
   } catch (error) {
     return { status: 'extraction_failed', error };
   }
@@ -98,7 +104,7 @@ export async function autoMatchSlip(
   const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef } });
   if (duplicateRef) return { status: 'duplicate', extracted };
 
-  const candidates = await findMatchCandidates(userId, extracted, transRef);
+  const candidates = await findMatchCandidates(userId, extracted, transRef, options.portfolioId);
   const match = matchSlipToTransaction(extracted, candidates);
 
   if (match.status === 'not_found') return { status: 'not_found', extracted };
@@ -168,6 +174,7 @@ async function findMatchCandidates(
   userId: string,
   extracted: SlipExtraction,
   transRef: string,
+  portfolioId?: string,
 ): Promise<SlipMatchCandidate[]> {
   const slipDate = parseSlipDate(extracted.transactionDate);
   const executedAt = slipDate
@@ -180,6 +187,7 @@ async function findMatchCandidates(
   const transactions = await prisma.transaction.findMany({
     where: {
       portfolio: { userId, deletedAt: null },
+      ...(portfolioId ? { portfolioId } : {}),
       slipVerification: { is: null },
       // A note quoting the slip's ref matches regardless of date.
       OR: [{ executedAt }, { metadata: { path: ['note'], string_contains: transRef } }],

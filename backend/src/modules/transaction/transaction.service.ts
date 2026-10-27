@@ -30,7 +30,8 @@ export type TransactionTypeValue =
 
 /**
  * Field usage per type:
- * - BUY / SELL:     assetId, quantity, price, fee?, currency? (defaults to the asset's)
+ * - BUY / SELL:     assetId, quantity, price, fee?, currency? (defaults to the asset's);
+ *                   BUY also takes fundWithDeposit? to record a holding bought elsewhere
  * - DEPOSIT / WITHDRAW / FEE / TAX: amount, currency
  * - DIVIDEND:       assetId, amount (net cash received), currency, taxWithheld?
  * - ADJUSTMENT:     amount (signed: + adds cash, − removes cash), currency
@@ -54,6 +55,8 @@ export interface CreateTransactionInput {
   sourceCountry?: string;
   note?: string;
   executedAt?: Date;
+  /** BUY only: deposit the full cost first (creating the cash account if needed), atomically. */
+  fundWithDeposit?: boolean;
 }
 
 type Portfolio = Awaited<ReturnType<typeof assertPortfolioOwnership>>;
@@ -201,6 +204,71 @@ async function getCashAccount(
   return account;
 }
 
+/** Same lookup as getCashAccount, but creates the account (balance 0) when missing. */
+async function getOrCreateCashAccount(
+  tx: LedgerTxClient,
+  portfolioId: string,
+  currency: string,
+) {
+  const account = await tx.cashAccount.findFirst({ where: { portfolioId, currency } });
+  if (account) return account;
+  // Same domestic rule as the account createPortfolio() opens.
+  return tx.cashAccount.create({
+    data: { portfolioId, currency, isDomestic: currency === TAX_CURRENCY, balance: 0 },
+  });
+}
+
+/**
+ * A DEPOSIT posted in the caller's DB transaction, so the purchase it funds commits
+ * or rolls back with it. Used when recording a holding bought outside the app —
+ * the money was never tracked here, so it has to come in before it can go out.
+ *
+ * CASH   DEBIT   amount
+ * EQUITY CREDIT  amount
+ */
+async function postFundingDeposit(
+  tx: LedgerTxClient,
+  params: {
+    portfolioId: string;
+    cashAccount: { id: string; currency: string };
+    amount: number;
+    executedAt: Date;
+    parentTxId: string;
+    note: string;
+  },
+) {
+  const { portfolioId, cashAccount, amount } = params;
+
+  const deposit = await tx.transaction.create({
+    data: {
+      portfolioId,
+      type: "DEPOSIT",
+      baseCurrAmount: amount,
+      executedAt: params.executedAt,
+      parentTxId: params.parentTxId,
+      metadata: { currency: cashAccount.currency, direction: "IN", note: params.note },
+    },
+  });
+
+  await postLedgerEntries(tx, deposit.id, [
+    {
+      portfolioId,
+      accountType: "CASH",
+      side: "DEBIT",
+      amount,
+      assetSymbol: cashAccount.currency,
+      cashAccountId: cashAccount.id,
+    },
+    {
+      portfolioId,
+      accountType: "EQUITY",
+      side: "CREDIT",
+      amount,
+      assetSymbol: cashAccount.currency,
+    },
+  ]);
+}
+
 /**
  * Re-reads the balance AFTER the ledger posting, inside the same DB transaction.
  * The increment in postLedgerEntries() takes a row lock, so a concurrent posting on
@@ -280,11 +348,10 @@ async function createBuyTransaction(
       },
     });
 
-    const cashAccount = await getCashAccount(
-      tx,
-      portfolioId,
-      input.currency ?? asset.currency,
-    );
+    const currency = input.currency ?? asset.currency;
+    const cashAccount = input.fundWithDeposit
+      ? await getOrCreateCashAccount(tx, portfolioId, currency)
+      : await getCashAccount(tx, portfolioId, currency);
 
     const totalCost = quantity * price + fee;
 
@@ -304,6 +371,17 @@ async function createBuyTransaction(
         metadata: { currency: cashAccount.currency, note: input.note },
       },
     });
+
+    if (input.fundWithDeposit) {
+      await postFundingDeposit(tx, {
+        portfolioId,
+        cashAccount,
+        amount: totalCost,
+        executedAt,
+        parentTxId: transaction.id,
+        note: `Funding for BUY ${asset.symbol}`,
+      });
+    }
 
     const entries: LedgerEntryInput[] = [
       {

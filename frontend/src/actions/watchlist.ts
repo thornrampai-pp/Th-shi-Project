@@ -1,27 +1,11 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { graphql } from "@/gql";
 import type { ThesisStatus } from "@/gql/graphql";
 import { compact, toAsset, type Asset } from "@/lib/graphql/normalize";
 import { GraphQLRequestError, serverQuery } from "@/lib/graphql/server";
-
-export type ActionResult = { error?: string };
-
-// Only GraphQL/network failures become a message; redirect() and other
-// framework control flow must keep propagating.
-async function run(fn: () => Promise<unknown>): Promise<ActionResult> {
-  try {
-    await fn();
-  } catch (e) {
-    if (e instanceof GraphQLRequestError) return { error: e.message };
-    if (e instanceof TypeError) return { error: "Couldn't reach the server" };
-    throw e;
-  }
-  refresh();
-  return {};
-}
+import { run } from "./run";
 
 const WatchListIdsQuery = graphql(`
   query WatchListIds {

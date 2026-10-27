@@ -7,7 +7,8 @@ import { serverQuery } from "@/lib/graphql/server";
 import StatCard from "../portfolios/StatCard";
 import TaxCalculator from "./TaxCalculator";
 import TaxFilters from "./TaxFilters";
-import TaxRecordsTable, { TAX_TYPE_LABEL } from "./TaxRecordsTable";
+import { TAX_TYPE_LABEL } from "./labels";
+import TaxRecordsTable from "./TaxRecordsTable";
 
 export const metadata: Metadata = { title: "Tax" };
 

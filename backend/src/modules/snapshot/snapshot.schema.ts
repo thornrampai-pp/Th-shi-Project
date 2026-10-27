@@ -106,6 +106,7 @@ const HoldingType = builder.objectRef<snapshotService.HoldingSummary>('Holding')
     assetId: t.exposeString('assetId'),
     symbol: t.exposeString('symbol'),
     name: t.exposeString('name'),
+    assetCurrency: t.exposeString('assetCurrency', { description: "The asset's trading currency" }),
     quantity: t.exposeFloat('quantity'),
     avgPrice: t.exposeFloat('avgPrice'),
     marketPrice: t.exposeFloat('marketPrice'),

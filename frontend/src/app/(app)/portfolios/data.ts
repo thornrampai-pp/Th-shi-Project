@@ -24,6 +24,7 @@ graphql(`
       assetId
       symbol
       name
+      assetCurrency
       quantity
       avgPrice
       marketPrice
@@ -93,6 +94,7 @@ function toPortfolio(p: PortfolioHoldingsFieldsFragment | null | undefined) {
               assetId: h.assetId,
               symbol: h.symbol,
               name: h.name ?? h.symbol,
+              assetCurrency: h.assetCurrency ?? null,
               quantity: h.quantity ?? 0,
               avgPrice: h.avgPrice ?? 0,
               marketPrice: h.marketPrice ?? 0,

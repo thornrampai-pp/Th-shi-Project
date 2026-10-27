@@ -37,8 +37,20 @@ export default async function TransactionsPage({ params }: Props) {
       <TransactionsPanel
         portfolioId={portfolioId}
         transactions={transactions}
-        holdings={portfolio.holdings.map((h) => ({ assetId: h.assetId, symbol: h.symbol, quantity: h.quantity }))}
-        currencies={[...new Set(["THB", "USD", ...cashAccounts.map((c) => c.currency)])]}
+        holdings={portfolio.holdings.map((h) => ({
+          assetId: h.assetId,
+          symbol: h.symbol,
+          quantity: h.quantity,
+          currency: h.assetCurrency,
+        }))}
+        currencies={[
+          ...new Set([
+            "THB",
+            "USD",
+            ...cashAccounts.map((c) => c.currency),
+            ...portfolio.holdings.flatMap((h) => (h.assetCurrency ? [h.assetCurrency] : [])),
+          ]),
+        ]}
       />
     </>
   );

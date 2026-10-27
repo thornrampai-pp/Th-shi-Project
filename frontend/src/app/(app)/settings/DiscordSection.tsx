@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   connectChannelAction,
   generateLinkCodeAction,
@@ -154,12 +154,15 @@ function EventPicker({ events, selected, onToggle, disabled }: {
   );
 }
 
-function ChannelRow({ channel, events }: { channel: Channel; events: typeof EVENTS }) {
+function ChannelRow({ channel: saved, events }: { channel: Channel; events: typeof EVENTS }) {
   const [pending, startTransition] = useTransition();
+  // Toggles show at once instead of snapping back until the page refreshes.
+  const [channel, setChannel] = useOptimistic(saved, (c, patch: Partial<Channel>) => ({ ...c, ...patch }));
   const [message, setMessage] = useState<{ ok?: string; error?: string }>({});
 
-  const act = (fn: () => Promise<{ error?: string }>, ok?: string) =>
+  const act = (fn: () => Promise<{ error?: string }>, ok?: string, patch?: Partial<Channel>) =>
     startTransition(async () => {
+      if (patch) setChannel(patch);
       setMessage({});
       const res = await fn();
       setMessage(res.error ? { error: res.error } : ok ? { ok } : {});
@@ -173,7 +176,7 @@ function ChannelRow({ channel, events }: { channel: Channel; events: typeof EVEN
       setMessage({ error: "Keep at least one event, or remove the channel" });
       return;
     }
-    act(() => updateChannelAction(channel.id, { events: next }));
+    act(() => updateChannelAction(channel.id, { events: next }), undefined, { events: next });
   };
 
   return (
@@ -188,7 +191,10 @@ function ChannelRow({ channel, events }: { channel: Channel; events: typeof EVEN
             type="checkbox"
             checked={channel.isActive}
             disabled={pending}
-            onChange={(e) => act(() => updateChannelAction(channel.id, { isActive: e.target.checked }))}
+            onChange={(e) => {
+              const isActive = e.target.checked;
+              act(() => updateChannelAction(channel.id, { isActive }), undefined, { isActive });
+            }}
           />
           On
         </label>

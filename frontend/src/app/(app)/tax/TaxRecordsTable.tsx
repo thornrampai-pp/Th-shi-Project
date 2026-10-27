@@ -1,16 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { setTaxRecordStatusAction } from "@/actions/tax";
 import type { TaxStatus } from "@/gql/graphql";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
-
-export const TAX_TYPE_LABEL: Record<string, string> = {
-  PERSONAL_INCOME: "Dividend",
-  WITHHOLDING: "Dividend (tax withheld)",
-  CAPITAL_GAIN: "Capital gain",
-};
+import { TAX_TYPE_LABEL } from "./labels";
 
 const STATUSES: TaxStatus[] = ["PENDING", "FILED", "PAID"];
 
@@ -80,17 +75,20 @@ export default function TaxRecordsTable({ records }: { records: TaxRecordRow[] }
 
 function StatusSelect({ id, status }: { id: string; status: TaxStatus }) {
   const [pending, startTransition] = useTransition();
+  // Shows the picked value while saving; falls back to the server's on failure.
+  const [shown, setShown] = useOptimistic(status);
   const [error, setError] = useState("");
 
   return (
     <>
       <select
-        value={status}
+        value={shown}
         disabled={pending}
         aria-label="Status"
         onChange={(e) => {
           const next = e.target.value as TaxStatus;
           startTransition(async () => {
+            setShown(next);
             setError("");
             const res = await setTaxRecordStatusAction(id, next);
             if (res.error) setError(res.error);

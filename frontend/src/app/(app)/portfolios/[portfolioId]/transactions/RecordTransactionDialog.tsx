@@ -6,7 +6,7 @@ import { todayLocal } from "@/lib/dates";
 import { formatQuantity } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type HoldingOption = { assetId: string; symbol: string; quantity: number };
+export type HoldingOption = { assetId: string; symbol: string; quantity: number; currency: string | null };
 
 type Kind = NewTransaction["type"];
 
@@ -72,6 +72,17 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
   const needsAsset = kind === "SELL" || kind === "DIVIDEND";
   const holding = holdings.find((h) => h.assetId === assetId);
 
+  // A dividend is paid in the asset's own currency — default to it rather than THB.
+  const pickKind = (next: Kind) => {
+    setKind(next);
+    if (next === "DIVIDEND" && holding?.currency) setCurrency(holding.currency);
+  };
+  const pickAsset = (id: string) => {
+    setAssetId(id);
+    const next = holdings.find((h) => h.assetId === id);
+    if (kind === "DIVIDEND" && next?.currency) setCurrency(next.currency);
+  };
+
   const build = (): NewTransaction | null => {
     const common = { executedOn: date, note: note.trim() || undefined };
     const num = (v: string) => (v ? Number(v) : undefined);
@@ -122,7 +133,7 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
                 role="radio"
                 aria-checked={kind === k.value}
                 disabled={disabled}
-                onClick={() => setKind(k.value)}
+                onClick={() => pickKind(k.value)}
                 className={cn(
                   "rounded-md py-1.5 text-sm transition disabled:opacity-40",
                   kind === k.value ? "bg-background font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
@@ -137,7 +148,7 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
 
         {needsAsset && (
           <Field label="Asset">
-            <select value={assetId} onChange={(e) => setAssetId(e.target.value)} className={fieldClass}>
+            <select value={assetId} onChange={(e) => pickAsset(e.target.value)} className={fieldClass}>
               {holdings.map((h) => (
                 <option key={h.assetId} value={h.assetId}>
                   {h.symbol} — holding {formatQuantity(h.quantity)}
@@ -152,7 +163,7 @@ export default function RecordTransactionDialog({ portfolioId, holdings, currenc
             <Field label="Quantity">
               <NumberInput value={quantity} onChange={setQuantity} required />
             </Field>
-            <Field label="Price per unit">
+            <Field label={holding?.currency ? `Price per unit (${holding.currency})` : "Price per unit"}>
               <NumberInput value={price} onChange={setPrice} required />
             </Field>
             <Field label="Fee (optional)">

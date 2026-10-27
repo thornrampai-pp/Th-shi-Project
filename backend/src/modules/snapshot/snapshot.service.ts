@@ -13,6 +13,8 @@ interface PositionValuation {
   assetId: string;
   symbol: string;
   name: string;
+  /** The asset's trading currency (prices below are already in the portfolio's). */
+  assetCurrency: string;
   quantity: number;
   avgPrice: number;
   marketPrice: number;
@@ -122,6 +124,7 @@ async function valuatePortfolio(
         assetId: position.assetId,
         symbol: asset.symbol,
         name: asset.name,
+        assetCurrency: asset.currency,
         quantity: position.quantity,
         avgPrice: position.avgPrice * fx,
         marketPrice: marketPrice * fx,
@@ -411,6 +414,7 @@ export interface HoldingSummary {
   assetId: string;
   symbol: string;
   name: string;
+  assetCurrency: string;
   quantity: number;
   avgPrice: number;
   marketPrice: number;
@@ -454,6 +458,7 @@ function summarizeHoldings(
       assetId: p.assetId,
       symbol: p.symbol,
       name: p.name,
+      assetCurrency: p.assetCurrency,
       quantity: p.quantity,
       avgPrice: p.avgPrice,
       marketPrice: p.marketPrice,

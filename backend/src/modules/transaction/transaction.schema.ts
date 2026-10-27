@@ -1,4 +1,5 @@
 import { builder } from '../../graphql/builder';
+import { prisma } from '../../config/prisma';
 import { GraphQLContext, requireAuth } from '../../common/middlewares/auth.middleware';
 import * as transactionService from './transaction.service';
 import type { TransactionTypeValue } from './transaction.service';
@@ -29,6 +30,9 @@ interface TransactionShape {
   exchangeRate: unknown;
   metadata: unknown;
   createdAt: Date;
+  // Preloaded by listTransactions(); resolved per row elsewhere.
+  assetSymbol?: string | null;
+  slipVerification?: { id: string } | null;
 }
 
 function metadataOf(tr: TransactionShape): Record<string, unknown> {
@@ -43,6 +47,22 @@ export const TransactionType = builder.objectRef<TransactionShape>('Transaction'
     status: t.exposeString('status'),
     executedAt: t.field({ type: 'String', resolve: (tr) => tr.executedAt.toISOString() }),
     mainAssetId: t.exposeString('mainAssetId', { nullable: true }),
+    assetSymbol: t.field({
+      type: 'String',
+      nullable: true,
+      resolve: async (tr) => {
+        if (tr.assetSymbol !== undefined) return tr.assetSymbol;
+        if (!tr.mainAssetId) return null;
+        const asset = await prisma.asset.findUnique({ where: { id: tr.mainAssetId }, select: { symbol: true } });
+        return asset?.symbol ?? null;
+      },
+    }),
+    hasSlip: t.boolean({
+      resolve: async (tr) => {
+        if (tr.slipVerification !== undefined) return tr.slipVerification != null;
+        return (await prisma.slipVerification.count({ where: { transactionId: tr.id } })) > 0;
+      },
+    }),
     mainQuantity: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(tr.mainQuantity) }),
     mainPrice: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(tr.mainPrice) }),
     baseCurrAmount: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(tr.baseCurrAmount) }),

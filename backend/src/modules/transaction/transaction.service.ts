@@ -1134,7 +1134,7 @@ export async function listTransactions(
 ) {
   await assertPortfolioOwnership(userId, portfolioId);
 
-  return prisma.transaction.findMany({
+  const transactions = await prisma.transaction.findMany({
     where: {
       portfolioId,
       type: filters.type,
@@ -1148,7 +1148,21 @@ export async function listTransactions(
     },
     take: Math.min(filters.limit ?? 50, 200),
     skip: filters.offset ?? 0,
+    include: { slipVerification: { select: { id: true } } },
   });
+
+  // Preloaded here so the list's assetSymbol/hasSlip fields don't query per row.
+  const assetIds = [...new Set(transactions.flatMap((t) => (t.mainAssetId ? [t.mainAssetId] : [])))];
+  const assets = await prisma.asset.findMany({
+    where: { id: { in: assetIds } },
+    select: { id: true, symbol: true },
+  });
+  const symbolById = new Map(assets.map((a) => [a.id, a.symbol]));
+
+  return transactions.map((t) => ({
+    ...t,
+    assetSymbol: t.mainAssetId ? (symbolById.get(t.mainAssetId) ?? null) : null,
+  }));
 }
 
 export async function listPositions(userId: string, portfolioId: string) {

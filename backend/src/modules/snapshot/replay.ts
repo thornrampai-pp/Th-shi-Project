@@ -87,6 +87,9 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
         position.lots = position.lots.filter((lot) => lot.quantity > EPSILON);
         position.realizedPL += quantity * price - tx.fee - costRemoved;
         position.quantity = Math.max(0, position.quantity - quantity);
+        // FIFO removed specific lots, so the average of what's left is the remaining
+        // lots' cost — keeping the old average would mismatch realizedPL and overstate P/L.
+        position.avgPrice = remainingAvgCost(position.lots, position.quantity);
         break;
       }
 
@@ -109,6 +112,11 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
   }
 
   return positions;
+}
+
+function remainingAvgCost(lots: ReplayLot[], quantity: number): number {
+  if (quantity <= EPSILON) return 0;
+  return lots.reduce((sum, lot) => sum + lot.quantity * lot.unitCost, 0) / quantity;
 }
 
 function splitRatioOf(tx: ReplayTransaction, quantityBefore: number): number | null {

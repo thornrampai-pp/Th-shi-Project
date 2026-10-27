@@ -560,6 +560,11 @@ async function createSellTransaction(
       },
     });
 
+    const openLotsCost = openLots.reduce(
+      (sum, lot) => sum + Number(lot.remainingQty) * Number(lot.purchasePrice),
+      0,
+    );
+
     let remainingToSell = quantity;
     let costBasisRemoved = 0;
     const consumedLots: FxLot[] = [];
@@ -614,6 +619,12 @@ async function createSellTransaction(
     }
 
     const realizedPL = netCashIn - costBasisRemoved;
+
+    // FIFO removed specific lots, so the new average is the remaining lots' cost —
+    // keeps avgPrice in line with the ASSET ledger balance and realizedPL.
+    const newQuantity = Number(position.quantity) - quantity;
+    const newAvgPrice =
+      newQuantity > 1e-8 ? (openLotsCost - costBasisRemoved) / newQuantity : 0;
 
     // Null when any rate is missing (only possible for PAPER) — no partial splits.
     const fxSplit =
@@ -694,7 +705,9 @@ async function createSellTransaction(
         id: position.id,
       },
       data: {
-        quantity: Number(position.quantity) - quantity,
+        quantity: newQuantity,
+
+        avgPrice: newAvgPrice,
 
         realizedPL: Number(position.realizedPL) + realizedPL,
 

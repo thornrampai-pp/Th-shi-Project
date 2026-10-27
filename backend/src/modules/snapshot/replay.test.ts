@@ -31,7 +31,8 @@ describe('replayPositions', () => {
   it('reproduces the seed result (avg cost, FIFO realizedPL, dividends)', () => {
     const p = replayPositions(seedTxs, new Date('2026-12-31'))!.get('PTT')!;
     expect(p.quantity).toBe(90);
-    expect(p.avgPrice).toBeCloseTo(35.9, 6);
+    // Remaining FIFO lots: 40 @ 35.70 + 50 @ 36.30 = 3,243 / 90
+    expect(p.avgPrice).toBeCloseTo(3243 / 90, 6);
     expect(p.realizedPL).toBeCloseTo(65, 6);
     expect(p.totalDiv).toBe(500);
   });
@@ -53,6 +54,20 @@ describe('replayPositions', () => {
     expect(p.realizedPL).toBeCloseTo(50, 6); // sold the 10 @ 10 lot first
     expect(p.lots).toHaveLength(1);
     expect(p.lots[0]!.unitCost).toBe(20);
+  });
+
+  it('re-derives avg cost from the remaining lots after a FIFO sell', () => {
+    const txs = [
+      tx({ type: 'BUY', executedAt: '2026-02-01', mainQuantity: 10, mainPrice: 10 }),
+      tx({ type: 'BUY', executedAt: '2026-02-02', mainQuantity: 10, mainPrice: 20 }),
+      tx({ type: 'SELL', executedAt: '2026-02-03', mainQuantity: 10, mainPrice: 20 }),
+    ];
+    const p = replayPositions(txs, new Date('2026-03-01')).get('PTT')!;
+    expect(p.realizedPL).toBeCloseTo(100, 6);
+    // Cost basis of what's left must be the 10 @ 20 lot, not the old 15 average —
+    // otherwise realized (100) + unrealized at 20 (50) would overstate the 100 profit.
+    expect(p.avgPrice).toBe(20);
+    expect(p.quantity * p.avgPrice).toBe(200);
   });
 
   it('applies splits to quantity, avg price and lots, keeping cost basis', () => {

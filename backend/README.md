@@ -70,7 +70,7 @@ npm run db:seed
 
 ได้: user `demo@example.com` (password `password123`), asset AAPL/MSFT/PTT, พอร์ต THB (REAL) และพอร์ต USD (PAPER) พร้อมธุรกรรมตัวอย่าง รันซ้ำได้ ไม่สร้างข้อมูลซ้ำ
 
-Seed เรียก `createTransaction()` ตัวจริง ไม่ insert ตรง จึงใช้เป็น smoke test ของ Ledger/FIFO/avg cost ไปในตัว ค่าที่ควรได้หลัง seed พอร์ต THB: เงินสด 92,322 THB, PTT เหลือ 90 หุ้น avg 35.90, realizedPL 65.00
+Seed เรียก `createTransaction()` ตัวจริง ไม่ insert ตรง จึงใช้เป็น smoke test ของ Ledger/FIFO/avg cost ไปในตัว ค่าที่ควรได้หลัง seed พอร์ต THB: เงินสด 92,322 THB, PTT เหลือ 90 หุ้น avg 36.03, realizedPL 65.00
 
 ### 3. รัน
 

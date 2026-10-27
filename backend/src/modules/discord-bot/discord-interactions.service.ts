@@ -1,7 +1,8 @@
 import { prisma } from '../../config/prisma';
 import { redis } from '../../config/redis';
 import { env } from '../../config/env';
-import { GEMINI_MAX_ATTEMPTS, autoMatchSlip } from '../transaction/slip.service';
+import { autoMatchSlips } from '../transaction/slip.service';
+import type { SlipBatchItemResult, SlipUpload } from '../transaction/slip.service';
 import type { SlipExtraction } from '../../common/integrations/gemini.util';
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -117,9 +118,9 @@ async function handleLinkCommand(
 }
 
 /**
- * Slips are processed one at a time (Gemini rate limits, and two slips in one batch
- * must never race for the same transaction). One status line per slip, and the
- * deferred reply is re-rendered every time a line changes.
+ * All slips go to Gemini in ONE request (autoMatchSlips), then are matched one after
+ * another so two can't claim the same transaction. One status line per slip; the
+ * deferred reply is re-rendered whenever a line changes.
  */
 async function processUploadSlipAsync(interaction: DiscordInteraction, discordUserId: string): Promise<void> {
   const followupUrl = `${DISCORD_API}/webhooks/${env.DISCORD_APPLICATION_ID}/${interaction.token}/messages/@original`;
@@ -141,26 +142,44 @@ async function processUploadSlipAsync(interaction: DiscordInteraction, discordUs
       return;
     }
 
-    const lines = attachments.map(() => '⏳ รอคิว...');
+    const lines = attachments.map(() => '⏳ กำลังดาวน์โหลด...');
     const render = () =>
       patchFollowup(
         followupUrl,
         `📥 กำลังตรวจสลิป ${attachments.length} รูป\n\n` +
           lines.map((line, i) => `${SLIP_NUMBER_EMOJI[i]} ${line}`).join('\n\n'),
       );
+    await render();
 
-    for (const [i, attachment] of attachments.entries()) {
-      lines[i] = '⏳ กำลังอ่านสลิป...';
-      await render();
-      lines[i] = await processOneSlip(user.id, attachment, async (attempt, max) => {
-        lines[i] =
-          attempt < max
-            ? `⏳ attempt ${attempt}/${max} failed, retrying...`
-            : `❌ attempt ${attempt}/${max} failed — ข้ามสลิปนี้`;
-        await render();
-      });
-      await render();
-    }
+    // Download everything first; a file that can't be fetched just gets its own error line.
+    const downloads = await Promise.all(attachments.map(downloadAttachment));
+    const toRead = downloads.flatMap((d, i) => ('imageBase64' in d ? [{ index: i, upload: d }] : []));
+    downloads.forEach((d, i) => {
+      lines[i] = 'error' in d ? d.error : '⏳ กำลังอ่านสลิป...';
+    });
+    await render();
+    if (toRead.length === 0) return;
+
+    const results = await autoMatchSlips(
+      user.id,
+      toRead.map((r) => r.upload),
+      {
+        onAttemptFailed: async (attempt, max) => {
+          for (const { index } of toRead) {
+            lines[index] =
+              attempt < max
+                ? `⏳ attempt ${attempt}/${max} failed, retrying...`
+                : `❌ attempt ${attempt}/${max} failed — ข้ามสลิปนี้`;
+          }
+          await render();
+        },
+      },
+    );
+
+    results.forEach((result, k) => {
+      lines[toRead[k]!.index] = describeResult(result);
+    });
+    await render();
   } catch (err) {
     await patchFollowup(
       followupUrl,
@@ -169,52 +188,51 @@ async function processUploadSlipAsync(interaction: DiscordInteraction, discordUs
   }
 }
 
-/** Returns the final status line for one slip; never throws. */
-async function processOneSlip(
-  userId: string,
-  attachment: DiscordAttachment,
-  onAttemptFailed: (attempt: number, maxAttempts: number) => Promise<void>,
-): Promise<string> {
+async function downloadAttachment(attachment: DiscordAttachment): Promise<SlipUpload | { error: string }> {
   if (attachment.size != null && attachment.size > env.SLIP_MAX_BYTES) {
-    return `❌ ไฟล์ใหญ่เกินไป (สูงสุด ${(env.SLIP_MAX_BYTES / (1024 * 1024)).toFixed(1)} MB)`;
+    return { error: `❌ ไฟล์ใหญ่เกินไป (สูงสุด ${(env.SLIP_MAX_BYTES / (1024 * 1024)).toFixed(1)} MB)` };
   }
-
   try {
-    const imageResponse = await fetch(attachment.url);
-    if (!imageResponse.ok) {
-      return `❌ ดาวน์โหลดรูปจาก Discord ไม่สำเร็จ (${imageResponse.status})`;
-    }
-    const imageBase64 = Buffer.from(await imageResponse.arrayBuffer()).toString('base64');
+    const response = await fetch(attachment.url);
+    if (!response.ok) return { error: `❌ ดาวน์โหลดรูปจาก Discord ไม่สำเร็จ (${response.status})` };
+    return {
+      imageBase64: Buffer.from(await response.arrayBuffer()).toString('base64'),
+      mimeType: attachment.content_type,
+    };
+  } catch {
+    return { error: '❌ ดาวน์โหลดรูปจาก Discord ไม่สำเร็จ' };
+  }
+}
 
-    const result = await autoMatchSlip(userId, imageBase64, attachment.content_type, { onAttemptFailed });
-
-    if (result.status === 'extraction_failed') {
-      return `❌ attempt ${GEMINI_MAX_ATTEMPTS}/${GEMINI_MAX_ATTEMPTS} failed — ข้ามสลิปนี้`;
-    }
-
-    const summary = describeSlip(result.extracted);
-
-    switch (result.status) {
-      case 'matched':
-        return result.slip.isAmountMatched
-          ? `✅ ${summary} → Transaction \`${result.slip.transactionId}\``
-          : `✅ ${summary} → Transaction \`${result.slip.transactionId}\`\n   ⚠️ จับคู่ผ่านอัตราแลกเปลี่ยน — ยอดไม่ตรงเป๊ะ กรุณาตรวจสอบ`;
-      case 'duplicate':
-        return `❌ ${summary}\n   สลิปนี้เคยถูกใช้กับธุรกรรมอื่นแล้ว`;
-      case 'ambiguous':
-        return (
-          `⚠️ ${summary}\n   พบธุรกรรมที่ตรงกันหลายรายการ — ไม่ได้บันทึก\n` +
-          `   ${result.candidateIds.map((id) => `\`${id}\``).join(', ')}\n` +
-          `   ใช้ uploadTransactionSlip ในแอประบุ transaction เอง`
-        );
-      case 'not_found':
-        return (
-          `❌ ${summary}\n   assetSymbol: ${result.extracted.assetSymbol ?? '-'}\n` +
-          `   ⚠️ ไม่พบธุรกรรม สร้าง transaction ใหม่แล้ว upload อีกครั้ง`
-        );
-    }
-  } catch (err) {
-    return `❌ อ่านสลิปไม่สำเร็จ: ${err instanceof Error ? err.message : 'unknown error'}`;
+/** The final status line for one slip. */
+function describeResult(result: SlipBatchItemResult): string {
+  switch (result.status) {
+    case 'invalid':
+      return `❌ ไฟล์ไม่ถูกต้อง: ${result.message}`;
+    case 'extraction_failed':
+      // The progress line already shows the attempt count; this says why it stopped.
+      return `❌ อ่านสลิปไม่สำเร็จ — ข้ามสลิปนี้\n   ${result.message.slice(0, 180)}`;
+    case 'unreadable':
+      return `❌ ${describeSlip(result.extracted)}\n   อ่านยอดเงินหรือเลขอ้างอิงไม่ได้ — ลองรูปที่ชัดกว่านี้`;
+    case 'error':
+      return `❌ ${describeSlip(result.extracted)}\n   ${result.message}`;
+    case 'matched':
+      return result.slip.isAmountMatched
+        ? `✅ ${describeSlip(result.extracted)} → Transaction \`${result.slip.transactionId}\``
+        : `✅ ${describeSlip(result.extracted)} → Transaction \`${result.slip.transactionId}\`\n   ⚠️ จับคู่ผ่านอัตราแลกเปลี่ยน — ยอดไม่ตรงเป๊ะ กรุณาตรวจสอบ`;
+    case 'duplicate':
+      return `❌ ${describeSlip(result.extracted)}\n   สลิปนี้เคยถูกใช้กับธุรกรรมอื่นแล้ว`;
+    case 'ambiguous':
+      return (
+        `⚠️ ${describeSlip(result.extracted)}\n   พบธุรกรรมที่ตรงกันหลายรายการ — ไม่ได้บันทึก\n` +
+        `   ${result.candidateIds.map((id) => `\`${id}\``).join(', ')}\n` +
+        `   ใช้ uploadTransactionSlip ในแอประบุ transaction เอง`
+      );
+    case 'not_found':
+      return (
+        `❌ ${describeSlip(result.extracted)}\n   assetSymbol: ${result.extracted.assetSymbol ?? '-'}\n` +
+        `   ⚠️ ไม่พบธุรกรรม สร้าง transaction ใหม่แล้ว upload อีกครั้ง`
+      );
   }
 }
 

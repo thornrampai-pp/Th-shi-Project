@@ -91,7 +91,7 @@ npm run dev          # http://localhost:4000/graphql
 | `PORT` | | default `4000` |
 | `ENABLE_JOBS` | | default `true` — ตั้ง `false` ถ้ารันหลาย instance และให้รัน cron แค่ตัวเดียว |
 | `GEMINI_API_KEY` | | ต้องใช้เมื่อเปิดใช้อ่านสลิป |
-| `GEMINI_MODEL` | | default `gemini-2.5-flash` |
+| `GEMINI_MODEL` | | default `gemini-3.8-flash` (Google retired 2.5-flash for new keys) |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | | ต้องครบทั้ง 4 ตัวเพื่อเปิดใช้อัปโหลดสลิป |
 | `R2_PRESIGN_TTL_SECONDS` | | default `600` — อายุลิงก์อ่านรูป |
 | `SLIP_MAX_BYTES` | | default `5242880` (5 MB) — ขนาดสูงสุดต่อรูป |

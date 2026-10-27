@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../common/errors/AppError';
 import { assertPortfolioOwnership } from '../../common/utils/portfolio-ownership.util';
-import { extractSlipData } from '../../common/integrations/gemini.util';
+import { GeminiRequestError, extractSlipsData } from '../../common/integrations/gemini.util';
 import type { SlipExtraction } from '../../common/integrations/gemini.util';
 import { deleteObject, getPresignedReadUrl, isR2Configured, putObject } from '../../common/integrations/r2-storage.util';
 import {
@@ -19,6 +19,14 @@ const GEMINI_RETRY_BASE_DELAY_MS = 1000;
 /** Without a date on the slip, only look this far back for an amount match. */
 const UNDATED_SLIP_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
 
+export const SLIP_BATCH_MAX_FILES = 5;
+/**
+ * Decoded bytes across one batch. As base64 (~4/3 larger) that's ~9.3 MB, inside both
+ * express's 10 MB JSON body limit and Gemini's 20 MB request cap. The web client
+ * downsizes photos before sending, so a real batch is far below this.
+ */
+export const SLIP_BATCH_MAX_BYTES = 7 * 1024 * 1024;
+
 type ValidatedImage = ReturnType<typeof decodeAndValidateImage>;
 
 export interface SlipExtractionHooks {
@@ -31,18 +39,30 @@ export interface AutoMatchSlipOptions extends SlipExtractionHooks {
   portfolioId?: string;
 }
 
-export type AutoMatchSlipResult =
+export interface SlipUpload {
+  imageBase64: string;
+  mimeType?: string;
+}
+
+/** One per uploaded file, in upload order. Only `matched` saved anything. */
+export type SlipBatchItemResult =
   | { status: 'matched'; extracted: SlipExtraction; slip: Awaited<ReturnType<typeof saveSlip>> }
   | { status: 'not_found'; extracted: SlipExtraction }
   | { status: 'ambiguous'; extracted: SlipExtraction; candidateIds: string[] }
   | { status: 'duplicate'; extracted: SlipExtraction }
-  | { status: 'extraction_failed'; error: unknown };
+  /** Read, but without the amount or reference number needed to match safely. */
+  | { status: 'unreadable'; extracted: SlipExtraction; message: string }
+  /** Rejected before reading: not an allowed image, too large, … */
+  | { status: 'invalid'; message: string }
+  /** Gemini failed GEMINI_MAX_ATTEMPTS times for the whole batch. */
+  | { status: 'extraction_failed'; message: string }
+  /** Read and matched, but saving failed (storage/DB). */
+  | { status: 'error'; extracted: SlipExtraction; message: string };
 
 /**
- * Attaches a slip to a known transaction. Shared by the frontend/API
- * `uploadTransactionSlip` mutation; the Discord `/upload-slip` command uses
- * autoMatchSlip() instead, and both go through the same validation, extraction and
- * save path so the logic can't drift between them.
+ * Attaches a slip to a known transaction (the `uploadTransactionSlip` mutation). Goes
+ * through the same validation, extraction and save path as autoMatchSlips(), so the
+ * logic can't drift between them.
  *
  * The image goes to Cloudflare R2; the DB keeps only its key, MIME type and size.
  */
@@ -52,6 +72,7 @@ export async function uploadTransactionSlip(
   imageBase64: string,
   mimeType?: string,
 ) {
+  assertSlipServicesConfigured();
   const image = validateSlipImage(imageBase64, mimeType);
 
   const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
@@ -63,8 +84,10 @@ export async function uploadTransactionSlip(
     throw AppError.conflict('This transaction already has a slip attached');
   }
 
-  const extracted = await extractSlipWithRetry(image);
-  const { amount, transRef } = requireReadableFields(extracted);
+  const [extracted] = await extractSlipsWithRetry([image]);
+  const readable = readableFields(extracted!);
+  if (!readable.ok) throw AppError.badRequest(readable.message);
+  const { amount, transRef } = readable;
 
   const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef } });
   if (duplicateRef) {
@@ -74,37 +97,90 @@ export async function uploadTransactionSlip(
   const expectedAmount = transaction.baseCurrAmount != null ? Number(transaction.baseCurrAmount) : null;
   const isAmountMatched = expectedAmount != null && Math.abs(expectedAmount - amount) < 0.01;
 
-  return saveSlip(userId, transactionId, image, extracted, isAmountMatched);
+  return saveSlip(userId, transactionId, image, extracted!, isAmountMatched);
 }
 
 /**
- * Reads a slip and attaches it to whichever of the user's slip-less transactions it
- * matches (amount + transRef + date — see matchSlipToTransaction). Nothing is saved
- * unless exactly one transaction matches. A Gemini failure is retried up to
- * GEMINI_MAX_ATTEMPTS times and comes back as `extraction_failed`; bad input
- * (invalid image, unreadable amount/ref, missing config) still throws AppError.
+ * Reads up to SLIP_BATCH_MAX_FILES slips in ONE Gemini request, then attaches each to
+ * whichever of the user's slip-less transactions it matches (amount + transRef + date —
+ * see matchSlipToTransaction). Nothing is saved for a slip unless exactly one
+ * transaction matches it.
+ *
+ * Every file gets its own result, so one bad image doesn't sink the rest. Slips are
+ * matched one after another in upload order — never concurrently — so two slips in a
+ * batch can't both claim the same transaction, and a repeated slip comes back
+ * `duplicate`. Throws only for problems with the whole request (config, ownership,
+ * too many files / bytes).
  */
-export async function autoMatchSlip(
+export async function autoMatchSlips(
   userId: string,
-  imageBase64: string,
-  mimeType?: string,
+  uploads: SlipUpload[],
   options: AutoMatchSlipOptions = {},
-): Promise<AutoMatchSlipResult> {
-  const image = validateSlipImage(imageBase64, mimeType);
+): Promise<SlipBatchItemResult[]> {
+  assertSlipServicesConfigured();
+  if (uploads.length === 0) throw AppError.badRequest('Attach at least one slip image');
+  if (uploads.length > SLIP_BATCH_MAX_FILES) {
+    throw AppError.badRequest(`Up to ${SLIP_BATCH_MAX_FILES} slips per upload`);
+  }
   if (options.portfolioId) await assertPortfolioOwnership(userId, options.portfolioId);
 
-  let extracted: SlipExtraction;
-  try {
-    extracted = await extractSlipWithRetry(image, options);
-  } catch (error) {
-    return { status: 'extraction_failed', error };
-  }
-  const { transRef } = requireReadableFields(extracted);
+  const checked = uploads.map((u): { image: ValidatedImage } | { invalid: string } => {
+    try {
+      return { image: validateSlipImage(u.imageBase64, u.mimeType) };
+    } catch (err) {
+      if (err instanceof AppError) return { invalid: err.message };
+      throw err;
+    }
+  });
+  const images = checked.flatMap((c) => ('image' in c ? [c.image] : []));
 
-  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef } });
+  const totalBytes = images.reduce((sum, image) => sum + image.size, 0);
+  if (totalBytes > SLIP_BATCH_MAX_BYTES) {
+    throw AppError.badRequest(
+      `These slips total ${(totalBytes / 1024 / 1024).toFixed(1)} MB — max ${SLIP_BATCH_MAX_BYTES / 1024 / 1024} MB per upload. Send fewer at a time.`,
+    );
+  }
+
+  let extractions: SlipExtraction[] | null = null;
+  let extractionError = '';
+  if (images.length > 0) {
+    try {
+      extractions = await extractSlipsWithRetry(images, options);
+    } catch (err) {
+      extractionError = err instanceof Error ? err.message : 'unknown error';
+    }
+  }
+
+  const results: SlipBatchItemResult[] = [];
+  let next = 0;
+  for (const item of checked) {
+    if ('invalid' in item) {
+      results.push({ status: 'invalid', message: item.invalid });
+      continue;
+    }
+    const extracted = extractions?.[next++];
+    if (!extracted) {
+      results.push({ status: 'extraction_failed', message: extractionError });
+      continue;
+    }
+    results.push(await matchAndSave(userId, item.image, extracted, options.portfolioId));
+  }
+  return results;
+}
+
+async function matchAndSave(
+  userId: string,
+  image: ValidatedImage,
+  extracted: SlipExtraction,
+  portfolioId: string | undefined,
+): Promise<SlipBatchItemResult> {
+  const readable = readableFields(extracted);
+  if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
+
+  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef: readable.transRef } });
   if (duplicateRef) return { status: 'duplicate', extracted };
 
-  const candidates = await findMatchCandidates(userId, extracted, transRef, options.portfolioId);
+  const candidates = await findMatchCandidates(userId, extracted, readable.transRef, portfolioId);
   const match = matchSlipToTransaction(extracted, candidates);
 
   if (match.status === 'not_found') return { status: 'not_found', extracted };
@@ -112,18 +188,27 @@ export async function autoMatchSlip(
     return { status: 'ambiguous', extracted, candidateIds: match.candidates.map((c) => c.id) };
   }
 
-  const slip = await saveSlip(userId, match.candidate.id, image, extracted, match.isAmountMatched);
-  return { status: 'matched', extracted, slip };
+  try {
+    const slip = await saveSlip(userId, match.candidate.id, image, extracted, match.isAmountMatched);
+    return { status: 'matched', extracted, slip };
+  } catch (err) {
+    // Lost a unique-constraint race to a concurrent upload of the same slip.
+    if ((err as { code?: string }).code === 'P2002') return { status: 'duplicate', extracted };
+    console.error('❌ Failed to save matched slip:', err);
+    return { status: 'error', extracted, message: 'Matched, but saving the slip failed — try again' };
+  }
 }
 
-function validateSlipImage(imageBase64: string, mimeType?: string): ValidatedImage {
+function assertSlipServicesConfigured() {
   if (!env.GEMINI_API_KEY) {
     throw AppError.badRequest('Slip OCR is not configured — set GEMINI_API_KEY');
   }
   if (!isR2Configured()) {
     throw AppError.badRequest('Slip storage is not configured — set the R2_* variables');
   }
+}
 
+function validateSlipImage(imageBase64: string, mimeType?: string): ValidatedImage {
   // Cheapest check, and the file must never reach Gemini or R2 unchecked.
   try {
     return decodeAndValidateImage(imageBase64, mimeType, env.SLIP_MAX_BYTES);
@@ -134,20 +219,29 @@ function validateSlipImage(imageBase64: string, mimeType?: string): ValidatedIma
 }
 
 /**
- * Only failures of the Gemini call itself (network, non-2xx, malformed JSON) are
- * retried. An image Gemini read but couldn't find an amount on is not — at
- * temperature 0 it would just read the same nothing again.
+ * One request for the whole batch, retried as a whole. Only failures of the Gemini
+ * call itself (network, non-2xx, malformed JSON, wrong result count) are retried. A
+ * slip Gemini read but found no amount on is not — at temperature 0 it would just read
+ * the same nothing again.
  */
-async function extractSlipWithRetry(image: ValidatedImage, hooks: SlipExtractionHooks = {}): Promise<SlipExtraction> {
-  const base64 = image.bytes.toString('base64');
+async function extractSlipsWithRetry(
+  images: ValidatedImage[],
+  hooks: SlipExtractionHooks = {},
+): Promise<SlipExtraction[]> {
+  const payload = images.map((image) => ({ base64: image.bytes.toString('base64'), mimeType: image.mimeType }));
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
     try {
-      return await extractSlipData(base64, image.mimeType);
+      return await extractSlipsData(payload);
     } catch (err) {
       lastError = err;
       console.warn(`⚠️ Gemini slip extraction attempt ${attempt}/${GEMINI_MAX_ATTEMPTS} failed:`, err);
+      // A missing model or bad key won't fix itself — fail now instead of after every retry.
+      if (err instanceof GeminiRequestError && !err.retryable) {
+        await hooks.onAttemptFailed?.(attempt, attempt, err);
+        break;
+      }
       await hooks.onAttemptFailed?.(attempt, GEMINI_MAX_ATTEMPTS, err);
       if (attempt < GEMINI_MAX_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_BASE_DELAY_MS * attempt));
@@ -156,18 +250,20 @@ async function extractSlipWithRetry(image: ValidatedImage, hooks: SlipExtraction
   }
 
   throw AppError.badRequest(
-    `Could not read this slip after ${GEMINI_MAX_ATTEMPTS} attempts: ${lastError instanceof Error ? lastError.message : 'unknown error'}`,
+    `Could not read the slip(s): ${lastError instanceof Error ? lastError.message : 'unknown error'}`,
   );
 }
 
-function requireReadableFields(extracted: SlipExtraction): { amount: number; transRef: string } {
+function readableFields(
+  extracted: SlipExtraction,
+): { ok: true; amount: number; transRef: string } | { ok: false; message: string } {
   if (extracted.amount == null) {
-    throw AppError.badRequest('Could not read an amount from this slip image — try a clearer photo');
+    return { ok: false, message: 'Could not read an amount from this slip image — try a clearer photo' };
   }
   if (!extracted.transRef) {
-    throw AppError.badRequest('Could not read a reference number from this slip — needed to prevent duplicate slips');
+    return { ok: false, message: 'Could not read a reference number from this slip — needed to prevent duplicate slips' };
   }
-  return { amount: extracted.amount, transRef: extracted.transRef };
+  return { ok: true, amount: extracted.amount, transRef: extracted.transRef };
 }
 
 async function findMatchCandidates(
@@ -226,6 +322,9 @@ async function saveSlip(
   extracted: SlipExtraction,
   isAmountMatched: boolean,
 ) {
+  const readable = readableFields(extracted);
+  if (!readable.ok) throw AppError.badRequest(readable.message);
+
   const imageKey = buildSlipKey(userId, transactionId, image.mimeType);
   await putObject(imageKey, image.bytes, image.mimeType);
 
@@ -236,7 +335,8 @@ async function saveSlip(
         imageKey,
         imageMimeType: image.mimeType,
         imageSize: image.size,
-        ...requireReadableFields(extracted),
+        amount: readable.amount,
+        transRef: readable.transRef,
         sendingBank: extracted.sendingBank,
         receivingBank: extracted.receivingBank,
         senderName: extracted.senderName,

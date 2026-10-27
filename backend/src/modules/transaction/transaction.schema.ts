@@ -307,12 +307,22 @@ builder.mutationField('uploadTransactionSlip', (t) =>
   }),
 );
 
-const SlipMatchStatusEnum = builder.enumType('SlipMatchStatus', {
-  values: ['MATCHED', 'NOT_FOUND', 'AMBIGUOUS', 'DUPLICATE', 'EXTRACTION_FAILED'] as const,
-});
+const SLIP_MATCH_STATUSES = [
+  'MATCHED',
+  'NOT_FOUND',
+  'AMBIGUOUS',
+  'DUPLICATE',
+  'UNREADABLE',
+  'INVALID',
+  'EXTRACTION_FAILED',
+  'ERROR',
+] as const;
+
+const SlipMatchStatusEnum = builder.enumType('SlipMatchStatus', { values: SLIP_MATCH_STATUSES });
 
 interface SlipMatchResultShape {
-  status: 'MATCHED' | 'NOT_FOUND' | 'AMBIGUOUS' | 'DUPLICATE' | 'EXTRACTION_FAILED';
+  status: (typeof SLIP_MATCH_STATUSES)[number];
+  message: string | null;
   transactionId: string | null;
   isAmountMatched: boolean;
   amount: number | null;
@@ -325,6 +335,7 @@ interface SlipMatchResultShape {
 const SlipMatchResultType = builder.objectRef<SlipMatchResultShape>('SlipMatchResult').implement({
   fields: (t) => ({
     status: t.field({ type: SlipMatchStatusEnum, resolve: (r) => r.status }),
+    message: t.exposeString('message', { nullable: true }),
     transactionId: t.exposeString('transactionId', { nullable: true }),
     isAmountMatched: t.exposeBoolean('isAmountMatched'),
     amount: t.exposeFloat('amount', { nullable: true }),
@@ -335,31 +346,46 @@ const SlipMatchResultType = builder.objectRef<SlipMatchResultShape>('SlipMatchRe
   }),
 });
 
-builder.mutationField('autoMatchSlip', (t) =>
+const SlipImageInput = builder.inputType('SlipImageInput', {
+  fields: (t) => ({
+    imageBase64: t.string({ required: true }),
+    mimeType: t.string(),
+  }),
+});
+
+function toSlipMatchResult(result: slipService.SlipBatchItemResult): SlipMatchResultShape {
+  const extracted = 'extracted' in result ? result.extracted : null;
+  return {
+    status: result.status.toUpperCase() as SlipMatchResultShape['status'],
+    message: 'message' in result ? result.message : null,
+    transactionId: result.status === 'matched' ? result.slip.transactionId : null,
+    isAmountMatched: result.status === 'matched' && result.slip.isAmountMatched,
+    amount: extracted?.amount ?? null,
+    currency: extracted?.currency ?? null,
+    transRef: extracted?.transRef ?? null,
+    assetSymbol: extracted?.assetSymbol ?? null,
+    candidateIds: result.status === 'ambiguous' ? result.candidateIds : [],
+  };
+}
+
+builder.mutationField('autoMatchSlips', (t) =>
   t.field({
-    type: SlipMatchResultType,
-    description: 'Reads a slip and attaches it to the one matching transaction; saves nothing otherwise',
+    type: [SlipMatchResultType],
+    description:
+      'Reads up to 5 slips in one OCR request and attaches each to its one matching transaction; ' +
+      'returns one result per image, in order. A slip with no single match saves nothing.',
     args: {
-      imageBase64: t.arg.string({ required: true }),
-      mimeType: t.arg.string(),
+      images: t.arg({ type: [SlipImageInput], required: true }),
       portfolioId: t.arg.id({ description: 'Only match transactions in this portfolio' }),
     },
     resolve: async (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
-      const result = await slipService.autoMatchSlip(userId, args.imageBase64, args.mimeType ?? undefined, {
-        portfolioId: args.portfolioId ? String(args.portfolioId) : undefined,
-      });
-      const extracted = result.status === 'extraction_failed' ? null : result.extracted;
-      return {
-        status: result.status.toUpperCase() as SlipMatchResultShape['status'],
-        transactionId: result.status === 'matched' ? result.slip.transactionId : null,
-        isAmountMatched: result.status === 'matched' && result.slip.isAmountMatched,
-        amount: extracted?.amount ?? null,
-        currency: extracted?.currency ?? null,
-        transRef: extracted?.transRef ?? null,
-        assetSymbol: extracted?.assetSymbol ?? null,
-        candidateIds: result.status === 'ambiguous' ? result.candidateIds : [],
-      };
+      const results = await slipService.autoMatchSlips(
+        userId,
+        args.images.map((i) => ({ imageBase64: i.imageBase64, mimeType: i.mimeType ?? undefined })),
+        { portfolioId: args.portfolioId ? String(args.portfolioId) : undefined },
+      );
+      return results.map(toSlipMatchResult);
     },
   }),
 );

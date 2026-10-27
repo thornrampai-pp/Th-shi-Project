@@ -42,7 +42,7 @@ const envSchema = z.object({
 
   FMP_API_KEY: optionalString, // reserved — FMP integration is not implemented yet
   GEMINI_API_KEY: optionalString,
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
   DISCORD_PUBLIC_KEY: optionalString, // required only when the Discord bot is enabled
   DISCORD_BOT_TOKEN: optionalString,
   DISCORD_APPLICATION_ID: optionalString,

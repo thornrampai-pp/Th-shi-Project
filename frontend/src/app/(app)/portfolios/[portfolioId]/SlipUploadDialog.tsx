@@ -4,16 +4,17 @@ import { useMutation } from "@apollo/client/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { graphql } from "@/gql";
-import type { AutoMatchSlipMutation } from "@/gql/graphql";
+import type { AutoMatchSlipsMutation } from "@/gql/graphql";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // Sent through Apollo → /api/graphql rather than a Server Action: Server Actions cap
-// the request body at 1 MB by default, and a 5 MB slip is ~6.7 MB as base64.
-const AutoMatchSlipDocument = graphql(`
-  mutation AutoMatchSlip($imageBase64: String!, $mimeType: String, $portfolioId: ID) {
-    autoMatchSlip(imageBase64: $imageBase64, mimeType: $mimeType, portfolioId: $portfolioId) {
+// the request body at 1 MB by default, and several photos as base64 are well past that.
+const AutoMatchSlipsDocument = graphql(`
+  mutation AutoMatchSlips($images: [SlipImageInput!]!, $portfolioId: ID) {
+    autoMatchSlips(images: $images, portfolioId: $portfolioId) {
       status
+      message
       transactionId
       isAmountMatched
       amount
@@ -25,19 +26,46 @@ const AutoMatchSlipDocument = graphql(`
   }
 `);
 
-const MAX_FILES = 5;
-const MAX_BYTES = 5 * 1024 * 1024; // backend SLIP_MAX_BYTES default
+const MAX_FILES = 5; // backend SLIP_BATCH_MAX_FILES
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // backend SLIP_MAX_BYTES default
+const MAX_BATCH_BYTES = 7 * 1024 * 1024; // backend SLIP_BATCH_MAX_BYTES
+/** Long edge after shrinking — slip text and QR stay sharp, a phone photo drops to a few hundred KB. */
+const MAX_EDGE = 2000;
 
-type Result = NonNullable<AutoMatchSlipMutation["autoMatchSlip"]>;
+type Result = NonNullable<AutoMatchSlipsMutation["autoMatchSlips"]>[number];
 type Row = { file: File; state: "queued" | "reading" | "done" | "error"; result?: Result; error?: string };
+type Prepared = { base64: string; mimeType: string; bytes: number };
 
-function readAsBase64(file: File): Promise<string> {
+function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
     reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
+}
+
+/**
+ * Downsizes a photo to MAX_EDGE as JPEG before upload, so a whole batch fits in one
+ * request. Small images, and formats the browser can't decode (e.g. HEIC outside
+ * Safari), are sent as they are — the backend validates either way.
+ */
+async function prepare(file: File): Promise<Prepared> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size <= 1024 * 1024) throw new Error("small enough");
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    if (!blob || blob.size >= file.size) throw new Error("no gain");
+    return { base64: await blobToBase64(blob), mimeType: "image/jpeg", bytes: blob.size };
+  } catch {
+    return { base64: await blobToBase64(file), mimeType: file.type, bytes: file.size };
+  }
 }
 
 function describe(r: Result): string {
@@ -45,13 +73,17 @@ function describe(r: Result): string {
   return `${amount} · Ref ${r.transRef ?? "—"}`;
 }
 
-/** Up to 5 slips, read one at a time so two can never claim the same transaction. */
+/**
+ * Up to 5 slips, sent together: the backend reads them in one OCR request and then
+ * matches them one by one, so two can never claim the same transaction.
+ */
 export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId: string; onClose: () => void }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
-  const [autoMatch] = useMutation(AutoMatchSlipDocument);
+  const [batchError, setBatchError] = useState("");
+  const [autoMatch] = useMutation(AutoMatchSlipsDocument);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -59,38 +91,48 @@ export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId
 
   const pick = (files: FileList | null) => {
     if (!files) return;
-    setRows([...files].slice(0, MAX_FILES).map((file) => ({ file, state: "queued" })));
+    setBatchError("");
+    setRows(
+      [...files].slice(0, MAX_FILES).map((file): Row =>
+        file.size > MAX_FILE_BYTES ? { file, state: "error", error: "File is larger than 5 MB" } : { file, state: "queued" },
+      ),
+    );
   };
 
-  const update = (i: number, patch: Partial<Row>) =>
-    setRows((prev) => prev.map((row, j) => (j === i ? { ...row, ...patch } : row)));
-
   const start = async () => {
+    const queued = rows.flatMap((row, i) => (row.state === "queued" ? [i] : []));
+    if (queued.length === 0) return;
     setRunning(true);
-    let matched = false;
-    for (const [i, row] of rows.entries()) {
-      if (row.file.size > MAX_BYTES) {
-        update(i, { state: "error", error: "File is larger than 5 MB" });
-        continue;
+    setBatchError("");
+    setRows((prev) => prev.map((row) => (row.state === "queued" ? { ...row, state: "reading" } : row)));
+
+    const settle = (patch: (row: Row, k: number) => Partial<Row>) =>
+      setRows((prev) => prev.map((row, i) => (queued.includes(i) ? { ...row, ...patch(row, queued.indexOf(i)) } : row)));
+
+    try {
+      const prepared = await Promise.all(queued.map((i) => prepare(rows[i]!.file)));
+      const total = prepared.reduce((sum, p) => sum + p.bytes, 0);
+      if (total > MAX_BATCH_BYTES) {
+        throw new Error(`These images are ${(total / 1024 / 1024).toFixed(1)} MB together — send fewer at a time`);
       }
-      update(i, { state: "reading" });
-      try {
-        const { data } = await autoMatch({
-          variables: { imageBase64: await readAsBase64(row.file), mimeType: row.file.type || undefined, portfolioId },
-        });
-        const result = data?.autoMatchSlip;
-        if (!result) throw new Error("Empty response");
-        matched ||= result.status === "MATCHED";
-        update(i, { state: "done", result });
-      } catch (e) {
-        update(i, { state: "error", error: e instanceof Error ? e.message : "Upload failed" });
-      }
+      const { data } = await autoMatch({
+        variables: { images: prepared.map((p) => ({ imageBase64: p.base64, mimeType: p.mimeType })), portfolioId },
+      });
+      const results = data?.autoMatchSlips;
+      if (!results || results.length !== queued.length) throw new Error("Unexpected response from the server");
+      settle((_, k) => ({ state: "done", result: results[k]! }));
+      if (results.some((r) => r?.status === "MATCHED")) router.refresh();
+    } catch (e) {
+      // A whole-batch failure (config, size, network): put the rows back so they can retry.
+      setBatchError(e instanceof Error ? e.message : "Upload failed");
+      settle(() => ({ state: "queued" }));
+    } finally {
+      setRunning(false);
     }
-    setRunning(false);
-    if (matched) router.refresh();
   };
 
   const finished = rows.length > 0 && rows.every((r) => r.state === "done" || r.state === "error");
+  const queuedCount = rows.filter((r) => r.state === "queued").length;
 
   return (
     <dialog
@@ -104,8 +146,8 @@ export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId
         <div>
           <h2 className="font-semibold">Upload slips</h2>
           <p className="text-xs text-muted-foreground">
-            Up to {MAX_FILES} images. Each slip is matched to a transaction in this portfolio by amount, date and
-            reference — nothing is saved if no single transaction matches.
+            Up to {MAX_FILES} images, read together in one go. Each slip is matched to a transaction in this
+            portfolio by amount, date and reference — nothing is saved if no single transaction matches.
           </p>
         </div>
 
@@ -131,6 +173,8 @@ export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId
           </ol>
         )}
 
+        {batchError && <p className="text-sm text-loss">{batchError}</p>}
+
         <div className="flex justify-end gap-3">
           <button
             type="button"
@@ -144,10 +188,10 @@ export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId
             <button
               type="button"
               onClick={start}
-              disabled={running || rows.length === 0}
+              disabled={running || queuedCount === 0}
               className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
             >
-              {running ? "Reading…" : `Match ${rows.length || ""} slip${rows.length === 1 ? "" : "s"}`}
+              {running ? "Reading…" : `Match ${queuedCount || ""} slip${queuedCount === 1 ? "" : "s"}`}
             </button>
           )}
         </div>
@@ -158,7 +202,7 @@ export default function SlipUploadDialog({ portfolioId, onClose }: { portfolioId
 
 function RowStatus({ row }: { row: Row }) {
   if (row.state === "queued") return <p className="text-muted-foreground">Waiting</p>;
-  if (row.state === "reading") return <p className="text-muted-foreground">Reading slip… (retries up to 5 times)</p>;
+  if (row.state === "reading") return <p className="text-muted-foreground">Reading with the others… (retries up to 5 times)</p>;
   if (row.state === "error") return <p className="text-loss">✕ {row.error}</p>;
 
   const r = row.result!;
@@ -205,7 +249,28 @@ function RowStatus({ row }: { row: Row }) {
           <p className="text-xs text-muted-foreground">This slip was already used for another transaction.</p>
         </>
       );
+    case "UNREADABLE":
+      return (
+        <>
+          {line("✕", describe(r), "text-loss")}
+          <p className="text-xs text-muted-foreground">{r.message ?? "Couldn't read the amount or reference"}</p>
+        </>
+      );
+    case "INVALID":
+      return line("✕", r.message ?? "Not a supported image", "text-loss");
+    case "ERROR":
+      return (
+        <>
+          {line("✕", describe(r), "text-loss")}
+          <p className="text-xs text-muted-foreground">{r.message ?? "Saving failed — try again"}</p>
+        </>
+      );
     default:
-      return line("✕", "Couldn't read this slip after 5 attempts", "text-loss");
+      return (
+        <>
+          {line("✕", "Couldn't read this slip", "text-loss")}
+          {r.message && <p className="truncate text-xs text-muted-foreground" title={r.message}>{r.message}</p>}
+        </>
+      );
   }
 }

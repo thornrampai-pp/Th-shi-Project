@@ -41,6 +41,7 @@ const TaxPageQuery = graphql(`
         executedAt
         assetSymbol
         currency
+        taxWithheld
       }
     }
     myPortfolios(type: REAL) {
@@ -78,11 +79,19 @@ export default async function TaxPage({ searchParams }: Props) {
             status: r.status,
             executedAt: r.transaction?.executedAt ?? "",
             assetSymbol: r.transaction?.assetSymbol ?? null,
+            withheldTHB: (r.transaction?.taxWithheld ?? 0) * (r.fxRate ?? 1),
           },
         ]
       : [],
   );
   const breakdown = compact(s?.breakdown);
+
+  // What the calculator prefills: foreign income only. Thai capital gains on SET are
+  // exempt and Thai dividends are usually final-taxed at 10%, so neither is assessable
+  // by default — counting them (as the summary total does) overstates the estimate.
+  const assessable = records.filter((r) => r.sourceCountry !== "TH");
+  const sum = (rows: typeof records, pick: (r: (typeof records)[number]) => number) =>
+    rows.reduce((acc, r) => acc + pick(r), 0);
 
   return (
     <PageContainer title="Tax">
@@ -136,7 +145,12 @@ export default async function TaxPage({ searchParams }: Props) {
         <TaxRecordsTable records={records} />
       </section>
 
-      <TaxCalculator year={year} investmentIncome={s?.totalIncomeTHB ?? 0} withheld={s?.withheldTaxTHB ?? 0} />
+      <TaxCalculator
+        year={year}
+        investmentIncome={sum(assessable, (r) => r.convertedAmountTHB)}
+        withheld={sum(assessable, (r) => r.withheldTHB)}
+        excludedThaiIncome={sum(records, (r) => r.convertedAmountTHB) - sum(assessable, (r) => r.convertedAmountTHB)}
+      />
     </PageContainer>
   );
 }

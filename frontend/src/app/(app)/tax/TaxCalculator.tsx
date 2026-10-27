@@ -8,10 +8,18 @@ const fieldClass = "w-full rounded-md bg-background px-3 py-2 text-sm outline-no
 
 type Deduction = { key: number; label: string; amount: string };
 
-type Props = { year: number; investmentIncome: number; withheld: number };
+type Props = {
+  year: number;
+  /** Assessable by default: foreign-source income only (THB). */
+  investmentIncome: number;
+  /** Tax withheld on that same income (THB). */
+  withheld: number;
+  /** Thai-source income left out of investmentIncome (THB), shown so the user knows. */
+  excludedThaiIncome: number;
+};
 
 /** Thai personal income tax estimate — the backend does the math (tax-calculator.ts). */
-export default function TaxCalculator({ year, investmentIncome, withheld }: Props) {
+export default function TaxCalculator({ year, investmentIncome, withheld, excludedThaiIncome }: Props) {
   const [totalIncome, setTotalIncome] = useState("");
   const [expenses, setExpenses] = useState("");
   const [credits, setCredits] = useState("");
@@ -62,10 +70,16 @@ export default function TaxCalculator({ year, investmentIncome, withheld }: Prop
                     }}
                     className="text-xs underline hover:text-foreground"
                   >
-                    Use investment income
+                    Use foreign investment income ({formatMoney(investmentIncome)})
                   </button>
                 )}
               </span>
+              {excludedThaiIncome > 0 && (
+                <span className="block text-xs text-muted-foreground">
+                  {formatMoney(excludedThaiIncome)} THB of Thai income isn&apos;t included: SET capital gains are exempt
+                  and Thai dividends are usually final-taxed at 10%. Add it yourself if you elect to include it.
+                </span>
+              )}
               <input
                 required
                 type="number"

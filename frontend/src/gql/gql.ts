@@ -48,7 +48,7 @@ type Documents = {
     "\n  mutation UpdateThesisSection($id: ID!, $title: String, $content: String) {\n    updateThesisSection(id: $id, title: $title, content: $content) {\n      id\n    }\n  }\n": typeof types.UpdateThesisSectionDocument,
     "\n  mutation DeleteThesisSection($id: ID!) {\n    deleteThesisSection(id: $id)\n  }\n": typeof types.DeleteThesisSectionDocument,
     "\n  query Alerts {\n    alerts {\n      id\n      condition\n      targetValue\n      isActive\n      updatedAt\n      asset {\n        id\n        symbol\n        name\n        type\n        exchange\n      }\n    }\n  }\n": typeof types.AlertsDocument,
-    "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n  }\n": typeof types.AppShellMeDocument,
+    "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n    dataSyncedAt\n  }\n": typeof types.AppShellMeDocument,
     "\n  mutation AutoMatchSlips($images: [SlipImageInput!]!, $portfolioId: ID) {\n    autoMatchSlips(images: $images, portfolioId: $portfolioId) {\n      status\n      message\n      transactionId\n      isAmountMatched\n      amount\n      currency\n      transRef\n      assetSymbol\n      candidateIds\n    }\n  }\n": typeof types.AutoMatchSlipsDocument,
     "\n  fragment PortfolioHoldingsFields on PortfolioHoldings {\n    portfolioId\n    name\n    strategy\n    type\n    currency\n    cash\n    equity\n    marketValue\n    costBasis\n    unrealizedPL\n    unrealizedPLPct\n    realizedPL\n    holdings {\n      assetId\n      symbol\n      name\n      assetCurrency\n      quantity\n      avgPrice\n      marketPrice\n      marketValue\n      costBasis\n      unrealizedPL\n      unrealizedPLPct\n      weight\n    }\n  }\n": typeof types.PortfolioHoldingsFieldsFragmentDoc,
     "\n  query PortfolioOverview {\n    portfolioOverview {\n      currency\n      marketValue\n      costBasis\n      unrealizedPL\n      unrealizedPLPct\n      realizedPL\n      portfolios {\n        ...PortfolioHoldingsFields\n      }\n    }\n  }\n": typeof types.PortfolioOverviewDocument,
@@ -96,7 +96,7 @@ const documents: Documents = {
     "\n  mutation UpdateThesisSection($id: ID!, $title: String, $content: String) {\n    updateThesisSection(id: $id, title: $title, content: $content) {\n      id\n    }\n  }\n": types.UpdateThesisSectionDocument,
     "\n  mutation DeleteThesisSection($id: ID!) {\n    deleteThesisSection(id: $id)\n  }\n": types.DeleteThesisSectionDocument,
     "\n  query Alerts {\n    alerts {\n      id\n      condition\n      targetValue\n      isActive\n      updatedAt\n      asset {\n        id\n        symbol\n        name\n        type\n        exchange\n      }\n    }\n  }\n": types.AlertsDocument,
-    "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n  }\n": types.AppShellMeDocument,
+    "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n    dataSyncedAt\n  }\n": types.AppShellMeDocument,
     "\n  mutation AutoMatchSlips($images: [SlipImageInput!]!, $portfolioId: ID) {\n    autoMatchSlips(images: $images, portfolioId: $portfolioId) {\n      status\n      message\n      transactionId\n      isAmountMatched\n      amount\n      currency\n      transRef\n      assetSymbol\n      candidateIds\n    }\n  }\n": types.AutoMatchSlipsDocument,
     "\n  fragment PortfolioHoldingsFields on PortfolioHoldings {\n    portfolioId\n    name\n    strategy\n    type\n    currency\n    cash\n    equity\n    marketValue\n    costBasis\n    unrealizedPL\n    unrealizedPLPct\n    realizedPL\n    holdings {\n      assetId\n      symbol\n      name\n      assetCurrency\n      quantity\n      avgPrice\n      marketPrice\n      marketValue\n      costBasis\n      unrealizedPL\n      unrealizedPLPct\n      weight\n    }\n  }\n": types.PortfolioHoldingsFieldsFragmentDoc,
     "\n  query PortfolioOverview {\n    portfolioOverview {\n      currency\n      marketValue\n      costBasis\n      unrealizedPL\n      unrealizedPLPct\n      realizedPL\n      portfolios {\n        ...PortfolioHoldingsFields\n      }\n    }\n  }\n": types.PortfolioOverviewDocument,
@@ -263,7 +263,7 @@ export function graphql(source: "\n  query Alerts {\n    alerts {\n      id\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n  }\n"): (typeof documents)["\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n  }\n"];
+export function graphql(source: "\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n    dataSyncedAt\n  }\n"): (typeof documents)["\n  query AppShellMe {\n    me {\n      email\n      firstName\n    }\n    dataSyncedAt\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

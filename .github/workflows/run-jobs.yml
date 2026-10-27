@@ -1,0 +1,31 @@
+# Runs the backend's jobs (history sync + snapshots, alerts, paper orders, R2 storage
+# check) every 6 hours by calling POST /jobs/run. Needed on hosts that sleep when idle,
+# where the in-process cron never fires — the request also wakes the server.
+#
+# Repo → Settings → Secrets and variables → Actions:
+#   BACKEND_URL  e.g. https://toshi-api.onrender.com (no trailing slash)
+#   CRON_SECRET  same value as the backend's CRON_SECRET
+
+name: Run backend jobs
+
+on:
+  schedule:
+    - cron: "15 */6 * * *" # 00:15, 06:15, 12:15, 18:15 UTC
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Wake backend and run jobs
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # A sleeping server can take a minute to boot, so retry the request.
+          curl --fail-with-body --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 20 \
+            --max-time 1500 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" \
+            "$BACKEND_URL/jobs/run"

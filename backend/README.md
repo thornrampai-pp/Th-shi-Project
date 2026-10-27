@@ -90,6 +90,7 @@ npm run dev          # http://localhost:4000/graphql
 | `JWT_REFRESH_EXPIRES_IN` | | default `30d` |
 | `PORT` | | default `4000` |
 | `ENABLE_JOBS` | | default `true` — ตั้ง `false` ถ้ารันหลาย instance และให้รัน cron แค่ตัวเดียว |
+| `CRON_SECRET` | | อย่างน้อย 32 ตัวอักษร — เปิด `POST /jobs/run` ให้ scheduler ภายนอกสั่งรัน job (ใช้กับ host ที่ sleep ได้) |
 | `GEMINI_API_KEY` | | ต้องใช้เมื่อเปิดใช้อ่านสลิป |
 | `GEMINI_MODEL` | | default `gemini-3.8-flash` (Google retired 2.5-flash for new keys) |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | | ต้องครบทั้ง 4 ตัวเพื่อเปิดใช้อัปโหลดสลิป |
@@ -300,6 +301,8 @@ type SlipMatchResult =
 **Trading (Phase 9)** — Signal → Order → Transaction: `createTradingSignal` (จาก bot/CLI ที่ login เป็นเจ้าของพอร์ต) → `executeTradingSignal` หรือ `placeOrder` → พอร์ต PAPER จำลองการ fill ด้วยราคาล่าสุด ± `paperSlippageBps` และค่าคอม `paperCommissionRate`; LIMIT ที่ยังไม่ถึงราคารอ job ทุก 5 นาที; เงินไม่พอ → `REJECTED` พอร์ต REAL ไม่มีการเชื่อมโบรกเกอร์ order จะค้าง `PENDING` จนกว่าจะบันทึกผลจริงด้วย `fillOrder`
 
 **Jobs** — `00:30 UTC` ทุกวัน: history sync + snapshot / `01:00 UTC` ทุกวัน: เช็คพื้นที่ R2 / ทุก 5 นาที: เช็ค Alert และ fill paper LIMIT order
+
+ถ้า deploy บน host ที่ sleep เมื่อไม่มีคนใช้ (เช่น Render free) cron ในตัว process จะไม่ทำงาน ให้ตั้ง `CRON_SECRET` แล้วใช้ `.github/workflows/run-jobs.yml` ซึ่งเรียก `POST /jobs/run` (header `Authorization: Bearer <CRON_SECRET>`) ทุก 6 ชม. เพื่อปลุก server และรันทุก job ต่อกัน เวลาที่ sync เสร็จล่าสุดดูได้จาก query `dataSyncedAt` (แสดงที่ footer ของหน้าเว็บ)
 
 **แจ้งเตือนพื้นที่ R2** — job รายวันรวม `imageSize` จากตาราง `SlipVerification` (ไม่ต้องเรียก R2 API; ไม่นับรูป base64 เก่าที่ยังอยู่ใน DB) ถ้าถึงเกณฑ์ใน `R2_STORAGE_ALERT_PERCENTS` จะส่ง event `SYSTEM_ALERT` ไปที่ Discord channel ของ user ที่เป็น `ADMIN` ซึ่งติ๊ก event นี้ไว้ แจ้งเฉพาะเกณฑ์สูงสุดที่ถึง เกณฑ์เดิมแจ้งซ้ำได้สัปดาห์ละครั้ง (Redis) แต่ถ้าข้ามไปเกณฑ์ที่สูงขึ้นจะแจ้งทันที ถ้ายังไม่มี admin channel จะ log เตือนและลองใหม่วันถัดไป ตั้ง admin ด้วย SQL: `UPDATE "User" SET role = 'ADMIN' WHERE email = '...'` แนะนำให้ตั้ง Notifications ฝั่ง Cloudflare dashboard ไว้อีกชั้นด้วย
 

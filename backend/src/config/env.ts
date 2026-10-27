@@ -40,6 +40,13 @@ const envSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
 
+  // Enables POST /jobs/run (Bearer token) — for hosts that sleep when idle, where an
+  // outside scheduler has to trigger the jobs instead of the in-process cron.
+  CRON_SECRET: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.string().min(32, "CRON_SECRET must be at least 32 chars").optional(),
+  ),
+
   FMP_API_KEY: optionalString, // reserved — FMP integration is not implemented yet
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().default("gemini-3.8-flash"),

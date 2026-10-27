@@ -34,6 +34,7 @@ const keys = {
   fxTail: (pair: string, day: string) => `history:fx-tail:${pair}:${day}`,
   snapshotVersion: (portfolioId: string) => `history:snapshot-version:${portfolioId}`,
   syncLock: "history:sync-lock",
+  syncedAt: "history:synced-at",
   repairLock: (portfolioId: string) => `history:repair-lock:${portfolioId}`,
   repairPending: (portfolioId: string) => `history:repair-pending:${portfolioId}`,
 };
@@ -264,9 +265,15 @@ export async function syncHistory(): Promise<void> {
         console.error(`❌ Snapshot rebuild failed for portfolio ${id}:`, err);
       }
     }
+    await redis.set(keys.syncedAt, new Date().toISOString());
   } finally {
     await redis.del(keys.syncLock);
   }
+}
+
+/** When the last syncHistory() finished (ISO string), or null if it never has. */
+export function getLastSyncedAt(): Promise<string | null> {
+  return redis.get(keys.syncedAt);
 }
 
 /**
@@ -306,13 +313,24 @@ async function runHistoryRepair(portfolioId: string, from: Date): Promise<void> 
 }
 
 /** Only past-dated transactions invalidate existing snapshots. */
-export async function repairIfBackdated(portfolioId: string, executedAt: Date): Promise<void> {
+/**
+ * Runs (in the background) after every recorded transaction:
+ * - backdated into existing snapshots → full repair (history coverage + rebuild)
+ * - otherwise → just fetch any price/FX history the portfolio is now missing, so a
+ *   newly added asset is valued at market right away instead of at cost until the
+ *   next daily sync. Already-covered series cost no Yahoo call.
+ */
+export async function refreshHistoryAfterTransaction(portfolioId: string, executedAt: Date): Promise<void> {
   const day = utcDay(executedAt);
   const affected = await prisma.portfolioSnapshot.findFirst({
     where: { portfolioId, granularity: "DAILY", date: { gte: day } },
     select: { id: true },
   });
-  if (affected) scheduleHistoryRepair(portfolioId, day);
+  if (affected) {
+    scheduleHistoryRepair(portfolioId, day);
+    return;
+  }
+  await ensureHistoryCoverage([portfolioId]);
 }
 
 export async function requestSnapshotRebuild(userId: string, portfolioId: string, from?: Date): Promise<boolean> {

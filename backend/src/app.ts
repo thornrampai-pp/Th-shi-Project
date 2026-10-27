@@ -7,6 +7,7 @@ import { schema } from './modules';
 import { buildContext, GraphQLContext } from './common/middlewares/auth.middleware';
 import { AppError } from './common/errors/AppError';
 import { createDiscordInteractionsRouter } from './modules/discord-bot/discord-interactions.route';
+import { createJobsRouter } from './jobs/jobs.route';
 
 export async function createApp() {
   const app = express();
@@ -31,6 +32,7 @@ export async function createApp() {
 
   // Must be mounted before any JSON body parser — it needs the raw body for signature checks.
   app.use('/discord', createDiscordInteractionsRouter());
+  app.use('/jobs', createJobsRouter());
 
   app.use(
     '/graphql',

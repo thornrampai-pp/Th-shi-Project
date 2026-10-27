@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logoutAction } from "@/actions/auth";
+import DataSyncedAt from "@/components/DataSyncedAt";
 import FaceLogo from "@/components/FaceLogo";
 import { graphql } from "@/gql";
 import { serverQuery } from "@/lib/graphql/server";
@@ -11,11 +12,12 @@ const AppShellMeQuery = graphql(`
       email
       firstName
     }
+    dataSyncedAt
   }
 `);
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { me } = await serverQuery(AppShellMeQuery);
+  const { me, dataSyncedAt } = await serverQuery(AppShellMeQuery);
   const name = me?.firstName || me?.email || "";
 
   return (
@@ -58,6 +60,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="flex flex-1 flex-col">{children}</main>
+      <footer className="border-t border-border px-4 py-3 sm:px-6">
+        <DataSyncedAt iso={dataSyncedAt ?? null} />
+      </footer>
     </div>
   );
 }

@@ -2,6 +2,17 @@ import { builder } from '../../graphql/builder';
 import { GraphQLContext, requireAuth } from '../../common/middlewares/auth.middleware';
 import * as historyService from './history.service';
 
+builder.queryField('dataSyncedAt', (t) =>
+  t.string({
+    nullable: true,
+    description: 'When prices, FX and snapshots were last synced (ISO 8601), or null if never',
+    resolve: (_root, _args, context: GraphQLContext) => {
+      requireAuth(context);
+      return historyService.getLastSyncedAt();
+    },
+  }),
+);
+
 builder.mutationField('rebuildPortfolioSnapshots', (t) =>
   t.field({
     type: 'Boolean',

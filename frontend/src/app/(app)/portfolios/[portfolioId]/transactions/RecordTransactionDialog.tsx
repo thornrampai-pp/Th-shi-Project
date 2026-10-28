@@ -29,13 +29,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function NumberInput({ value, onChange, required }: { value: string; onChange: (v: string) => void; required?: boolean }) {
+function NumberInput({
+  value,
+  onChange,
+  required,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  placeholder?: string;
+}) {
   return (
     <input
       type="number"
       min="0"
       step="any"
       required={required}
+      placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={fieldClass}
@@ -172,12 +183,12 @@ export default function RecordTransactionDialog({
         {kind === "SELL" ? (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quantity">
-              <NumberInput value={quantity} onChange={setQuantity} required />
+              <NumberInput value={quantity} onChange={setQuantity} required placeholder="e.g. 100 or 0.25" />
             </Field>
             <Field label={holding?.currency ? `Price per unit (${holding.currency})` : "Price per unit"}>
               <NumberInput value={price} onChange={setPrice} required />
             </Field>
-            <Field label="Fee (optional)">
+            <Field label={holding?.currency ? `Fee (${holding.currency}, optional)` : "Fee (optional)"}>
               <NumberInput value={fee} onChange={setFee} />
             </Field>
             <Field label="Date">

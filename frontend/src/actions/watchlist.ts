@@ -47,6 +47,7 @@ const SearchAssetsQuery = graphql(`
       name
       type
       exchange
+      currency
     }
   }
 `);
@@ -59,6 +60,7 @@ const LookupSymbolQuery = graphql(`
       name
       type
       exchange
+      currency
     }
   }
 `);

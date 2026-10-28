@@ -56,6 +56,7 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
   };
 
   const total = Number(quantity) * Number(price) + (Number(fee) || 0);
+  const ccy = asset?.currency ? ` (${asset.currency})` : "";
 
   return (
     <dialog
@@ -96,7 +97,11 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
                       className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted"
                     >
                       <span className="text-sm font-medium">
-                        {a.symbol} <span className="text-xs text-muted-foreground">#{a.type}</span>
+                        {a.symbol}{" "}
+                        <span className="text-xs text-muted-foreground">
+                          #{a.type}
+                          {a.currency && ` · ${a.currency}`}
+                        </span>
                       </span>
                       <span className="w-full truncate text-xs text-muted-foreground">{a.name}</span>
                     </button>
@@ -109,7 +114,10 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
           <form onSubmit={save} className="space-y-4">
             <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-semibold">{asset.symbol}</p>
+                <p className="text-sm font-semibold">
+                  {asset.symbol}
+                  {asset.currency && <span className="ml-2 text-xs font-normal text-muted-foreground">Trades in {asset.currency}</span>}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">{asset.name}</p>
               </div>
               <button type="button" onClick={() => setAsset(null)} className="text-xs text-muted-foreground hover:text-foreground">
@@ -126,13 +134,14 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
                   type="number"
                   min="0"
                   step="any"
+                  placeholder="e.g. 100 or 0.25"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className={fieldClass}
                 />
               </label>
               <label className="block space-y-1 text-sm">
-                <span className="text-muted-foreground">Price per unit</span>
+                <span className="text-muted-foreground">Price per unit{ccy}</span>
                 <input
                   required
                   type="number"
@@ -144,7 +153,7 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
                 />
               </label>
               <label className="block space-y-1 text-sm">
-                <span className="text-muted-foreground">Fee (optional)</span>
+                <span className="text-muted-foreground">Fee{ccy} (optional)</span>
                 <input
                   type="number"
                   min="0"
@@ -166,7 +175,10 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
                 />
               </label>
             </div>
-            <p className="text-xs text-muted-foreground">Price and fee are in the asset&apos;s trading currency.</p>
+            <p className="text-xs text-muted-foreground">
+              Quantity can be fractional (up to 8 decimals). Price and fee are in{" "}
+              {asset.currency ?? "the asset's trading currency"}.
+            </p>
 
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -185,7 +197,11 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
 
             {total > 0 && (
               <p className="text-sm">
-                Total cost <span className="font-semibold tabular-nums">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                Total cost{" "}
+                <span className="font-semibold tabular-nums">
+                  {total.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                  {asset.currency && ` ${asset.currency}`}
+                </span>
               </p>
             )}
 

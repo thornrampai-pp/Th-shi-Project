@@ -7,6 +7,7 @@ import type { Holding } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
 import SlipUploadDialog from "./SlipUploadDialog";
 import RecordTransactionDialog from "./transactions/RecordTransactionDialog";
+import LocalDateTime from "@/components/LocalDateTime";
 import Select from "@/components/Select";
 
 const SORTS = {
@@ -21,6 +22,15 @@ type SortKey = keyof typeof SORTS;
 const toolbarButton = "rounded-md bg-field px-4 py-2 text-sm hover:bg-field/70";
 
 type Props = { portfolioId: string; currency: string; holdings: Holding[] };
+
+const closeDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Daily bars are stamped 00:00 UTC of their trading day, so show that day as-is. */
+function PriceAsOf({ source, iso }: { source: Holding["priceSource"]; iso: string | null }) {
+  if (source === "COST" || !iso) return <>No price yet — at cost</>;
+  if (source === "CLOSE") return <>Close {closeDay.format(new Date(iso))}</>;
+  return <LocalDateTime iso={iso} format="short" />;
+}
 
 export default function HoldingsPanel({ portfolioId, currency, holdings }: Props) {
   const [sort, setSort] = useState<SortKey>("weight");
@@ -90,7 +100,12 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
                 <td className="px-4 py-2.5 text-right">{formatQuantity(h.quantity)}</td>
                 <td className="px-4 py-2.5 text-right">{h.weight.toFixed(1)}%</td>
                 <td className="px-4 py-2.5 text-right">{formatMoney(h.avgPrice)}</td>
-                <td className="px-4 py-2.5 text-right">{formatMoney(h.marketPrice)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  {formatMoney(h.marketPrice)}
+                  <p className="text-xs whitespace-nowrap text-muted-foreground">
+                    <PriceAsOf source={h.priceSource} iso={h.priceAsOf} />
+                  </p>
+                </td>
                 <td className="px-4 py-2.5 text-right">{formatMoney(h.marketValue)}</td>
                 <td className={`px-4 py-2.5 text-right ${plColor(h.unrealizedPL)}`}>
                   {formatSignedMoney(h.unrealizedPL)}
@@ -111,7 +126,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Prices and values in {currency}, using the latest daily close.</p>
+      <p className="text-xs text-muted-foreground">Prices and values in {currency}, converted from each asset&apos;s trading currency at the latest rate.</p>
 
       {dialog === "slip" && <SlipUploadDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
       {dialog === "asset" && <AddAssetDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}

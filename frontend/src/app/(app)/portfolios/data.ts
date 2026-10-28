@@ -28,6 +28,8 @@ graphql(`
       quantity
       avgPrice
       marketPrice
+      priceSource
+      priceAsOf
       marketValue
       costBasis
       unrealizedPL
@@ -98,6 +100,8 @@ function toPortfolio(p: PortfolioHoldingsFieldsFragment | null | undefined) {
               quantity: h.quantity ?? 0,
               avgPrice: h.avgPrice ?? 0,
               marketPrice: h.marketPrice ?? 0,
+              priceSource: h.priceSource ?? "COST",
+              priceAsOf: h.priceAsOf ?? null,
               marketValue: h.marketValue ?? 0,
               costBasis: h.costBasis ?? 0,
               unrealizedPL: h.unrealizedPL ?? 0,

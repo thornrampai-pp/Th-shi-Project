@@ -3,11 +3,15 @@ import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership
 import { HOME_CURRENCY, createRateResolver } from "../fx/fx.service";
 import { endOfUtcDay, utcDay } from "../../common/utils/date.util";
 import { replayPositions } from "./replay";
+import { getLatestQuotes } from "../asset/latest-quote.service";
 
 /** Currency that cross-portfolio totals (net worth, combined dashboard) are reported in. */
 export const REPORTING_CURRENCY = HOME_CURRENCY;
 
 export type SnapshotGranularityValue = "DAILY" | "MONTHLY" | "YEARLY";
+
+/** Where marketPrice came from: a live quote, a stored daily close, or avg cost (no price yet). */
+export type PriceSourceValue = "QUOTE" | "CLOSE" | "COST";
 
 interface PositionValuation {
   assetId: string;
@@ -18,6 +22,9 @@ interface PositionValuation {
   quantity: number;
   avgPrice: number;
   marketPrice: number;
+  priceSource: PriceSourceValue;
+  /** Quote: when it traded. Close: the bar's day (00:00 UTC). Cost: null. */
+  priceAsOf: Date | null;
   marketValue: number;
   costBasis: number;
   realizedPL: number;
@@ -43,15 +50,17 @@ interface PortfolioValuation {
  * Valued AS OF a point in time (default: now), using only what was known then:
  * - positions are replayed from transactions executed up to `asOf` (replay.ts)
  * - cash is the sum of CASH ledger entries whose transaction executed up to `asOf`
- * - prices are the last daily close on or before `asOf` (falls back to avg cost)
+ * - prices are the last daily close on or before `asOf` (falls back to avg cost); when
+ *   valuing "now" (no `asOf`), the latest synced quote wins if it's newer than that close
  * - FX is the ExchangeRate for that day (live rate when `asOf` is today)
  *
  * Every figure is in the portfolio's baseCurrency.
  */
 async function valuatePortfolio(
   portfolioId: string,
-  asOf: Date = new Date(),
+  asOfArg?: Date,
 ): Promise<PortfolioValuation> {
+  const asOf = asOfArg ?? new Date();
   const [portfolio, cashAccounts, transactions, cashEntries] = await Promise.all([
     prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId } }),
     prisma.cashAccount.findMany({ where: { portfolioId } }),
@@ -105,19 +114,33 @@ async function valuatePortfolio(
     where: { id: { in: [...replayed.keys()] } },
   });
   const assetById = new Map(assets.map((a) => [a.id, a]));
+  // Snapshots (an explicit asOf) stay on stored closes so rebuilding them is repeatable.
+  const quotes = asOfArg ? new Map() : await getLatestQuotes([...replayed.keys()]);
 
   const valuations: PositionValuation[] = await Promise.all(
     [...replayed.values()].map(async (position) => {
       const asset = assetById.get(position.assetId)!;
       const fx = await rateTo(asset.currency, baseCurrency);
       let marketPrice = position.avgPrice; // fallback when no price history exists
+      let priceSource: PriceSourceValue = "COST";
+      let priceAsOf: Date | null = null;
 
       if (position.quantity > 0) {
         const close = await prisma.assetPrice.findFirst({
           where: { assetId: position.assetId, timeframe: "1D", timestamp: { lte: asOf } },
           orderBy: { timestamp: "desc" },
         });
-        if (close) marketPrice = Number(close.closePrice);
+        if (close) {
+          marketPrice = Number(close.closePrice);
+          priceSource = "CLOSE";
+          priceAsOf = close.timestamp;
+        }
+        const quote = quotes.get(position.assetId);
+        if (quote && (!close || quote.at.getTime() > close.timestamp.getTime())) {
+          marketPrice = quote.price;
+          priceSource = "QUOTE";
+          priceAsOf = quote.at;
+        }
       }
 
       return {
@@ -128,6 +151,8 @@ async function valuatePortfolio(
         quantity: position.quantity,
         avgPrice: position.avgPrice * fx,
         marketPrice: marketPrice * fx,
+        priceSource,
+        priceAsOf,
         marketValue: position.quantity * marketPrice * fx,
         costBasis: position.quantity * position.avgPrice * fx,
         realizedPL: position.realizedPL * fx,
@@ -418,6 +443,8 @@ export interface HoldingSummary {
   quantity: number;
   avgPrice: number;
   marketPrice: number;
+  priceSource: PriceSourceValue;
+  priceAsOf: Date | null;
   marketValue: number;
   costBasis: number;
   unrealizedPL: number;
@@ -462,6 +489,8 @@ function summarizeHoldings(
       quantity: p.quantity,
       avgPrice: p.avgPrice,
       marketPrice: p.marketPrice,
+      priceSource: p.priceSource,
+      priceAsOf: p.priceAsOf,
       marketValue: p.marketValue,
       costBasis: p.costBasis,
       unrealizedPL: p.marketValue - p.costBasis,

@@ -4,6 +4,7 @@ import { acquireOnceLock } from "../../common/utils/cache.util";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
 import { DAY_MS, addDays, utcDay } from "../../common/utils/date.util";
 import { backfillAssetPrices } from "../asset/asset.service";
+import { refreshHeldAssetQuotes } from "../asset/latest-quote.service";
 import { backfillExchangeRates, getStoredRateRange, resolveHomeFxRate } from "../fx/fx.service";
 import { createSnapshot } from "../snapshot/snapshot.service";
 import { REPORTING_CURRENCY } from "../snapshot/snapshot.service";
@@ -264,6 +265,12 @@ export async function syncHistory(): Promise<void> {
       } catch (err) {
         console.error(`❌ Snapshot rebuild failed for portfolio ${id}:`, err);
       }
+    }
+    try {
+      const count = await refreshHeldAssetQuotes();
+      if (count > 0) console.log(`💹 Refreshed latest quotes for ${count} held asset(s)`);
+    } catch (err) {
+      console.error("❌ Latest quote refresh failed:", err);
     }
     await redis.set(keys.syncedAt, new Date().toISOString());
   } finally {

@@ -61,6 +61,22 @@ export function fetchYahooQuote(symbol: string): Promise<YahooQuote> {
   });
 }
 
+export interface YahooBatchQuote {
+  symbol: string;
+  regularMarketPrice?: number;
+  regularMarketTime?: Date;
+}
+
+/** Many symbols in one request; symbols Yahoo doesn't know are simply missing. */
+export function fetchYahooQuotes(symbols: string[]): Promise<YahooBatchQuote[]> {
+  if (symbols.length === 0) return Promise.resolve([]);
+  return withRateLimit(async () => {
+    const result = await yahooFinance.quote(symbols, { return: "array" });
+
+    return result as YahooBatchQuote[];
+  });
+}
+
 /**
  * ---------------------------------------------------------
  * Yahoo Historical

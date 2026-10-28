@@ -101,7 +101,12 @@ const DashboardSummaryType = builder.objectRef<DashboardSummaryShape>('Dashboard
   }),
 });
 
-const HoldingType = builder.objectRef<snapshotService.HoldingSummary>('Holding').implement({
+const PriceSourceEnum = builder.enumType('PriceSource', {
+  description: 'QUOTE = latest synced quote, CLOSE = stored daily close, COST = no price yet (valued at avg cost)',
+  values: ['QUOTE', 'CLOSE', 'COST'] as const,
+});
+
+const HoldingType =builder.objectRef<snapshotService.HoldingSummary>('Holding').implement({
   fields: (t) => ({
     assetId: t.exposeString('assetId'),
     symbol: t.exposeString('symbol'),
@@ -110,6 +115,12 @@ const HoldingType = builder.objectRef<snapshotService.HoldingSummary>('Holding')
     quantity: t.exposeFloat('quantity'),
     avgPrice: t.exposeFloat('avgPrice'),
     marketPrice: t.exposeFloat('marketPrice'),
+    priceSource: t.field({ type: PriceSourceEnum, resolve: (h) => h.priceSource }),
+    priceAsOf: t.string({
+      nullable: true,
+      description: 'QUOTE: when the price traded. CLOSE: the daily bar (00:00 UTC of its day). COST: null',
+      resolve: (h) => h.priceAsOf?.toISOString() ?? null,
+    }),
     marketValue: t.exposeFloat('marketValue'),
     costBasis: t.exposeFloat('costBasis'),
     unrealizedPL: t.exposeFloat('unrealizedPL'),

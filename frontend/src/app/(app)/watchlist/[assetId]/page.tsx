@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { graphql } from "@/gql";
 import { compact, toAsset } from "@/lib/graphql/normalize";
 import { GraphQLRequestError, serverQuery } from "@/lib/graphql/server";
 import { isEmbeddable, tradingViewSymbol, tradingViewUrl } from "@/lib/tradingview";
 import { getWatchlistOverview } from "../data";
+import AssetInsights from "./AssetInsights";
 import StatusBadge from "../StatusBadge";
 import RemoveButton from "./RemoveButton";
 import StartThesis from "./StartThesis";
@@ -125,6 +127,11 @@ export default async function WatchlistStockPage({ params }: PageProps<"/watchli
           </div>
         )}
       </div>
+
+      {/* Streams in after the page: a cold Yahoo fetch takes a second or two. */}
+      <Suspense fallback={<div className="h-48 animate-pulse rounded-md bg-muted" aria-label="Loading stats" />}>
+        <AssetInsights assetId={asset.id} />
+      </Suspense>
 
       {thesis ? (
         <ThesisEditor key={thesis.id} thesis={thesis} />

@@ -10,6 +10,7 @@ import './user/user.schema';
 import './auth/auth.schema';
 import './notification/notification.schema';
 import './asset/asset.schema';
+import './asset/asset-insights.schema';
 import './portfolio/portfolio.schema';
 import './ledger/ledger.schema';
 import './transaction/transaction.schema';

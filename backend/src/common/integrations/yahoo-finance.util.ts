@@ -158,6 +158,52 @@ export function fetchYahooQuoteSummary(
   });
 }
 
+/** The quoteSummary modules behind the watchlist's stock page. Every field may be missing. */
+export interface YahooInsightsSummary {
+  price?: { regularMarketPrice?: number; marketCap?: number; currency?: string };
+  summaryDetail?: {
+    trailingPE?: number;
+    forwardPE?: number;
+    dividendYield?: number; // fraction: 0.0671 = 6.71%
+    beta?: number;
+    exDividendDate?: Date;
+  };
+  defaultKeyStatistics?: { priceToBook?: number; trailingEps?: number };
+  financialData?: {
+    returnOnEquity?: number; // fraction
+    debtToEquity?: number; // already a percentage: 58.9 = 0.589x
+    profitMargins?: number; // fraction
+    revenueGrowth?: number; // fraction
+    freeCashflow?: number;
+    targetMeanPrice?: number;
+    recommendationKey?: string;
+    numberOfAnalystOpinions?: number;
+  };
+  calendarEvents?: { earnings?: { earningsDate?: Date[] } };
+  recommendationTrend?: {
+    trend?: { period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }[];
+  };
+  assetProfile?: { sector?: string; industry?: string; website?: string; longBusinessSummary?: string };
+}
+
+export function fetchYahooInsights(symbol: string): Promise<YahooInsightsSummary> {
+  return withRateLimit(async () => {
+    const result = await yahooFinance.quoteSummary(symbol, {
+      modules: [
+        "price",
+        "summaryDetail",
+        "defaultKeyStatistics",
+        "financialData",
+        "calendarEvents",
+        "recommendationTrend",
+        "assetProfile",
+      ],
+    });
+
+    return result as YahooInsightsSummary;
+  });
+}
+
 /**
  * ---------------------------------------------------------
  * Symbol mapping

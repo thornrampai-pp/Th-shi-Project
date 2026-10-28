@@ -2,8 +2,8 @@ import { graphql } from "@/gql";
 import type { AssetInsightsQuery } from "@/gql/graphql";
 import LocalDateTime from "@/components/LocalDateTime";
 import { serverQuery } from "@/lib/graphql/server";
-import { plColor } from "@/lib/format";
 import ExpandableText from "./ExpandableText";
+import { RULES, isFinancialSector, rateRecommendation, toneClass, type Rule } from "./ratings";
 
 const AssetInsightsQueryDoc = graphql(`
   query AssetInsights($assetId: ID!) {
@@ -44,7 +44,8 @@ const AssetInsightsQueryDoc = graphql(`
 `);
 
 type Insights = NonNullable<AssetInsightsQuery["assetInsights"]>;
-type Row = { label: string; value: React.ReactNode | null };
+/** `rule` colors the value green/red by that rule of thumb; no rule = no color. */
+type Row = { label: string; value: React.ReactNode | null; rule?: Rule; raw?: number | null };
 
 const decimal = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
@@ -78,12 +79,18 @@ function Card({ title, rows, children }: { title: string; rows?: Row[]; children
       <h2 className="text-sm font-semibold">{title}</h2>
       {shown.length > 0 && (
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
-          {shown.map((r) => (
-            <div key={r.label} className="contents">
-              <dt className="text-muted-foreground">{r.label}</dt>
-              <dd className="text-right tabular-nums">{r.value}</dd>
-            </div>
-          ))}
+          {shown.map((r) => {
+            const tone = r.rule && r.raw != null ? r.rule.rate(r.raw) : null;
+            return (
+              <div key={r.label} className="contents">
+                <dt className="text-muted-foreground">{r.label}</dt>
+                <dd className={`text-right tabular-nums ${toneClass(tone)}`} title={r.rule?.rule}>
+                  {r.value}
+                  {tone && <span className="sr-only"> ({tone === "good" ? "healthy" : "weak"})</span>}
+                </dd>
+              </div>
+            );
+          })}
         </dl>
       )}
       {children}
@@ -150,25 +157,33 @@ export default async function AssetInsights({ assetId }: { assetId: string }) {
           title="Key stats"
           rows={[
             { label: `Market cap${ccy}`, value: big(i.marketCap) },
-            { label: "P/E (x)", value: num(i.trailingPE) },
-            { label: "Forward P/E (x)", value: num(i.forwardPE) },
-            { label: "P/BV (x)", value: num(i.priceToBook) },
-            { label: `EPS${ccy}`, value: num(i.eps) },
-            { label: "Dividend yield (%)", value: num(i.dividendYieldPct) },
+            { label: "P/E (x)", value: num(i.trailingPE), rule: RULES.pe, raw: i.trailingPE },
+            { label: "Forward P/E (x)", value: num(i.forwardPE), rule: RULES.forwardPe, raw: i.forwardPE },
+            { label: "P/BV (x)", value: num(i.priceToBook), rule: RULES.pbv, raw: i.priceToBook },
+            { label: `EPS${ccy}`, value: num(i.eps), rule: RULES.eps, raw: i.eps },
+            { label: "Dividend yield (%)", value: num(i.dividendYieldPct), rule: RULES.dividendYield, raw: i.dividendYieldPct },
+            // Volatility vs the market — a risk measure, not good or bad by itself.
             { label: "Beta", value: num(i.beta) },
           ]}
         />
         <Card
           title="Financials"
           rows={[
-            { label: "ROE (%)", value: num(i.roePct) },
-            { label: "D/E (%)", value: num(i.debtToEquityPct) },
-            { label: "Profit margin (%)", value: num(i.profitMarginPct) },
+            { label: "ROE (%)", value: num(i.roePct), rule: RULES.roe, raw: i.roePct },
+            {
+              label: "D/E (%)",
+              value: num(i.debtToEquityPct),
+              rule: isFinancialSector(i.sector) ? undefined : RULES.debtToEquity,
+              raw: i.debtToEquityPct,
+            },
+            { label: "Profit margin (%)", value: num(i.profitMarginPct), rule: RULES.profitMargin, raw: i.profitMarginPct },
             {
               label: "Revenue growth YoY (%)",
-              value: i.revenueGrowthPct == null ? null : <span className={plColor(i.revenueGrowthPct)}>{signed(i.revenueGrowthPct)}</span>,
+              value: i.revenueGrowthPct == null ? null : signed(i.revenueGrowthPct),
+              rule: RULES.revenueGrowth,
+              raw: i.revenueGrowthPct,
             },
-            { label: `Free cash flow${ccy}`, value: big(i.freeCashflow) },
+            { label: `Free cash flow${ccy}`, value: big(i.freeCashflow), rule: RULES.freeCashflow, raw: i.freeCashflow },
           ]}
         />
         <Card
@@ -185,13 +200,18 @@ export default async function AssetInsights({ assetId }: { assetId: string }) {
             { label: `Current price${ccy}`, value: i.targetMeanPrice != null ? num(i.price) : null },
             {
               label: "Target vs current (%)",
-              value: upside == null ? null : <span className={plColor(upside)}>{signed(upside)}</span>,
+              value: upside == null ? null : signed(upside),
+              rule: RULES.targetUpside,
+              raw: upside,
             },
             {
               label: "Consensus",
-              value: i.recommendation
-                ? `${recommendationLabel(i.recommendation)}${i.analystCount ? ` · ${i.analystCount} analysts` : ""}`
-                : null,
+              value: i.recommendation ? (
+                <>
+                  <span className={toneClass(rateRecommendation(i.recommendation))}>{recommendationLabel(i.recommendation)}</span>
+                  {i.analystCount ? ` · ${i.analystCount} analysts` : ""}
+                </>
+              ) : null,
             },
           ]}
         >
@@ -216,6 +236,33 @@ export default async function AssetInsights({ assetId }: { assetId: string }) {
       >
         {i.businessSummary && <ExpandableText text={i.businessSummary} />}
       </Card>
+
+      <details className="rounded-md bg-muted p-4 text-sm">
+        <summary className="cursor-pointer">
+          <span className="text-gain">Green</span> = healthy, <span className="text-loss">red</span> = weak, no color = in
+          between or not judged · <span className="text-muted-foreground">how is this decided?</span>
+        </summary>
+        <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+          <p>
+            General rules of thumb, not adjusted for sector — a tech company&apos;s P/E or a bank&apos;s D/E can sit outside
+            these ranges and still be normal. Use them as a starting point, not a verdict.
+          </p>
+          <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            {Object.values(RULES).map((r) => (
+              <li key={r.label}>
+                <span className="font-medium text-foreground">{r.label}:</span> {r.rule}
+              </li>
+            ))}
+            <li>
+              <span className="font-medium text-foreground">Consensus:</span> buy / strong buy good · sell weak
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Market cap, Beta:</span> not judged — size and volatility
+              aren&apos;t good or bad by themselves
+            </li>
+          </ul>
+        </div>
+      </details>
 
       <p className="text-xs text-muted-foreground">
         From Yahoo Finance{i.fetchedAt && <> · fetched <LocalDateTime iso={i.fetchedAt} format="short" /></>} · refreshed every 6

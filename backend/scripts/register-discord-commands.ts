@@ -21,13 +21,24 @@ const commands = [
   {
     name: 'upload-slip',
     description: 'แนบสลิป (สูงสุด 5 รูป) — จับคู่กับธุรกรรมให้อัตโนมัติ',
-    // Option names must match SLIP_IMAGE_OPTIONS in discord-interactions.service.ts.
-    options: [1, 2, 3, 4, 5].map((n) => ({
-      type: OPTION_ATTACHMENT,
-      name: `image${n}`,
-      description: `รูปสลิปที่ ${n}`,
-      required: n === 1,
-    })),
+    // Option names must match SLIP_IMAGE_OPTIONS / SLIP_PORTFOLIO_OPTION in
+    // discord-interactions.service.ts. Required options must come first.
+    options: [
+      { type: OPTION_ATTACHMENT, name: 'image1', description: 'รูปสลิปที่ 1', required: true },
+      {
+        type: OPTION_STRING,
+        name: 'portfolio',
+        description: 'จับคู่เฉพาะในพอร์ตนี้ (ไม่เลือก = ทุกพอร์ต)',
+        required: false,
+        autocomplete: true,
+      },
+      ...[2, 3, 4, 5].map((n) => ({
+        type: OPTION_ATTACHMENT,
+        name: `image${n}`,
+        description: `รูปสลิปที่ ${n}`,
+        required: false,
+      })),
+    ],
   },
 ];
 

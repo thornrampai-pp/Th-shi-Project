@@ -265,7 +265,7 @@ type SlipMatchResult =
 
 ```typescript
 // ไฟล์: src/modules/discord-bot/discord-interactions.service.ts
-// Command: /upload-slip image1:<f1> image2:<f2> ... image5:<f5>
+// Command: /upload-slip image1:<f1> [portfolio:<พอร์ต>] image2:<f2> ... image5:<f5>
 ```
 
 **วิธีการ:**
@@ -323,6 +323,8 @@ type SlipMatchResult =
 3. ตั้ง **Interactions Endpoint URL** เป็น `https://<your-domain>/discord/interactions` (ต้องเป็น HTTPS สาธารณะ ใช้ ngrok ตอน dev ได้)
 4. ในแอปเรียก `generateDiscordLinkCode` แล้วพิมพ์ `/link code:<โค้ด>` ใน Discord เพื่อผูกบัญชี (โค้ดหมดอายุใน 10 นาที)
 5. ส่งสลิป (สูงสุด 5 รูป) ด้วย `/upload-slip image1:<รูป> image2:<รูป> ...` → **จับคู่ธุรกรรมอัตโนมัติ**
+   - `portfolio` (ไม่บังคับ, มี autocomplete รายชื่อพอร์ตตอนพิมพ์) → ค้นเฉพาะพอร์ตนั้น ไม่เลือก = ทุกพอร์ต
+   - ผลลัพธ์บอกว่าจับคู่กับรายการไหน เช่น `BUY 10 AAPL · พอร์ต "US Growth" · 27 Oct 2026` ถ้าเจอหลายรายการจะแสดงทุกตัวพร้อมชื่อพอร์ต
    - ค้นหาเฉพาะธุรกรรมที่ยังไม่มีสลิป
    - **เรตแม่น:** ยอดเงินต้องตรงหรือ targetAmount (เช่น slip THB แลก USD ได้)
    - **วันที่:** executedAt ห่างจากวันบน slip ไม่เกิน ±36 ชั่วโมง

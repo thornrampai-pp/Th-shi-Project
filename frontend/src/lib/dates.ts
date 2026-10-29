@@ -4,6 +4,16 @@ export function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * A date input's day plus an optional time input's "HH:MM", as an ISO instant in the
+ * browser's timezone — undefined without a time. Must run in the browser, not a server action.
+ */
+export function localMomentIso(date: string, time: string): string | undefined {
+  if (!date || !time) return undefined;
+  const moment = new Date(`${date}T${time}`);
+  return Number.isNaN(moment.getTime()) ? undefined : moment.toISOString();
+}
+
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 export function formatDate(iso: string): string {

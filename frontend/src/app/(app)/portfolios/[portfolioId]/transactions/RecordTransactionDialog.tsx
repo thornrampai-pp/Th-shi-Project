@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { recordTransactionAction, type NewTransaction } from "@/actions/portfolio";
-import { todayLocal } from "@/lib/dates";
+import { localMomentIso, todayLocal } from "@/lib/dates";
 import { formatQuantity } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import Select from "@/components/Select";
@@ -83,6 +83,8 @@ export default function RecordTransactionDialog({
   const [taxWithheld, setTaxWithheld] = useState("");
   const [currency, setCurrency] = useState(currencies[0] ?? "THB");
   const [date, setDate] = useState(todayLocal);
+  const [time, setTime] = useState("");
+  const [orderRef, setOrderRef] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -106,11 +108,19 @@ export default function RecordTransactionDialog({
   };
 
   const build = (): NewTransaction | null => {
-    const common = { executedOn: date, note: note.trim() || undefined };
+    const common = { executedOn: date, executedAt: localMomentIso(date, time), note: note.trim() || undefined };
     const num = (v: string) => (v ? Number(v) : undefined);
     switch (kind) {
       case "SELL":
-        return { ...common, type: "SELL", assetId, quantity: Number(quantity), price: Number(price), fee: num(fee) };
+        return {
+          ...common,
+          type: "SELL",
+          assetId,
+          quantity: Number(quantity),
+          price: Number(price),
+          fee: num(fee),
+          externalRef: orderRef.trim() || undefined,
+        };
       case "DIVIDEND":
         return { ...common, type: "DIVIDEND", assetId, amount: Number(amount), currency, taxWithheld: num(taxWithheld) };
       default:
@@ -194,6 +204,12 @@ export default function RecordTransactionDialog({
             <Field label="Date">
               <input type="date" required max={todayLocal()} value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
             </Field>
+            <Field label="Time (optional)">
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fieldClass} />
+            </Field>
+            <Field label="Order no. (optional)">
+              <input value={orderRef} onChange={(e) => setOrderRef(e.target.value)} placeholder="From the broker" className={fieldClass} />
+            </Field>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -216,6 +232,9 @@ export default function RecordTransactionDialog({
             )}
             <Field label="Date">
               <input type="date" required max={todayLocal()} value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
+            </Field>
+            <Field label="Time (optional)">
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fieldClass} />
             </Field>
           </div>
         )}

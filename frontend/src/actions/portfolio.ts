@@ -34,6 +34,8 @@ const AddAssetMutation = graphql(`
     $price: Float!
     $fee: Float
     $executedAt: String
+    $timeKnown: Boolean
+    $externalRef: String
     $fundWithDeposit: Boolean
   ) {
     createTransaction(
@@ -44,6 +46,8 @@ const AddAssetMutation = graphql(`
       price: $price
       fee: $fee
       executedAt: $executedAt
+      timeKnown: $timeKnown
+      externalRef: $externalRef
       fundWithDeposit: $fundWithDeposit
     ) {
       id
@@ -73,23 +77,35 @@ export type NewHolding = {
   quantity: number;
   price: number;
   fee?: number;
+  /** Broker order / deal number, from the slip. */
+  externalRef?: string;
+  fundWithDeposit: boolean;
+} & When;
+
+/** When it happened: a day, and optionally the exact moment (ISO, built in the browser's timezone). */
+type When = {
   /** yyyy-mm-dd */
   executedOn?: string;
-  fundWithDeposit: boolean;
+  executedAt?: string;
 };
 
 /**
- * Midday UTC keeps the chosen calendar day in any timezone. For today that can still be
- * in the future, and valuation ignores future transactions — so use "now" (undefined) then.
+ * With a time, that exact moment — the backend then knows the time is real, which lets
+ * slip matching tell apart several trades on one day. Without one, midday UTC keeps the
+ * chosen calendar day in any timezone. Either way a moment still ahead (today, later)
+ * becomes "now" (undefined): valuation ignores future transactions.
  */
-function toExecutedAt(executedOn: string | undefined): string | undefined {
+function toWhen({ executedOn, executedAt }: When): { executedAt?: string; timeKnown?: boolean } {
+  if (executedAt) {
+    return new Date(executedAt).getTime() <= Date.now() ? { executedAt, timeKnown: true } : {};
+  }
   const midday = executedOn ? new Date(`${executedOn}T12:00:00.000Z`) : null;
-  return midday && midday.getTime() < Date.now() ? midday.toISOString() : undefined;
+  return midday && midday.getTime() < Date.now() ? { executedAt: midday.toISOString() } : {};
 }
 
 export async function addAssetAction(portfolioId: string, input: NewHolding) {
-  const { executedOn, ...rest } = input;
-  return run(() => serverQuery(AddAssetMutation, { portfolioId, ...rest, executedAt: toExecutedAt(executedOn) }));
+  const { executedOn, executedAt, ...rest } = input;
+  return run(() => serverQuery(AddAssetMutation, { portfolioId, ...rest, ...toWhen({ executedOn, executedAt }) }));
 }
 
 const CashAccountsQuery = graphql(`
@@ -121,6 +137,8 @@ const RecordTransactionMutation = graphql(`
     $taxWithheld: Float
     $note: String
     $executedAt: String
+    $timeKnown: Boolean
+    $externalRef: String
   ) {
     createTransaction(
       portfolioId: $portfolioId
@@ -134,22 +152,24 @@ const RecordTransactionMutation = graphql(`
       taxWithheld: $taxWithheld
       note: $note
       executedAt: $executedAt
+      timeKnown: $timeKnown
+      externalRef: $externalRef
     ) {
       id
     }
   }
 `);
 
-type Common = { executedOn?: string; note?: string };
+type Common = When & { note?: string };
 export type NewTransaction = Common &
   (
-    | { type: "SELL"; assetId: string; quantity: number; price: number; fee?: number }
+    | { type: "SELL"; assetId: string; quantity: number; price: number; fee?: number; externalRef?: string }
     | { type: "DEPOSIT" | "WITHDRAW"; amount: number; currency: string }
     | { type: "DIVIDEND"; assetId: string; amount: number; currency: string; taxWithheld?: number }
   );
 
 export async function recordTransactionAction(portfolioId: string, input: NewTransaction) {
-  const { executedOn, ...rest } = input;
+  const { executedOn, executedAt, ...rest } = input;
   return run(async () => {
     // Money arriving in a currency the portfolio has no account for opens one,
     // with the same domestic rule the backend uses for a new portfolio's account.
@@ -166,7 +186,7 @@ export async function recordTransactionAction(portfolioId: string, input: NewTra
     const variables: RecordTransactionMutationVariables = {
       portfolioId,
       ...rest,
-      executedAt: toExecutedAt(executedOn),
+      ...toWhen({ executedOn, executedAt }),
     };
     await serverQuery(RecordTransactionMutation, variables);
   });

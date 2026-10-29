@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addAssetAction } from "@/actions/portfolio";
 import { searchAssetsAction } from "@/actions/watchlist";
-import { todayLocal } from "@/lib/dates";
+import { localMomentIso, todayLocal } from "@/lib/dates";
 import type { Asset } from "@/lib/graphql/normalize";
 
 const fieldClass = "w-full rounded-md bg-muted px-3 py-2 text-sm outline-none";
@@ -18,6 +18,8 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
   const [price, setPrice] = useState("");
   const [fee, setFee] = useState("");
   const [date, setDate] = useState(todayLocal);
+  const [time, setTime] = useState("");
+  const [orderRef, setOrderRef] = useState("");
   const [fundWithDeposit, setFundWithDeposit] = useState(true);
   const [error, setError] = useState("");
   const [searching, startSearch] = useTransition();
@@ -48,6 +50,8 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
         price: Number(price),
         fee: fee ? Number(fee) : undefined,
         executedOn: date,
+        executedAt: localMomentIso(date, time),
+        externalRef: orderRef.trim() || undefined,
         fundWithDeposit,
       });
       if (res.error) setError(res.error);
@@ -174,10 +178,24 @@ export default function AddAssetDialog({ portfolioId, onClose }: { portfolioId: 
                   className={fieldClass}
                 />
               </label>
+              <label className="block space-y-1 text-sm">
+                <span className="text-muted-foreground">Time (optional)</span>
+                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={fieldClass} />
+              </label>
+              <label className="block space-y-1 text-sm">
+                <span className="text-muted-foreground">Order no. (optional)</span>
+                <input
+                  value={orderRef}
+                  onChange={(e) => setOrderRef(e.target.value)}
+                  placeholder="From the broker"
+                  className={fieldClass}
+                />
+              </label>
             </div>
             <p className="text-xs text-muted-foreground">
               Quantity can be fractional (up to 8 decimals). Price and fee are in{" "}
-              {asset.currency ?? "the asset's trading currency"}.
+              {asset.currency ?? "the asset's trading currency"}. The time and order no. help match a slip sent
+              later — repeat buys on one day stay separate.
             </p>
 
             <label className="flex items-start gap-2 text-sm">

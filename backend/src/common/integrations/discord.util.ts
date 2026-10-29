@@ -1,3 +1,5 @@
+import { env } from '../../config/env';
+
 export interface DiscordEmbedField {
   name: string;
   value: string;
@@ -15,6 +17,40 @@ export interface DiscordEmbed {
 export interface DiscordMessage {
   text?: string;
   embeds?: DiscordEmbed[];
+}
+
+const DISCORD_API = 'https://discord.com/api/v10';
+
+/**
+ * Sends a DM from the bot to a user by their Discord user id. Used for password-reset
+ * codes — there's no email provider configured, so Discord (already required to link
+ * an account) is the only delivery channel.
+ */
+export async function sendDiscordDirectMessage(discordUserId: string, content: string): Promise<void> {
+  const token = env.DISCORD_BOT_TOKEN;
+  if (!token) {
+    throw new Error('DISCORD_BOT_TOKEN is not configured');
+  }
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bot ${token}` };
+
+  const dmChannel = await fetch(`${DISCORD_API}/users/@me/channels`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ recipient_id: discordUserId }),
+  });
+  if (!dmChannel.ok) {
+    throw new Error(`Could not open a Discord DM channel: ${dmChannel.status} ${await dmChannel.text().catch(() => '')}`);
+  }
+  const { id: channelId } = (await dmChannel.json()) as { id: string };
+
+  const message = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ content }),
+  });
+  if (!message.ok) {
+    throw new Error(`Discord DM send failed: ${message.status} ${await message.text().catch(() => '')}`);
+  }
 }
 
 export async function sendDiscordWebhookMessage(

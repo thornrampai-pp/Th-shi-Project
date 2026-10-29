@@ -8,6 +8,7 @@ import { buildContext, GraphQLContext } from './common/middlewares/auth.middlewa
 import { AppError } from './common/errors/AppError';
 import { createDiscordInteractionsRouter } from './modules/discord-bot/discord-interactions.route';
 import { createJobsRouter } from './jobs/jobs.route';
+import { env } from './config/env';
 
 export async function createApp() {
   const app = express();
@@ -36,7 +37,7 @@ export async function createApp() {
 
   app.use(
     '/graphql',
-    cors(),
+    cors({ origin: env.FRONTEND_URL }),
     // Slip images arrive as base64 inside GraphQL variables, so the default 100kb is too small.
     express.json({ limit: '10mb' }),
     expressMiddleware(apollo, { context: buildContext }),

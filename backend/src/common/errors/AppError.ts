@@ -4,6 +4,7 @@ export type AppErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'CONFLICT'
+  | 'TOO_MANY_REQUESTS'
   | 'INTERNAL_ERROR';
 
 const STATUS_BY_CODE: Record<AppErrorCode, number> = {
@@ -12,6 +13,7 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL_ERROR: 500,
 };
 
@@ -41,5 +43,8 @@ export class AppError extends Error {
   }
   static conflict(message: string) {
     return new AppError('CONFLICT', message);
+  }
+  static tooManyRequests(message: string) {
+    return new AppError('TOO_MANY_REQUESTS', message);
   }
 }

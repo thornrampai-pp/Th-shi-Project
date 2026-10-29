@@ -33,6 +33,13 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: expiresInSchema.default("15m"),
   JWT_REFRESH_EXPIRES_IN: expiresInSchema.default("30d"),
 
+  // Who's allowed to call /graphql from a browser. Comma-separated for multiple
+  // deployments (e.g. production + Vercel preview URLs).
+  FRONTEND_URL: z
+    .string()
+    .default("http://localhost:3000")
+    .transform((value) => value.split(",").map((origin) => origin.trim())),
+
   // Set to "false" to disable every cron job (e.g. when running several API instances
   // and only one of them should run jobs).
   ENABLE_JOBS: z

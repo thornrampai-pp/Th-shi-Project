@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useActionState, useRef, useState } from "react";
+import Link from "next/link";
 import { loginAction } from "@/actions/auth";
 import RegisterButton from "@/components/RegisterButton";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,10 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
               >
                 {isPending ? "Logging in…" : "Log in"}
               </button>
+
+              <Link href="/forgot-password" className="text-center text-xs text-gray-400 hover:text-black hover:underline">
+                Forgot password?
+              </Link>
             </div>
           </div>
         </div>

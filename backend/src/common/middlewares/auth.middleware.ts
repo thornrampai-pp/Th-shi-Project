@@ -5,6 +5,7 @@ import { verifyAccessToken } from '../../modules/auth/auth.utils';
 
 export interface GraphQLContext {
   userId: string | null;
+  role: string | null;
   prisma: typeof prisma;
 }
 
@@ -18,7 +19,7 @@ export async function buildContext({ req }: { req: Request }): Promise<GraphQLCo
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    return { userId: null, prisma };
+    return { userId: null, role: null, prisma };
   }
 
   const token = authHeader.slice('Bearer '.length);
@@ -28,16 +29,16 @@ export async function buildContext({ req }: { req: Request }): Promise<GraphQLCo
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { tokenVersion: true, isActive: true, deletedAt: true },
+      select: { tokenVersion: true, isActive: true, deletedAt: true, role: true },
     });
 
     if (!user || user.deletedAt || !user.isActive || user.tokenVersion !== payload.tokenVersion) {
-      return { userId: null, prisma };
+      return { userId: null, role: null, prisma };
     }
 
-    return { userId: payload.sub, prisma };
+    return { userId: payload.sub, role: user.role, prisma };
   } catch {
-    return { userId: null, prisma };
+    return { userId: null, role: null, prisma };
   }
 }
 
@@ -46,4 +47,13 @@ export function requireAuth(context: GraphQLContext): string {
     throw AppError.unauthorized('You must be logged in to perform this action');
   }
   return context.userId;
+}
+
+/** For admin-only fields/mutations — checks the role loaded in buildContext. */
+export function requireAdmin(context: GraphQLContext): string {
+  const userId = requireAuth(context);
+  if (context.role !== 'ADMIN') {
+    throw AppError.forbidden('Admin access required');
+  }
+  return userId;
 }

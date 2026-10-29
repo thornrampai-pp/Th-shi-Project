@@ -76,3 +76,24 @@ builder.mutationField('changePassword', (t) =>
     },
   }),
 );
+
+// Always returns true (even if the email doesn't exist or isn't Discord-linked) so a
+// caller can't use it to enumerate accounts.
+builder.mutationField('forgotPassword', (t) =>
+  t.field({
+    type: 'Boolean',
+    args: { email: t.arg.string({ required: true }) },
+    resolve: (_root, args) => authService.forgotPassword(args.email),
+  }),
+);
+
+builder.mutationField('resetPassword', (t) =>
+  t.field({
+    type: 'Boolean',
+    args: {
+      token: t.arg.string({ required: true }),
+      newPassword: t.arg.string({ required: true }),
+    },
+    resolve: (_root, args) => authService.resetPassword(args.token, args.newPassword),
+  }),
+);

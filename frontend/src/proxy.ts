@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ACCESS_COOKIE, REFRESH_COOKIE, clearedCookies, refreshTokens, tokenCookies } from "@/lib/auth/tokens";
 
-const AUTH_PAGES = ["/login", "/register"];
+const AUTH_PAGES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 /**
  * Runs before every page request:

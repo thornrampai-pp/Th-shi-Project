@@ -16,6 +16,13 @@ export interface AccessTokenPayload {
   tokenVersion: number;
 }
 
+/** Postgres' unique constraint on User.email is case-sensitive, so callers must
+ * normalize before every lookup/create or "Foo@bar.com" and "foo@bar.com" become
+ * two different accounts. */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, SALT_ROUNDS);
 }

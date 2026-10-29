@@ -46,6 +46,18 @@ const LogoutMutation = graphql(`
   }
 `);
 
+const ForgotPasswordMutation = graphql(`
+  mutation ForgotPassword($email: String!) {
+    forgotPassword(email: $email)
+  }
+`);
+
+const ResetPasswordMutation = graphql(`
+  mutation ResetPassword($token: String!, $newPassword: String!) {
+    resetPassword(token: $token, newPassword: $newPassword)
+  }
+`);
+
 async function setSession(tokens: Tokens) {
   const store = await cookies();
   for (const c of tokenCookies(tokens)) store.set(c.name, c.value, c.options);
@@ -106,6 +118,42 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
 
   await setSession(tokens);
   redirect("/");
+}
+
+export type ForgotPasswordState = { sent: boolean; email: string } | null;
+
+export async function forgotPasswordAction(
+  _prev: ForgotPasswordState,
+  formData: FormData,
+): Promise<ForgotPasswordState> {
+  const email = field(formData, "email");
+  if (!email) return null;
+
+  // forgotPassword always returns true — never reveal whether the account exists or
+  // has Discord linked, so there's nothing to branch on here either.
+  await backendRequest(ForgotPasswordMutation, { email }).catch(() => undefined);
+  return { sent: true, email };
+}
+
+export async function resetPasswordAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const token = field(formData, "token");
+  const newPassword = formData.get("newPassword");
+  if (!token || typeof newPassword !== "string" || !newPassword) {
+    return { error: "Please enter the reset code and a new password", values: {} };
+  }
+  const problem = passwordProblem(newPassword);
+  if (problem) return { error: problem, values: {} };
+
+  try {
+    const res = await backendRequest(ResetPasswordMutation, { token, newPassword });
+    if (!res.data?.resetPassword) {
+      return { error: res.errors?.[0]?.message ?? "Could not reset your password", values: {} };
+    }
+  } catch {
+    return { error: "Couldn't reach the server", values: {} };
+  }
+
+  redirect("/login");
 }
 
 export async function logoutAction() {

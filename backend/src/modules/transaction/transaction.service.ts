@@ -55,6 +55,13 @@ export interface CreateTransactionInput {
   sourceCountry?: string;
   note?: string;
   executedAt?: Date;
+  /**
+   * executedAt carries a real time of day (typed in, or read off a slip) rather than
+   * just the day — lets slip matching tell apart several trades on one day.
+   */
+  timeKnown?: boolean;
+  /** Broker order / deal number. Unique per portfolio; never generated. */
+  externalRef?: string;
   /** BUY only: deposit the full cost first (creating the cash account if needed), atomically. */
   fundWithDeposit?: boolean;
 }
@@ -74,6 +81,19 @@ export async function createTransaction(
 
   if (input.sourceCountry != null) {
     input = { ...input, sourceCountry: normalizeCountryCode(input.sourceCountry) };
+  }
+
+  const externalRef = input.externalRef?.trim() || undefined;
+  input = { ...input, externalRef };
+  if (externalRef) {
+    // The unique index would also refuse it, but only after the ledger work — say why up front.
+    const existing = await prisma.transaction.findFirst({
+      where: { portfolioId: input.portfolioId, externalRef },
+      select: { id: true },
+    });
+    if (existing) {
+      throw AppError.conflict(`Order ${externalRef} is already recorded in this portfolio`);
+    }
   }
 
   let transaction;
@@ -343,11 +363,8 @@ async function createBuyTransaction(
   );
 
   return prisma.$transaction(async (tx) => {
-    const asset = await tx.asset.findUniqueOrThrow({
-      where: {
-        id: assetId,
-      },
-    });
+    const asset = await tx.asset.findUnique({ where: { id: assetId } });
+    if (!asset) throw AppError.notFound("Asset not found");
 
     const currency = input.currency ?? asset.currency;
     const cashAccount = input.fundWithDeposit
@@ -369,7 +386,8 @@ async function createBuyTransaction(
         exchangeRate: purchaseFxRate,
         fee,
         executedAt,
-        metadata: { currency: cashAccount.currency, note: input.note },
+        externalRef: input.externalRef,
+        metadata: { currency: cashAccount.currency, note: input.note, timeKnown: input.timeKnown },
       },
     });
 
@@ -510,11 +528,8 @@ async function createSellTransaction(
   );
 
   return prisma.$transaction(async (tx) => {
-    const asset = await tx.asset.findUniqueOrThrow({
-      where: {
-        id: assetId,
-      },
-    });
+    const asset = await tx.asset.findUnique({ where: { id: assetId } });
+    if (!asset) throw AppError.notFound("Asset not found");
 
     const position = await tx.position.findUnique({
       where: {
@@ -644,6 +659,7 @@ async function createSellTransaction(
         exchangeRate: sellFxRate,
         fee,
         executedAt,
+        externalRef: input.externalRef,
         metadata: {
           currency: cashAccount.currency,
           costBasis: costBasisRemoved,
@@ -659,6 +675,7 @@ async function createSellTransaction(
               }
             : {}),
           note: input.note,
+          timeKnown: input.timeKnown,
         },
       },
     });
@@ -803,10 +820,12 @@ async function createCashMovement(
         type,
         baseCurrAmount: absAmount,
         executedAt: input.executedAt ?? new Date(),
+        externalRef: input.externalRef,
         metadata: {
           currency,
           direction: isInflow ? "IN" : "OUT",
           note: input.note,
+          timeKnown: input.timeKnown,
         },
       },
     });
@@ -904,7 +923,8 @@ async function createDividendTransaction(
         baseCurrAmount: amount,
         taxWithheld,
         executedAt,
-        metadata: { currency, grossAmount: amount + taxWithheld, note: input.note },
+        externalRef: input.externalRef,
+        metadata: { currency, grossAmount: amount + taxWithheld, note: input.note, timeKnown: input.timeKnown },
       },
     });
 
@@ -1067,12 +1087,14 @@ async function createRepatriationTransaction(input: CreateTransactionInput) {
         exchangeRate: rate,
         fee,
         executedAt,
+        externalRef: input.externalRef,
         metadata: {
           currency: TAX_CURRENCY,
           sourceCurrency: currency,
           sourceAmount: amount,
           targetAmount: netTarget,
           note: input.note,
+          timeKnown: input.timeKnown,
         },
       },
     });

@@ -23,7 +23,9 @@ export async function listWatchLists(userId: string) {
 
 export async function getWatchList(userId: string, id: string) {
   await getOwnedWatchListOrThrow(userId, id);
-  return prisma.watchList.findUniqueOrThrow({ where: { id }, include: watchListInclude });
+  const watchList = await prisma.watchList.findUnique({ where: { id }, include: watchListInclude });
+  if (!watchList) throw AppError.notFound("Watchlist not found");
+  return watchList;
 }
 
 export async function createWatchList(userId: string, name: string) {

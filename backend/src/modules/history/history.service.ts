@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { AppError } from "../../common/errors/AppError";
 import { redis } from "../../config/redis";
 import { acquireOnceLock } from "../../common/utils/cache.util";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
@@ -60,7 +61,8 @@ async function needsTailRefresh(last: Date | null, tailKey: string): Promise<boo
 }
 
 async function ensurePriceCoverage(assetId: string, neededFrom: Date): Promise<void> {
-  const asset = await prisma.asset.findUniqueOrThrow({ where: { id: assetId } });
+  const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+  if (!asset) throw AppError.notFound(`Asset ${assetId} not found`);
   const where = { assetId, timeframe: "1D" };
   const [first, last] = await Promise.all([
     prisma.assetPrice.findFirst({ where, orderBy: { timestamp: "asc" } }),

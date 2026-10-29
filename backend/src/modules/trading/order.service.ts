@@ -46,7 +46,9 @@ export async function listOrders(userId: string, portfolioId: string, status?: O
 
 export async function getOrder(userId: string, id: string) {
   await getOwnedOrderOrThrow(userId, id);
-  return prisma.order.findUniqueOrThrow({ where: { id }, include: orderInclude });
+  const order = await prisma.order.findUnique({ where: { id }, include: orderInclude });
+  if (!order) throw AppError.notFound("Order not found");
+  return order;
 }
 
 /**
@@ -87,7 +89,14 @@ export async function placeOrder(userId: string, input: PlaceOrderInput) {
   });
 
   if (portfolio.type === "PAPER") {
-    await tryFillPaperOrder(order.id);
+    // Best effort — the order is already persisted, so a fill failure (e.g. a lock
+    // conflict, or Yahoo being unavailable) shouldn't turn into a mutation error; it
+    // just stays PENDING for the next cron pass to retry.
+    try {
+      await tryFillPaperOrder(order.id);
+    } catch (err) {
+      console.error(`❌ Failed to auto-fill paper order ${order.id}:`, err);
+    }
   }
 
   return getOrder(userId, order.id);
@@ -216,7 +225,10 @@ async function executeFill(
       where: { id: order.id },
       data: {
         status: "FILLED",
-        filledQty: order.quantity,
+        // Accumulate rather than hardcode to order.quantity, so this stays correct if a
+        // fill is ever partial. In practice it always equals order.quantity today:
+        // Order.transactionId is @unique, so only one fill can ever be recorded per order.
+        filledQty: Number(order.filledQty) + quantity,
         avgFillPrice: fillPrice,
         filledAt: transaction.executedAt,
         transactionId: transaction.id,

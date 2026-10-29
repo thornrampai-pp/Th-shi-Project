@@ -1,5 +1,6 @@
 import { builder } from '../../graphql/builder';
 import { GraphQLContext, requireAuth } from '../../common/middlewares/auth.middleware';
+import { AppError } from '../../common/errors/AppError';
 import { AssetType } from '../asset/asset.schema';
 import * as orderService from './order.service';
 import * as signalService from './signal.service';
@@ -97,7 +98,7 @@ builder.mutationField('createTradingSignal', (t) =>
         try {
           metadata = JSON.parse(args.metadataJson);
         } catch {
-          throw new Error('metadataJson is not valid JSON');
+          throw AppError.badRequest('metadataJson is not valid JSON');
         }
       }
       return signalService.createTradingSignal(userId, {

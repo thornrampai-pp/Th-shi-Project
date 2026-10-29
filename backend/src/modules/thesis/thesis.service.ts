@@ -90,7 +90,9 @@ export async function listTheses(
 
 export async function getThesis(userId: string, id: string) {
   await getOwnedThesisOrThrow(userId, id);
-  return prisma.investmentThesis.findUniqueOrThrow({ where: { id }, include: thesisInclude });
+  const thesis = await prisma.investmentThesis.findUnique({ where: { id }, include: thesisInclude });
+  if (!thesis) throw AppError.notFound("Investment thesis not found");
+  return thesis;
 }
 
 export async function createThesis(

@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { AppError } from "../../common/errors/AppError";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
 import { HOME_CURRENCY, createRateResolver } from "../fx/fx.service";
 import { endOfUtcDay, utcDay } from "../../common/utils/date.util";
@@ -62,7 +63,7 @@ async function valuatePortfolio(
 ): Promise<PortfolioValuation> {
   const asOf = asOfArg ?? new Date();
   const [portfolio, cashAccounts, transactions, cashEntries] = await Promise.all([
-    prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId } }),
+    prisma.portfolio.findUnique({ where: { id: portfolioId } }),
     prisma.cashAccount.findMany({ where: { portfolioId } }),
     prisma.transaction.findMany({
       where: { portfolioId, status: "COMPLETED", executedAt: { lte: asOf } },
@@ -76,6 +77,7 @@ async function valuatePortfolio(
       select: { cashAccountId: true, side: true, amount: true },
     }),
   ]);
+  if (!portfolio) throw AppError.notFound("Portfolio not found");
 
   const baseCurrency = portfolio.baseCurrency;
   const rateTo = createRateResolver(asOf);
@@ -373,12 +375,8 @@ export async function getNetWorth(userId: string) {
 
 /** The one screen-level query — combines Snapshot + Position data in one round trip. */
 export async function getDashboard(userId: string, portfolioId?: string) {
-  if (portfolioId) {
-    await assertPortfolioOwnership(userId, portfolioId);
-  }
-
   const portfolios = portfolioId
-    ? [await prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId } })]
+    ? [await assertPortfolioOwnership(userId, portfolioId)]
     : await prisma.portfolio.findMany({ where: { userId, deletedAt: null } });
 
   const rawValuations = await Promise.all(

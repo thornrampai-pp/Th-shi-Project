@@ -29,6 +29,7 @@ interface TransactionShape {
   taxWithheld: unknown;
   exchangeRate: unknown;
   metadata: unknown;
+  externalRef: string | null;
   createdAt: Date;
   // Preloaded by listTransactions(); resolved per row elsewhere.
   assetSymbol?: string | null;
@@ -47,6 +48,7 @@ export const TransactionType = builder.objectRef<TransactionShape>('Transaction'
     status: t.exposeString('status'),
     executedAt: t.field({ type: 'String', resolve: (tr) => tr.executedAt.toISOString() }),
     mainAssetId: t.exposeString('mainAssetId', { nullable: true }),
+    externalRef: t.exposeString('externalRef', { nullable: true, description: 'Broker order / deal number' }),
     assetSymbol: t.field({
       type: 'String',
       nullable: true,
@@ -261,6 +263,8 @@ builder.mutationField('createTransaction', (t) =>
       sourceCountry: t.arg.string({ description: 'ISO 2-letter country for the tax record; default from the asset exchange' }),
       note: t.arg.string(),
       executedAt: t.arg.string(),
+      timeKnown: t.arg.boolean({ description: 'executedAt includes a real time of day, not just the date' }),
+      externalRef: t.arg.string({ description: 'Broker order / deal number; unique per portfolio' }),
       fundWithDeposit: t.arg.boolean({
         description: 'BUY only: deposit the full cost first in the same DB transaction (for holdings bought elsewhere)',
       }),
@@ -282,6 +286,8 @@ builder.mutationField('createTransaction', (t) =>
         sourceCountry: args.sourceCountry ?? undefined,
         note: args.note ?? undefined,
         executedAt: args.executedAt ? new Date(args.executedAt) : undefined,
+        timeKnown: args.timeKnown ?? undefined,
+        externalRef: args.externalRef ?? undefined,
       });
     },
   }),
@@ -353,13 +359,21 @@ const SlipImageInput = builder.inputType('SlipImageInput', {
   }),
 });
 
+/** The web upload doesn't pass createMissing, so `created` / `needs_input` only come from Discord. */
 function toSlipMatchResult(result: slipService.SlipBatchItemResult): SlipMatchResultShape {
   const extracted = 'extracted' in result ? result.extracted : null;
+  const saved = result.status === 'matched' || result.status === 'created' ? result.slip : null;
+  const status = result.status === 'created' ? 'matched' : result.status === 'needs_input' ? 'not_found' : result.status;
   return {
-    status: result.status.toUpperCase() as SlipMatchResultShape['status'],
-    message: 'message' in result ? result.message : null,
-    transactionId: result.status === 'matched' ? result.slip.transactionId : null,
-    isAmountMatched: result.status === 'matched' && result.slip.isAmountMatched,
+    status: status.toUpperCase() as SlipMatchResultShape['status'],
+    message:
+      result.status === 'matched' && result.differences.length > 0
+        ? result.differences.join('; ')
+        : 'message' in result
+          ? result.message
+          : null,
+    transactionId: saved?.transactionId ?? null,
+    isAmountMatched: saved?.isAmountMatched ?? false,
     amount: extracted?.amount ?? null,
     currency: extracted?.currency ?? null,
     transRef: extracted?.transRef ?? null,

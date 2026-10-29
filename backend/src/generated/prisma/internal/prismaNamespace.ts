@@ -3024,6 +3024,7 @@ export const TransactionScalarFieldEnum = {
   fee: 'fee',
   taxWithheld: 'taxWithheld',
   metadata: 'metadata',
+  externalRef: 'externalRef',
   parentTxId: 'parentTxId',
   rebalanceLogId: 'rebalanceLogId',
   createdAt: 'createdAt',

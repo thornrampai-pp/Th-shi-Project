@@ -33,6 +33,19 @@ describe('parseSlipBatch', () => {
     const [notSlip] = parseSlipBatch(JSON.stringify([{ amount: 'n/a', transRef: '  ', currency: ' usd ' }]), 1);
     expect(notSlip).toMatchObject({ amount: null, transRef: null, currency: 'USD', confidence: 'low' });
   });
+
+  it('reads a broker confirmation: order number, quantity and price', () => {
+    const [confirmation] = parseSlipBatch(
+      JSON.stringify([{ amount: 3407.49, orderRef: ' ORD-88231 ', quantity: 100, price: 34, assetSymbol: 'ptt' }]),
+      1,
+    );
+    expect(confirmation).toMatchObject({ orderRef: 'ORD-88231', quantity: 100, price: 34, assetSymbol: 'PTT' });
+  });
+
+  it('drops a zero or negative quantity / price rather than recording it', () => {
+    const [bad] = parseSlipBatch(JSON.stringify([{ amount: 1, quantity: 0, price: -5 }]), 1);
+    expect(bad).toMatchObject({ quantity: null, price: null });
+  });
 });
 
 describe('buildSlipPrompt', () => {

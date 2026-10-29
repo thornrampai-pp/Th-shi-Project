@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { SlipExtraction } from '../../common/integrations/gemini.util';
-import { matchSlipToTransaction, parseSlipDate } from './slip-matcher';
+import { matchSlipToTransaction, parseSlipDate, slipDifferences, slipHasTime } from './slip-matcher';
 import type { SlipMatchCandidate } from './slip-matcher';
 
 function slip(overrides: Partial<SlipExtraction> = {}): SlipExtraction {
@@ -9,6 +9,7 @@ function slip(overrides: Partial<SlipExtraction> = {}): SlipExtraction {
     currency: 'THB',
     transactionDate: '2026-10-20T14:30:00+07:00',
     transRef: 'ABC123',
+    orderRef: null,
     sendingBank: null,
     receivingBank: null,
     senderName: null,
@@ -19,6 +20,8 @@ function slip(overrides: Partial<SlipExtraction> = {}): SlipExtraction {
     targetAmount: null,
     targetCurrency: null,
     assetSymbol: null,
+    quantity: null,
+    price: null,
     transactionType: null,
     confidence: 'high',
     ...overrides,
@@ -30,12 +33,16 @@ function tx(overrides: Partial<SlipMatchCandidate> = {}): SlipMatchCandidate {
     id: 'tx-1',
     type: 'DEPOSIT',
     executedAt: new Date('2026-10-20T07:30:00Z'),
+    timeKnown: false,
     baseCurrAmount: 200.85,
     exchangeRate: null,
     currency: 'THB',
     sourceAmount: null,
     sourceCurrency: null,
     assetSymbol: null,
+    quantity: null,
+    price: null,
+    fee: null,
     note: null,
     ...overrides,
   };
@@ -86,17 +93,60 @@ describe('matchSlipToTransaction', () => {
     expect(r).toMatchObject({ status: 'matched', candidate: { id: 'buy' } });
   });
 
-  it('breaks a score tie by closeness to the slip date', () => {
+  it('breaks a tie by time only between rows that have a real time', () => {
     const r = matchSlipToTransaction(slip(), [
-      tx({ id: 'far', executedAt: new Date('2026-10-21T05:00:00Z') }),
-      tx({ id: 'near', executedAt: new Date('2026-10-20T07:31:00Z') }),
+      tx({ id: 'far', executedAt: new Date('2026-10-20T07:34:00Z'), timeKnown: true }),
+      tx({ id: 'near', executedAt: new Date('2026-10-20T07:31:00Z'), timeKnown: true }),
     ]);
     expect(r).toMatchObject({ status: 'matched', candidate: { id: 'near' } });
+  });
+
+  it('asks (ambiguous) between same-day DCA rows that only have a date', () => {
+    const r = matchSlipToTransaction(slip(), [
+      tx({ id: 'a', executedAt: new Date('2026-10-20T12:00:00Z') }),
+      tx({ id: 'b', executedAt: new Date('2026-10-20T03:00:00Z') }),
+    ]);
+    expect(r).toMatchObject({ status: 'ambiguous' });
+  });
+
+  it('treats another Bangkok day as another trade, even within 36h', () => {
+    // 2026-10-21 01:00 Bangkok — the next morning's DCA.
+    const r = matchSlipToTransaction(slip(), [tx({ executedAt: new Date('2026-10-20T18:00:00Z') })]);
+    expect(r.status).toBe('not_found');
+  });
+
+  it('a timed row more than 5 minutes off the slip is another trade', () => {
+    const r = matchSlipToTransaction(slip(), [tx({ executedAt: new Date('2026-10-20T07:40:00Z'), timeKnown: true })]);
+    expect(r.status).toBe('not_found');
+  });
+
+  it('a different symbol or quantity rules a row out', () => {
+    const buy = tx({ type: 'BUY', currency: 'THB', assetSymbol: 'PTT.BK', quantity: 100 });
+    expect(matchSlipToTransaction(slip({ assetSymbol: 'SCB' }), [buy]).status).toBe('not_found');
+    expect(matchSlipToTransaction(slip({ assetSymbol: 'PTT', quantity: 200 }), [buy]).status).toBe('not_found');
+    expect(matchSlipToTransaction(slip({ assetSymbol: 'PTT', quantity: 100 }), [buy]).status).toBe('matched');
+  });
+
+  it('matches on symbol + quantity when the amount is off by a fee', () => {
+    const buy = tx({ type: 'BUY', assetSymbol: 'PTT.BK', quantity: 100, baseCurrAmount: 3400 });
+    const r = matchSlipToTransaction(slip({ amount: 3407.49, assetSymbol: 'PTT', quantity: 100 }), [buy]);
+    expect(r).toMatchObject({ status: 'matched', isAmountMatched: false });
   });
 
   it('reports a tie as ambiguous when the slip has no date', () => {
     const r = matchSlipToTransaction(slip({ transactionDate: null }), [tx({ id: 'a' }), tx({ id: 'b' })]);
     expect(r.status).toBe('ambiguous');
+  });
+});
+
+describe('slipDifferences', () => {
+  it('flags fee and price the slip disagrees on', () => {
+    const buy = tx({ type: 'BUY', price: 34, fee: 0 });
+    expect(slipDifferences(slip({ fee: 7, vat: 0.49, price: 34.25 }), buy, true)).toEqual([
+      'ค่าธรรมเนียมในสลิป 7.49 แต่ในรายการ 0',
+      'ราคาในสลิป 34.25 แต่ในรายการ 34',
+    ]);
+    expect(slipDifferences(slip({ fee: null, price: 34 }), buy, true)).toEqual([]);
   });
 });
 
@@ -111,5 +161,11 @@ describe('parseSlipDate', () => {
 
   it('returns null for garbage', () => {
     expect(parseSlipDate('yesterday')).toBeNull();
+  });
+
+  it('slipHasTime tells a timestamp from a bare date', () => {
+    expect(slipHasTime('2026-10-20T14:30:00')).toBe(true);
+    expect(slipHasTime('2026-10-20')).toBe(false);
+    expect(slipHasTime(null)).toBe(false);
   });
 });

@@ -11,7 +11,16 @@ import {
   decodeAndValidateImage,
 } from '../../common/utils/image-validation.util';
 import { env } from '../../config/env';
-import { SLIP_DATE_TOLERANCE_MS, matchSlipToTransaction, parseSlipDate } from './slip-matcher';
+import { findOrFetchAssetBySymbol } from '../asset/asset.service';
+import { createTransaction } from './transaction.service';
+import {
+  SLIP_DATE_TOLERANCE_MS,
+  baseSymbol,
+  matchSlipToTransaction,
+  parseSlipDate,
+  slipDifferences,
+  slipHasTime,
+} from './slip-matcher';
 import type { SlipMatchCandidate } from './slip-matcher';
 
 export const GEMINI_MAX_ATTEMPTS = 5;
@@ -37,6 +46,11 @@ export interface SlipExtractionHooks {
 export interface AutoMatchSlipOptions extends SlipExtractionHooks {
   /** Only consider transactions in this portfolio (ownership is checked). */
   portfolioId?: string;
+  /**
+   * When nothing matches, record the BUY/SELL from the slip itself — in `portfolioId`,
+   * or the user's only portfolio. Anything missing comes back as `needs_input`.
+   */
+  createMissing?: boolean;
 }
 
 export interface SlipUpload {
@@ -44,10 +58,34 @@ export interface SlipUpload {
   mimeType?: string;
 }
 
-/** One per uploaded file, in upload order. Only `matched` saved anything. */
+/** What a new BUY/SELL from a slip needs. Pre-filled from the slip; the user fills the gaps. */
+export interface SlipTradeDraft {
+  type: 'BUY' | 'SELL' | null;
+  symbol: string | null;
+  quantity: number | null;
+  price: number | null;
+  /** In the asset's trading currency. */
+  fee: number | null;
+}
+
+type SavedSlip = Awaited<ReturnType<typeof saveSlip>>;
+
+/** One per uploaded file, in upload order. Only `matched` and `created` saved anything. */
 export type SlipBatchItemResult =
-  | { status: 'matched'; extracted: SlipExtraction; slip: Awaited<ReturnType<typeof saveSlip>> }
+  /** `differences`: where the slip disagrees with the transaction — shown, never applied. */
+  | { status: 'matched'; extracted: SlipExtraction; slip: SavedSlip; differences: string[] }
+  /** No transaction matched, so one was recorded from the slip (createMissing). */
+  | { status: 'created'; extracted: SlipExtraction; slip: SavedSlip }
   | { status: 'not_found'; extracted: SlipExtraction }
+  /** createMissing, but a portfolio or trade fields are missing — ask, then createTransactionFromSlip(). */
+  | {
+      status: 'needs_input';
+      extracted: SlipExtraction;
+      need: 'portfolio' | 'fields';
+      draft: SlipTradeDraft;
+      portfolioId: string | null;
+      message: string | null;
+    }
   | { status: 'ambiguous'; extracted: SlipExtraction; candidateIds: string[] }
   | { status: 'duplicate'; extracted: SlipExtraction }
   /** Read, but without the amount or reference number needed to match safely. */
@@ -87,9 +125,9 @@ export async function uploadTransactionSlip(
   const [extracted] = await extractSlipsWithRetry([image]);
   const readable = readableFields(extracted!);
   if (!readable.ok) throw AppError.badRequest(readable.message);
-  const { amount, transRef } = readable;
+  const { amount, ref } = readable;
 
-  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef } });
+  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef: ref } });
   if (duplicateRef) {
     throw AppError.conflict('This slip has already been used for another transaction');
   }
@@ -98,6 +136,29 @@ export async function uploadTransactionSlip(
   const isAmountMatched = expectedAmount != null && Math.abs(expectedAmount - amount) < 0.01;
 
   return saveSlip(userId, transactionId, image, extracted!, isAmountMatched);
+}
+
+/**
+ * Attaches an already-read slip to the transaction the user picked out of an
+ * `ambiguous` result — no second Gemini call.
+ */
+export async function attachReadSlip(
+  userId: string,
+  transactionId: string,
+  upload: SlipUpload,
+  extracted: SlipExtraction,
+): Promise<SlipBatchItemResult> {
+  assertSlipServicesConfigured();
+  const image = validateSlipImage(upload.imageBase64, upload.mimeType);
+
+  const transaction = await prisma.transaction.findUnique({ where: { id: transactionId } });
+  if (!transaction) throw AppError.notFound('Transaction not found');
+  await assertPortfolioOwnership(userId, transaction.portfolioId);
+
+  const readable = readableFields(extracted);
+  if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
+  const [candidate] = await toCandidates([transaction]);
+  return saveMatched(userId, image, extracted, candidate!);
 }
 
 /**
@@ -163,39 +224,241 @@ export async function autoMatchSlips(
       results.push({ status: 'extraction_failed', message: extractionError });
       continue;
     }
-    results.push(await matchAndSave(userId, item.image, extracted, options.portfolioId));
+    results.push(await matchAndSave(userId, item.image, extracted, options));
   }
   return results;
 }
 
+/**
+ * The order of checks, most certain first:
+ * 1. this slip (by its reference) was already used → duplicate
+ * 2. a transaction carries the slip's broker order number → that one
+ * 3. reconcile on day/time + symbol + quantity + amount (matchSlipToTransaction)
+ * 4. nothing → not_found, or with createMissing record it from the slip
+ */
 async function matchAndSave(
   userId: string,
   image: ValidatedImage,
   extracted: SlipExtraction,
-  portfolioId: string | undefined,
+  options: AutoMatchSlipOptions,
 ): Promise<SlipBatchItemResult> {
+  const { portfolioId } = options;
   const readable = readableFields(extracted);
   if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
 
-  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef: readable.transRef } });
+  const duplicateRef = await prisma.slipVerification.findUnique({ where: { transRef: readable.ref } });
   if (duplicateRef) return { status: 'duplicate', extracted };
 
-  const candidates = await findMatchCandidates(userId, extracted, readable.transRef, portfolioId);
+  if (extracted.orderRef) {
+    const byOrder = await prisma.transaction.findFirst({
+      where: {
+        externalRef: extracted.orderRef,
+        portfolio: { userId, deletedAt: null },
+        ...(portfolioId ? { portfolioId } : {}),
+      },
+      include: { slipVerification: { select: { id: true } } },
+    });
+    if (byOrder) {
+      if (byOrder.slipVerification) return { status: 'duplicate', extracted };
+      const [candidate] = await toCandidates([byOrder]);
+      return saveMatched(userId, image, extracted, candidate!);
+    }
+  }
+
+  const candidates = await findMatchCandidates(userId, extracted, readable.ref, portfolioId);
   const match = matchSlipToTransaction(extracted, candidates);
 
-  if (match.status === 'not_found') return { status: 'not_found', extracted };
   if (match.status === 'ambiguous') {
     return { status: 'ambiguous', extracted, candidateIds: match.candidates.map((c) => c.id) };
   }
+  if (match.status === 'matched') return saveMatched(userId, image, extracted, match.candidate);
 
+  if (!options.createMissing || extracted.transactionType === 'EXCHANGE') return { status: 'not_found', extracted };
+
+  const target = portfolioId ?? (await onlyPortfolioId(userId));
+  const draft = draftFromSlip(extracted);
+  if (!target) {
+    return { status: 'needs_input', extracted, need: 'portfolio', draft, portfolioId: null, message: null };
+  }
+  // A low-confidence read gets shown for checking rather than recorded as-is.
+  if (missingDraftFields(draft).length > 0 || extracted.confidence === 'low') {
+    return { status: 'needs_input', extracted, need: 'fields', draft, portfolioId: target, message: null };
+  }
+  return createFromSlip(userId, target, image, extracted, draft, false);
+}
+
+async function saveMatched(
+  userId: string,
+  image: ValidatedImage,
+  extracted: SlipExtraction,
+  candidate: SlipMatchCandidate,
+): Promise<SlipBatchItemResult> {
+  const check = matchSlipToTransaction(extracted, [candidate]);
+  const isAmountMatched = check.status === 'matched' && check.isAmountMatched;
   try {
-    const slip = await saveSlip(userId, match.candidate.id, image, extracted, match.isAmountMatched);
-    return { status: 'matched', extracted, slip };
+    const slip = await saveSlip(userId, candidate.id, image, extracted, isAmountMatched);
+    return { status: 'matched', extracted, slip, differences: slipDifferences(extracted, candidate, isAmountMatched) };
   } catch (err) {
     // Lost a unique-constraint race to a concurrent upload of the same slip.
     if ((err as { code?: string }).code === 'P2002') return { status: 'duplicate', extracted };
     console.error('❌ Failed to save matched slip:', err);
     return { status: 'error', extracted, message: 'Matched, but saving the slip failed — try again' };
+  }
+}
+
+async function onlyPortfolioId(userId: string): Promise<string | null> {
+  const portfolios = await prisma.portfolio.findMany({
+    where: { userId, deletedAt: null },
+    select: { id: true },
+    take: 2,
+  });
+  return portfolios.length === 1 ? portfolios[0]!.id : null;
+}
+
+export function draftFromSlip(extracted: SlipExtraction): SlipTradeDraft {
+  const type = extracted.transactionType === 'BUY' || extracted.transactionType === 'SELL' ? extracted.transactionType : null;
+  return {
+    type,
+    symbol: extracted.assetSymbol,
+    quantity: extracted.quantity,
+    price: extracted.price,
+    fee: extracted.fee != null ? extracted.fee + (extracted.vat ?? 0) : null,
+  };
+}
+
+export function missingDraftFields(draft: SlipTradeDraft): ('type' | 'symbol' | 'quantity' | 'price')[] {
+  return (['type', 'symbol', 'quantity', 'price'] as const).filter((field) => draft[field] == null);
+}
+
+/**
+ * Records the BUY/SELL a slip describes, then attaches the slip to it. `confirmed` is
+ * true once the user has checked the fields (Discord form); unconfirmed, a fee printed
+ * in another currency than the asset trades in is sent back for checking.
+ *
+ * A BUY also records the deposit that paid for it, as the app's "Add asset" does by
+ * default — the money was spent at the broker, not from cash tracked here.
+ */
+export async function createTransactionFromSlip(
+  userId: string,
+  portfolioId: string,
+  upload: SlipUpload,
+  extracted: SlipExtraction,
+  draft: SlipTradeDraft,
+  confirmed: boolean,
+): Promise<SlipBatchItemResult> {
+  assertSlipServicesConfigured();
+  await assertPortfolioOwnership(userId, portfolioId);
+  const image = validateSlipImage(upload.imageBase64, upload.mimeType);
+
+  const readable = readableFields(extracted);
+  if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
+  if (await prisma.slipVerification.findUnique({ where: { transRef: readable.ref } })) {
+    return { status: 'duplicate', extracted };
+  }
+  return createFromSlip(userId, portfolioId, image, extracted, draft, confirmed);
+}
+
+async function createFromSlip(
+  userId: string,
+  portfolioId: string,
+  image: ValidatedImage,
+  extracted: SlipExtraction,
+  draft: SlipTradeDraft,
+  confirmed: boolean,
+): Promise<SlipBatchItemResult> {
+  const readable = readableFields(extracted);
+  if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
+  const { type, symbol, quantity, price } = draft;
+  if (!type || !symbol || quantity == null || price == null) {
+    return { status: 'needs_input', extracted, need: 'fields', draft, portfolioId, message: null };
+  }
+
+  let asset;
+  try {
+    asset = await resolveSlipAsset(symbol, extracted.currency, portfolioId);
+  } catch {
+    return {
+      status: 'needs_input',
+      extracted,
+      need: 'fields',
+      draft,
+      portfolioId,
+      message: `ไม่พบหุ้น "${symbol}" — ใส่ symbol ตาม Yahoo เช่น PTT.BK`,
+    };
+  }
+
+  const slipCurrency = extracted.currency ?? 'THB';
+  if (!confirmed && draft.fee && slipCurrency !== asset.currency) {
+    return {
+      status: 'needs_input',
+      extracted,
+      need: 'fields',
+      draft,
+      portfolioId,
+      message: `ค่าธรรมเนียมในสลิปเป็น ${slipCurrency} แต่ ${asset.symbol} ซื้อขายเป็น ${asset.currency} — ตรวจอีกครั้ง`,
+    };
+  }
+
+  const slipDate = parseSlipDate(extracted.transactionDate);
+  let transaction;
+  try {
+    transaction = await createTransaction(userId, {
+      portfolioId,
+      type,
+      assetId: asset.id,
+      quantity,
+      price,
+      fee: draft.fee ?? undefined,
+      executedAt: slipDate && slipDate.getTime() <= Date.now() ? slipDate : undefined,
+      timeKnown: slipHasTime(extracted.transactionDate) || undefined,
+      externalRef: extracted.orderRef ?? undefined,
+      note: `จากสลิป Ref ${readable.ref}`,
+      fundWithDeposit: type === 'BUY' || undefined,
+    });
+  } catch (err) {
+    if (err instanceof AppError) return { status: 'error', extracted, message: err.message };
+    throw err;
+  }
+
+  const total = Number(transaction.baseCurrAmount);
+  const isAmountMatched = slipCurrency === asset.currency && Math.abs(total - readable.amount) < 0.01;
+  try {
+    const slip = await saveSlip(userId, transaction.id, image, extracted, isAmountMatched);
+    return { status: 'created', extracted, slip };
+  } catch (err) {
+    console.error('❌ Failed to save slip for a transaction created from it:', err);
+    return {
+      status: 'error',
+      extracted,
+      message: 'บันทึกรายการแล้ว แต่แนบรูปสลิปไม่สำเร็จ — แนบเองในแอป',
+    };
+  }
+}
+
+/**
+ * Slips print bare tickers ("PTT"), the DB holds Yahoo symbols ("PTT.BK"). Prefer what
+ * the portfolio already holds, then any known listing, then ask Yahoo — trying the
+ * Thai listing for a THB slip.
+ */
+async function resolveSlipAsset(symbol: string, slipCurrency: string | null, portfolioId: string) {
+  const base = baseSymbol(symbol);
+  const typed = symbol.trim().toUpperCase();
+  const known = await prisma.asset.findMany({
+    where: { OR: [{ symbol: typed }, { symbol: base }, { symbol: { startsWith: `${base}.` } }] },
+    include: { positions: { where: { portfolioId }, select: { id: true } } },
+  });
+  const pick =
+    known.find((a) => a.positions.length > 0) ??
+    known.find((a) => a.symbol === typed) ??
+    known.find((a) => a.currency === slipCurrency) ??
+    known[0];
+  if (pick) return pick;
+
+  try {
+    return await findOrFetchAssetBySymbol(typed);
+  } catch (err) {
+    if ((slipCurrency ?? 'THB') === 'THB' && !typed.includes('.')) return findOrFetchAssetBySymbol(`${typed}.BK`);
+    throw err;
   }
 }
 
@@ -254,16 +517,21 @@ async function extractSlipsWithRetry(
   );
 }
 
+/**
+ * `ref` identifies the slip itself (stored as SlipVerification.transRef, unique): the
+ * transfer reference, or the order number for a broker confirmation without one.
+ */
 function readableFields(
   extracted: SlipExtraction,
-): { ok: true; amount: number; transRef: string } | { ok: false; message: string } {
+): { ok: true; amount: number; ref: string } | { ok: false; message: string } {
   if (extracted.amount == null) {
     return { ok: false, message: 'Could not read an amount from this slip image — try a clearer photo' };
   }
-  if (!extracted.transRef) {
+  const ref = extracted.transRef ?? extracted.orderRef;
+  if (!ref) {
     return { ok: false, message: 'Could not read a reference number from this slip — needed to prevent duplicate slips' };
   }
-  return { ok: true, amount: extracted.amount, transRef: extracted.transRef };
+  return { ok: true, amount: extracted.amount, ref };
 }
 
 async function findMatchCandidates(
@@ -292,6 +560,16 @@ async function findMatchCandidates(
     take: 200,
   });
 
+  // Recorded under another order number — a different trade, however alike.
+  const sameOrder = transactions.filter(
+    (t) => !extracted.orderRef || !t.externalRef || t.externalRef === extracted.orderRef,
+  );
+  return toCandidates(sameOrder);
+}
+
+type TransactionRow = Awaited<ReturnType<typeof prisma.transaction.findMany>>[number];
+
+async function toCandidates(transactions: TransactionRow[]): Promise<SlipMatchCandidate[]> {
   const assetIds = [...new Set(transactions.map((t) => t.mainAssetId).filter((id): id is string => !!id))];
   const assets = assetIds.length
     ? await prisma.asset.findMany({ where: { id: { in: assetIds } }, select: { id: true, symbol: true } })
@@ -304,12 +582,16 @@ async function findMatchCandidates(
       id: t.id,
       type: t.type,
       executedAt: t.executedAt,
+      timeKnown: meta.timeKnown === true,
       baseCurrAmount: t.baseCurrAmount != null ? Number(t.baseCurrAmount) : null,
       exchangeRate: t.exchangeRate != null ? Number(t.exchangeRate) : null,
       currency: typeof meta.currency === 'string' ? meta.currency : null,
       sourceAmount: typeof meta.sourceAmount === 'number' ? meta.sourceAmount : null,
       sourceCurrency: typeof meta.sourceCurrency === 'string' ? meta.sourceCurrency : null,
       assetSymbol: t.mainAssetId ? (symbolById.get(t.mainAssetId) ?? null) : null,
+      quantity: t.mainQuantity != null ? Number(t.mainQuantity) : null,
+      price: t.mainPrice != null ? Number(t.mainPrice) : null,
+      fee: t.type === 'BUY' || t.type === 'SELL' ? Number(t.fee) : null,
       note: typeof meta.note === 'string' ? meta.note : null,
     };
   });
@@ -336,7 +618,7 @@ async function saveSlip(
         imageMimeType: image.mimeType,
         imageSize: image.size,
         amount: readable.amount,
-        transRef: readable.transRef,
+        transRef: readable.ref,
         sendingBank: extracted.sendingBank,
         receivingBank: extracted.receivingBank,
         senderName: extracted.senderName,

@@ -438,6 +438,7 @@ model Transaction {
   taxWithheld  Decimal  @default(0) @db.Decimal(18, 8) // ภาษีหัก ณ ที่จ่าย
 
   metadata       Json? // เก็บข้อมูลเพิ่มเติม เช่น Split Ratio หรือ Corporate Actions
+  externalRef    String? // เลขคำสั่งซื้อ/เลขดีลจากโบรกเกอร์ (ไม่สร้างเอง — ใช้กันบันทึกซ้ำตอนจับคู่สลิป)
   parentTxId     String? // อ้างอิง Transaction แม่ (กรณีมีประวัติการแตกแขนง)
   rebalanceLogId String? // อ้างอิงรอบการ Rebalance พอร์ต (ถ้ามี)
   createdAt      DateTime @default(now())
@@ -453,6 +454,7 @@ model Transaction {
   childTxs         Transaction[]     @relation("TxHistory")
   slipVerification SlipVerification? // ตรวจสอบสลิปโอนเงิน (1:1 Relation)
 
+  @@unique([portfolioId, externalRef])
   @@index([portfolioId, executedAt(sort: Desc)])
   @@index([type])
 }

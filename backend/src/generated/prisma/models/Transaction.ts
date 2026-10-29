@@ -57,6 +57,7 @@ export type TransactionMinAggregateOutputType = {
   exchangeRate: runtime.Decimal | null
   fee: runtime.Decimal | null
   taxWithheld: runtime.Decimal | null
+  externalRef: string | null
   parentTxId: string | null
   rebalanceLogId: string | null
   createdAt: Date | null
@@ -76,6 +77,7 @@ export type TransactionMaxAggregateOutputType = {
   exchangeRate: runtime.Decimal | null
   fee: runtime.Decimal | null
   taxWithheld: runtime.Decimal | null
+  externalRef: string | null
   parentTxId: string | null
   rebalanceLogId: string | null
   createdAt: Date | null
@@ -96,6 +98,7 @@ export type TransactionCountAggregateOutputType = {
   fee: number
   taxWithheld: number
   metadata: number
+  externalRef: number
   parentTxId: number
   rebalanceLogId: number
   createdAt: number
@@ -135,6 +138,7 @@ export type TransactionMinAggregateInputType = {
   exchangeRate?: true
   fee?: true
   taxWithheld?: true
+  externalRef?: true
   parentTxId?: true
   rebalanceLogId?: true
   createdAt?: true
@@ -154,6 +158,7 @@ export type TransactionMaxAggregateInputType = {
   exchangeRate?: true
   fee?: true
   taxWithheld?: true
+  externalRef?: true
   parentTxId?: true
   rebalanceLogId?: true
   createdAt?: true
@@ -174,6 +179,7 @@ export type TransactionCountAggregateInputType = {
   fee?: true
   taxWithheld?: true
   metadata?: true
+  externalRef?: true
   parentTxId?: true
   rebalanceLogId?: true
   createdAt?: true
@@ -281,6 +287,7 @@ export type TransactionGroupByOutputType = {
   fee: runtime.Decimal
   taxWithheld: runtime.Decimal
   metadata: runtime.JsonValue | null
+  externalRef: string | null
   parentTxId: string | null
   rebalanceLogId: string | null
   createdAt: Date
@@ -324,6 +331,7 @@ export type TransactionWhereInput = {
   fee?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.JsonNullableFilter<"Transaction">
+  externalRef?: Prisma.StringNullableFilter<"Transaction"> | string | null
   parentTxId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   rebalanceLogId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
@@ -353,6 +361,7 @@ export type TransactionOrderByWithRelationInput = {
   fee?: Prisma.SortOrder
   taxWithheld?: Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  externalRef?: Prisma.SortOrderInput | Prisma.SortOrder
   parentTxId?: Prisma.SortOrderInput | Prisma.SortOrder
   rebalanceLogId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -370,6 +379,7 @@ export type TransactionOrderByWithRelationInput = {
 
 export type TransactionWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  portfolioId_externalRef?: Prisma.TransactionPortfolioIdExternalRefCompoundUniqueInput
   AND?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
   OR?: Prisma.TransactionWhereInput[]
   NOT?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
@@ -385,6 +395,7 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
   fee?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.JsonNullableFilter<"Transaction">
+  externalRef?: Prisma.StringNullableFilter<"Transaction"> | string | null
   parentTxId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   rebalanceLogId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
@@ -398,7 +409,7 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
   parentTx?: Prisma.XOR<Prisma.TransactionNullableScalarRelationFilter, Prisma.TransactionWhereInput> | null
   childTxs?: Prisma.TransactionListRelationFilter
   slipVerification?: Prisma.XOR<Prisma.SlipVerificationNullableScalarRelationFilter, Prisma.SlipVerificationWhereInput> | null
-}, "id">
+}, "id" | "portfolioId_externalRef">
 
 export type TransactionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -414,6 +425,7 @@ export type TransactionOrderByWithAggregationInput = {
   fee?: Prisma.SortOrder
   taxWithheld?: Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  externalRef?: Prisma.SortOrderInput | Prisma.SortOrder
   parentTxId?: Prisma.SortOrderInput | Prisma.SortOrder
   rebalanceLogId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -442,6 +454,7 @@ export type TransactionScalarWhereWithAggregatesInput = {
   fee?: Prisma.DecimalWithAggregatesFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalWithAggregatesFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.JsonNullableWithAggregatesFilter<"Transaction">
+  externalRef?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   parentTxId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   rebalanceLogId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Transaction"> | Date | string
@@ -461,6 +474,7 @@ export type TransactionCreateInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -488,6 +502,7 @@ export type TransactionUncheckedCreateInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -513,6 +528,7 @@ export type TransactionUpdateInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -540,6 +556,7 @@ export type TransactionUncheckedUpdateInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -566,6 +583,7 @@ export type TransactionCreateManyInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -585,6 +603,7 @@ export type TransactionUpdateManyMutationInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -603,6 +622,7 @@ export type TransactionUncheckedUpdateManyInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -629,6 +649,11 @@ export type TransactionNullableScalarRelationFilter = {
   isNot?: Prisma.TransactionWhereInput | null
 }
 
+export type TransactionPortfolioIdExternalRefCompoundUniqueInput = {
+  portfolioId: string
+  externalRef: string
+}
+
 export type TransactionCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   portfolioId?: Prisma.SortOrder
@@ -643,6 +668,7 @@ export type TransactionCountOrderByAggregateInput = {
   fee?: Prisma.SortOrder
   taxWithheld?: Prisma.SortOrder
   metadata?: Prisma.SortOrder
+  externalRef?: Prisma.SortOrder
   parentTxId?: Prisma.SortOrder
   rebalanceLogId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -671,6 +697,7 @@ export type TransactionMaxOrderByAggregateInput = {
   exchangeRate?: Prisma.SortOrder
   fee?: Prisma.SortOrder
   taxWithheld?: Prisma.SortOrder
+  externalRef?: Prisma.SortOrder
   parentTxId?: Prisma.SortOrder
   rebalanceLogId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -690,6 +717,7 @@ export type TransactionMinOrderByAggregateInput = {
   exchangeRate?: Prisma.SortOrder
   fee?: Prisma.SortOrder
   taxWithheld?: Prisma.SortOrder
+  externalRef?: Prisma.SortOrder
   parentTxId?: Prisma.SortOrder
   rebalanceLogId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -940,6 +968,7 @@ export type TransactionCreateWithoutPortfolioInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   rebalanceLog?: Prisma.RebalanceLogCreateNestedOneWithoutTransactionsInput
@@ -965,6 +994,7 @@ export type TransactionUncheckedCreateWithoutPortfolioInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1020,6 +1050,7 @@ export type TransactionScalarWhereInput = {
   fee?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFilter<"Transaction"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.JsonNullableFilter<"Transaction">
+  externalRef?: Prisma.StringNullableFilter<"Transaction"> | string | null
   parentTxId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   rebalanceLogId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Transaction"> | Date | string
@@ -1039,6 +1070,7 @@ export type TransactionCreateWithoutLedgerEntriesInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1065,6 +1097,7 @@ export type TransactionUncheckedCreateWithoutLedgerEntriesInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1105,6 +1138,7 @@ export type TransactionUpdateWithoutLedgerEntriesInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1131,6 +1165,7 @@ export type TransactionUncheckedUpdateWithoutLedgerEntriesInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1155,6 +1190,7 @@ export type TransactionCreateWithoutChildTxsInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1181,6 +1217,7 @@ export type TransactionUncheckedCreateWithoutChildTxsInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1210,6 +1247,7 @@ export type TransactionCreateWithoutParentTxInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1236,6 +1274,7 @@ export type TransactionUncheckedCreateWithoutParentTxInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1281,6 +1320,7 @@ export type TransactionUpdateWithoutChildTxsInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1307,6 +1347,7 @@ export type TransactionUncheckedUpdateWithoutChildTxsInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1347,6 +1388,7 @@ export type TransactionCreateWithoutRebalanceLogInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1373,6 +1415,7 @@ export type TransactionUncheckedCreateWithoutRebalanceLogInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1423,6 +1466,7 @@ export type TransactionCreateWithoutSlipVerificationInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1449,6 +1493,7 @@ export type TransactionUncheckedCreateWithoutSlipVerificationInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1489,6 +1534,7 @@ export type TransactionUpdateWithoutSlipVerificationInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1515,6 +1561,7 @@ export type TransactionUncheckedUpdateWithoutSlipVerificationInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1539,6 +1586,7 @@ export type TransactionCreateWithoutTaxLotsInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1565,6 +1613,7 @@ export type TransactionUncheckedCreateWithoutTaxLotsInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1605,6 +1654,7 @@ export type TransactionUpdateWithoutTaxLotsInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1631,6 +1681,7 @@ export type TransactionUncheckedUpdateWithoutTaxLotsInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1655,6 +1706,7 @@ export type TransactionCreateWithoutTaxRecordInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1681,6 +1733,7 @@ export type TransactionUncheckedCreateWithoutTaxRecordInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1721,6 +1774,7 @@ export type TransactionUpdateWithoutTaxRecordInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1747,6 +1801,7 @@ export type TransactionUncheckedUpdateWithoutTaxRecordInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1771,6 +1826,7 @@ export type TransactionCreateWithoutOrderInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   portfolio: Prisma.PortfolioCreateNestedOneWithoutTransactionsInput
@@ -1797,6 +1853,7 @@ export type TransactionUncheckedCreateWithoutOrderInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1837,6 +1894,7 @@ export type TransactionUpdateWithoutOrderInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -1863,6 +1921,7 @@ export type TransactionUncheckedUpdateWithoutOrderInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1887,6 +1946,7 @@ export type TransactionCreateManyPortfolioInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
@@ -1906,6 +1966,7 @@ export type TransactionUpdateWithoutPortfolioInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   rebalanceLog?: Prisma.RebalanceLogUpdateOneWithoutTransactionsNestedInput
@@ -1931,6 +1992,7 @@ export type TransactionUncheckedUpdateWithoutPortfolioInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1956,6 +2018,7 @@ export type TransactionUncheckedUpdateManyWithoutPortfolioInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1976,6 +2039,7 @@ export type TransactionCreateManyParentTxInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   rebalanceLogId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1994,6 +2058,7 @@ export type TransactionUpdateWithoutParentTxInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -2020,6 +2085,7 @@ export type TransactionUncheckedUpdateWithoutParentTxInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2045,6 +2111,7 @@ export type TransactionUncheckedUpdateManyWithoutParentTxInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   rebalanceLogId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2064,6 +2131,7 @@ export type TransactionCreateManyRebalanceLogInput = {
   fee?: runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: string | null
   parentTxId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2082,6 +2150,7 @@ export type TransactionUpdateWithoutRebalanceLogInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   portfolio?: Prisma.PortfolioUpdateOneRequiredWithoutTransactionsNestedInput
@@ -2108,6 +2177,7 @@ export type TransactionUncheckedUpdateWithoutRebalanceLogInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2133,6 +2203,7 @@ export type TransactionUncheckedUpdateManyWithoutRebalanceLogInput = {
   fee?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   taxWithheld?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  externalRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentTxId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2201,6 +2272,7 @@ export type TransactionSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   fee?: boolean
   taxWithheld?: boolean
   metadata?: boolean
+  externalRef?: boolean
   parentTxId?: boolean
   rebalanceLogId?: boolean
   createdAt?: boolean
@@ -2231,6 +2303,7 @@ export type TransactionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   fee?: boolean
   taxWithheld?: boolean
   metadata?: boolean
+  externalRef?: boolean
   parentTxId?: boolean
   rebalanceLogId?: boolean
   createdAt?: boolean
@@ -2254,6 +2327,7 @@ export type TransactionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   fee?: boolean
   taxWithheld?: boolean
   metadata?: boolean
+  externalRef?: boolean
   parentTxId?: boolean
   rebalanceLogId?: boolean
   createdAt?: boolean
@@ -2277,13 +2351,14 @@ export type TransactionSelectScalar = {
   fee?: boolean
   taxWithheld?: boolean
   metadata?: boolean
+  externalRef?: boolean
   parentTxId?: boolean
   rebalanceLogId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type TransactionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "type" | "status" | "executedAt" | "mainAssetId" | "mainQuantity" | "mainPrice" | "baseCurrAmount" | "exchangeRate" | "fee" | "taxWithheld" | "metadata" | "parentTxId" | "rebalanceLogId" | "createdAt" | "updatedAt", ExtArgs["result"]["transaction"]>
+export type TransactionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "portfolioId" | "type" | "status" | "executedAt" | "mainAssetId" | "mainQuantity" | "mainPrice" | "baseCurrAmount" | "exchangeRate" | "fee" | "taxWithheld" | "metadata" | "externalRef" | "parentTxId" | "rebalanceLogId" | "createdAt" | "updatedAt", ExtArgs["result"]["transaction"]>
 export type TransactionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   portfolio?: boolean | Prisma.PortfolioDefaultArgs<ExtArgs>
   rebalanceLog?: boolean | Prisma.Transaction$rebalanceLogArgs<ExtArgs>
@@ -2334,6 +2409,7 @@ export type $TransactionPayload<ExtArgs extends runtime.Types.Extensions.Interna
     fee: runtime.Decimal
     taxWithheld: runtime.Decimal
     metadata: runtime.JsonValue | null
+    externalRef: string | null
     parentTxId: string | null
     rebalanceLogId: string | null
     createdAt: Date
@@ -2783,6 +2859,7 @@ export interface TransactionFieldRefs {
   readonly fee: Prisma.FieldRef<"Transaction", 'Decimal'>
   readonly taxWithheld: Prisma.FieldRef<"Transaction", 'Decimal'>
   readonly metadata: Prisma.FieldRef<"Transaction", 'Json'>
+  readonly externalRef: Prisma.FieldRef<"Transaction", 'String'>
   readonly parentTxId: Prisma.FieldRef<"Transaction", 'String'>
   readonly rebalanceLogId: Prisma.FieldRef<"Transaction", 'String'>
   readonly createdAt: Prisma.FieldRef<"Transaction", 'DateTime'>

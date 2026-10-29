@@ -8,6 +8,8 @@ export interface SlipExtraction {
   currency: string | null;
   transactionDate: string | null; // ISO 8601
   transRef: string | null;
+  /** Broker order / deal / confirmation number — distinct from the transfer's transRef. */
+  orderRef: string | null;
   sendingBank: string | null;
   receivingBank: string | null;
   senderName: string | null;
@@ -18,6 +20,8 @@ export interface SlipExtraction {
   targetAmount: number | null;
   targetCurrency: string | null;
   assetSymbol: string | null; // e.g. "LLY", "USD" — what was bought/sold/exchanged into
+  quantity: number | null; // units bought/sold
+  price: number | null; // per unit, in the asset's trading currency
   transactionType: SlipTransactionType | null;
   confidence: 'high' | 'medium' | 'low';
 }
@@ -26,7 +30,8 @@ const FIELDS = `{
   "amount": number or null,
   "currency": string (3-letter ISO code, e.g. "THB", "USD") or null,
   "transactionDate": string (ISO 8601, include the time and the +07:00 offset for Thai slips) or null,
-  "transRef": string or null,
+  "transRef": string (the transfer / transaction reference number) or null,
+  "orderRef": string (the broker's order number / deal number / confirmation number, e.g. "เลขที่คำสั่งซื้อ", "Order No.") or null,
   "sendingBank": string or null,
   "receivingBank": string or null,
   "senderName": string or null,
@@ -37,6 +42,8 @@ const FIELDS = `{
   "targetAmount": number (amount received after currency conversion) or null,
   "targetCurrency": string (3-letter ISO code of the converted amount) or null,
   "assetSymbol": string (ticker or fund code bought/sold, e.g. "LLY", or the currency bought for an exchange, e.g. "USD") or null,
+  "quantity": number (units / shares bought or sold) or null,
+  "price": number (price per unit / share as printed) or null,
   "transactionType": "BUY" | "SELL" | "EXCHANGE" or null,
   "confidence": "high" | "medium" | "low"
 }`;
@@ -52,6 +59,7 @@ Return STRICT JSON only — no markdown formatting, no code fences, no extra tex
 ${FIELDS}
 
 "amount" is the main amount paid/transferred as printed on the slip, in "currency".
+"transRef" and "orderRef" are different numbers: a brokerage confirmation may show both, a plain bank transfer usually only "transRef". Copy each exactly as printed.
 Read every image on its own — never copy a value from one slip into another's object. If an image is not a slip, still return an object for it with every field null and "confidence": "low".
 If a field is not visible or not legible, use null for that field. Never guess a number you cannot actually read — a null is always better than a wrong guess here, since this feeds a financial record.`;
 }
@@ -91,7 +99,8 @@ export function normalizeSlipExtraction(raw: unknown): SlipExtraction {
     amount: numberOrNull(obj.amount),
     currency: codeOrNull(obj.currency),
     transactionDate: typeof obj.transactionDate === 'string' ? obj.transactionDate : null,
-    transRef: typeof obj.transRef === 'string' && obj.transRef.trim() ? obj.transRef.trim() : null,
+    transRef: refOrNull(obj.transRef),
+    orderRef: refOrNull(obj.orderRef),
     sendingBank: typeof obj.sendingBank === 'string' ? obj.sendingBank : null,
     receivingBank: typeof obj.receivingBank === 'string' ? obj.receivingBank : null,
     senderName: typeof obj.senderName === 'string' ? obj.senderName : null,
@@ -102,6 +111,8 @@ export function normalizeSlipExtraction(raw: unknown): SlipExtraction {
     targetAmount: numberOrNull(obj.targetAmount),
     targetCurrency: codeOrNull(obj.targetCurrency),
     assetSymbol: codeOrNull(obj.assetSymbol),
+    quantity: positiveOrNull(obj.quantity),
+    price: positiveOrNull(obj.price),
     transactionType,
     confidence,
   };
@@ -109,6 +120,15 @@ export function normalizeSlipExtraction(raw: unknown): SlipExtraction {
 
 function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function positiveOrNull(value: unknown): number | null {
+  const n = numberOrNull(value);
+  return n != null && n > 0 ? n : null;
+}
+
+function refOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function codeOrNull(value: unknown): string | null {

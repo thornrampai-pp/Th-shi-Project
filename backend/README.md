@@ -203,40 +203,28 @@ mutation { placeOrder(portfolioId: "seed-paper-portfolio", assetId: "<AAPL>", si
 **สกุลเงิน** — ทุกตัวเลขของพอร์ตคิดเป็น `baseCurrency` ของพอร์ตนั้น (เงินสด/หุ้นสกุลอื่นแปลงด้วยเรทปัจจุบัน) ส่วน `netWorth` และ `dashboard` ที่รวมทุกพอร์ตแปลงเป็น THB (ฟิลด์ `currency` บอกว่าเป็นสกุลไหน) เรทมาจาก Yahoo (`USDTHB=X`) แคชใน Redis 1 ชม. และบันทึกลงตาราง `ExchangeRate` ซึ่งใช้เป็น fallback ตอน Yahoo ล่ม
 
 **สลิป** — รูปเก็บใน Cloudflare R2 (bucket private) DB เก็บแค่ `imageKey`, `imageMimeType`, `imageSize` ตอนอัปโหลดตรวจชนิดไฟล์จาก magic bytes (jpeg/png/webp/heic) ไม่เชื่อ MIME ที่ client ส่งมา และจำกัดขนาดตาม `SLIP_MAX_BYTES` — ตรวจก่อนส่งไป Gemini/R2 เสมอ อ่านรูปผ่าน presigned URL เท่านั้น
-- **Gemini ดึง:** amount, currency, transactionDate (พร้อม timezone), transRef, sendingBank, receivingBank, senderName, fee, vat, netAmount, fxRate, targetAmount, targetCurrency, assetSymbol (คอด asset ที่ซื้อ/ขาย/แลก), transactionType (BUY/SELL/EXCHANGE), confidence
-- **Auto-match (Discord):** ค้นหาธุรกรรมที่เหมาะสม ถ้าเจอแล้วบันทึกเลย ถ้าเจอหลายรายการหรือไม่เจอจะขึ้นข้อความแจ้ง ไม่บันทึก
+- **Gemini ดึง:** amount, currency, transactionDate (พร้อม timezone), transRef, orderRef (เลขคำสั่งซื้อจากโบรกเกอร์), sendingBank, receivingBank, senderName, fee, vat, netAmount, fxRate, targetAmount, targetCurrency, assetSymbol, quantity, price, transactionType (BUY/SELL/EXCHANGE), confidence
+- **Auto-match (Discord):** เจอรายการเดียว → แนบเลย, เจอหลายรายการ → ถามให้เลือก, ไม่เจอ → บันทึกรายการ BUY/SELL ใหม่จากสลิป (ข้อมูลไม่ครบ → ถามก่อน)
 
 ### Slip Auto-Match Logic
 
 ```typescript
-// ไฟล์: src/modules/transaction/slip-matcher.ts
-// Purpose: Pure matching logic — unit testable, reusable
+// ไฟล์: src/modules/transaction/slip-matcher.ts (pure, unit-tested) + slip.service.ts matchAndSave()
 ```
 
-**เลือกธุรกรรมให้สลิป:**
-1. **ผู้สมัครควรเป็น:**
-   - ธุรกรรมของผู้ใช้
-   - ยังไม่มีสลิป attached (`slipVerification is null`)
-   - อยู่ในช่วงวันที่ที่เหมาะสม (`executedAt` ห่างจากวันบนสลิป ≤ ±36 ชม.)
+**ลำดับการเช็ค (แน่นอนที่สุดก่อน):**
+1. **สลิปซ้ำ:** ref ของสลิป (transRef หรือ orderRef ถ้าไม่มี transRef) เคยใช้แล้ว → `duplicate`
+2. **เลขคำสั่งซื้อ:** มีธุรกรรมที่ `externalRef` = orderRef ของสลิป → แนบกับรายการนั้น (ถ้ามีสลิปแล้ว → `duplicate`)
+   - `Transaction.externalRef` unique ต่อพอร์ต — มาจากสลิปหรือที่ผู้ใช้กรอกในแอป ไม่สร้างเลขเอง
+3. **กระทบยอด (reconciliation)** กับธุรกรรมที่ยังไม่มีสลิป:
+   - **วัน-เวลา:** ต้องเป็นวันเดียวกัน (เวลาไทย); ถ้าทั้งสลิปและธุรกรรมมีเวลาจริง (`metadata.timeKnown`) ต้องห่างไม่เกิน ±5 นาที — ซื้อ DCA คนละวัน/คนละรอบ = คนละรายการ
+   - **ตัดทิ้ง:** symbol ต่างกัน (เทียบแบบตัด suffix: `PTT` = `PTT.BK`), จำนวนหุ้นต่างกัน, หรือมี externalRef อื่น
+   - **ผ่านเกณฑ์ถ้า:** ยอดเงินตรง (สกุลเดียวกัน ±0.01 หรือผ่าน FX rate เมื่อ symbol ตรง) หรือ symbol + จำนวนหุ้นตรงทั้งคู่
+   - **คะแนน:** transRef ใน note 100 (ชนะทันที ไม่ดูวันที่), ยอดตรง 50 / ผ่าน FX 20, symbol 10, จำนวน 10, type 5
+   - **เสมอกัน:** ตัดสินด้วยเวลาได้เฉพาะรายการที่มีเวลาจริง ไม่งั้นตอบ `ambiguous` ให้ผู้ใช้เลือก ไม่เดา
+4. **ไม่เจอ:** `not_found` (เว็บ) หรือ `createMissing` (Discord) → บันทึกรายการใหม่
 
-2. **เกณฑ์จับคู่:**
-   - **ยอดเงินตรงในสกุลเดียวกัน (50 คะแนน):** ต่างกันไม่เกิน 0.01 (เทียบทั้ง amount, netAmount, targetAmount)
-   - **ยอดเงินตรงผ่าน FX rate ของธุรกรรม (20 คะแนน):** ใช้ได้เฉพาะเมื่อ asset symbol ตรงด้วย
-     - เช่น สลิป THB 335 กับธุรกรรม USD 10 ที่บันทึก exchange rate 33.5 ไว้
-   - ถ้ายอดไม่ตรงเลยและไม่มี transRef ใน note → ตัดทิ้ง ไม่นับเป็นผู้สมัคร
-   - **Asset Symbol (10 คะแนน):** แอสเสทสัญลักษณ์ตรง (e.g. slip USD ซื้อ LLY = LLY transaction)
-   - **Type (5 คะแนน):** ประเภทธุรกรรมสัมพันธ์ (BUY → BUY, EXCHANGE → DEPOSIT/WITHDRAW/REPATRIATION)
-   - **transRef in note (100 คะแนน):** ถ้า note มี transRef ของสลิป ชนะทันที (ไม่ต้องดูวันที่)
-
-3. **Breaking ties:** ถ้าคะแนนเท่ากัน เลือกอันที่วันที่ใกล้สลิปที่สุด ถ้ายังเสมอ (หรือไม่มีวันที่บนสลิป) ตอบ `ambiguous` ไม่เดา
-
-**ผลลัพธ์:**
-```typescript
-type SlipMatchResult =
-  | { status: 'matched'; candidate; isAmountMatched: boolean }
-  | { status: 'not_found' }
-  | { status: 'ambiguous'; candidates: SlipMatchCandidate[] }
-```
+**ข้อมูลต่างกัน:** ถ้าจับคู่ได้แต่ค่าธรรมเนียม/ราคา/ยอดในสลิปไม่ตรงกับรายการ → แจ้ง (`differences`) ไม่แก้ทับ
 
 ---
 
@@ -244,19 +232,22 @@ type SlipMatchResult =
 
 ```typescript
 // ไฟล์: src/modules/transaction/slip.service.ts
-// Path 1: uploadTransactionSlip() — ระบุ transaction ID (แอป)
-// Path 2: autoMatchSlip() — ให้ระบบหาเอง (Discord)
+// uploadTransactionSlip()      — ระบุ transaction ID (แอป)
+// autoMatchSlips()             — ให้ระบบหาเอง (เว็บ + Discord, Discord ส่ง createMissing)
+// attachReadSlip()             — แนบสลิปที่อ่านแล้วกับรายการที่ผู้ใช้เลือก (ambiguous)
+// createTransactionFromSlip()  — บันทึก BUY/SELL จากสลิปแล้วแนบสลิป
 ```
 
 **ขั้นตอน:**
 1. **Validate image:** ตรวจ magic bytes, ขนาด, MIME type
 2. **Extract (Gemini):** ดึงข้อมูลจากรูป — retry max 5 ครั้ง (รอ 1s, 2s, 3s, 4s ระหว่างครั้ง)
-   - Fail → throw `AppError.badRequest()`
-3. **Require fields:** amount, transRef ต้องมี ไม่เช่นไม่บันทึก
-4. **Check duplicate:** transRef เคยใช้แล้ว? → error
-5. **Match transaction:** (`autoMatchSlip` เท่านั้น)
-   - เจอ 1 อัน → บันทึก
-   - เจอหลาย / ไม่เจอ → return status, don't save
+3. **Require fields:** amount และ ref (transRef หรือ orderRef) ต้องมี ไม่เช่นนั้นไม่บันทึก
+4. **Match:** ตามลำดับด้านบน
+5. **สร้างรายการใหม่ (createMissing):** ต้องรู้พอร์ต (option `portfolio` หรือมีพอร์ตเดียว) + type/symbol/จำนวน/ราคา และ confidence ไม่ใช่ `low`
+   - ขาดอะไร → `needs_input` (Discord ถามต่อ)
+   - BUY บันทึก deposit ค่าซื้อด้วย (`fundWithDeposit`) เหมือนค่าเริ่มต้นของ "Add asset" ในแอป
+   - เก็บ orderRef เป็น `externalRef`, เวลาบนสลิปเป็น `executedAt` + `timeKnown`, note = `จากสลิป Ref <ref>`
+   - หา asset: ที่พอร์ตถืออยู่ → asset ที่รู้จักใน DB → Yahoo (สลิป THB ลอง `<symbol>.BK` ด้วย)
 6. **Save:** Upload รูปไป R2 + เขียน SlipVerification row
 
 ---
@@ -264,22 +255,27 @@ type SlipMatchResult =
 ### Discord Batch Upload
 
 ```typescript
-// ไฟล์: src/modules/discord-bot/discord-interactions.service.ts
+// ไฟล์: src/modules/discord-bot/discord-interactions.service.ts — คำสั่ง + live status
+//       src/modules/discord-bot/slip-prompts.ts — ข้อความถามต่อ (ปุ่ม/เมนู/ฟอร์ม)
 // Command: /upload-slip image1:<f1> [portfolio:<พอร์ต>] image2:<f2> ... image5:<f5>
 ```
 
 **วิธีการ:**
 - ประมวลผล **ทีละรูปตามลำดับ** (ป้องกัน race condition ที่จับคู่ธุรกรรมเดียวกัน)
 - **Live status:** อัปเดตข้อความ Discord เรื่อยๆ แสดง 1️⃣–5️⃣ ตามสถานะ
-- **Callback on retry:** `onAttemptFailed(attempt, max)` ให้ UI อัปเดต "attempt 2/5 failed, retrying..."
+- **ถามต่อ:** สลิปที่ต้องให้ผู้ใช้ตัดสินใจได้ข้อความแยก (เก็บสถานะใน Redis 1 ชม.)
+  - เจอหลายรายการ → เมนูเลือกรายการ + ปุ่ม "สร้างรายการใหม่"
+  - ไม่รู้พอร์ต → เมนูเลือกพอร์ต
+  - ข้อมูลขาด/ต้องตรวจ → ปุ่มเปิดฟอร์ม (BUY/SELL, symbol, จำนวน, ราคา, ค่าธรรมเนียม)
+  - กดได้เฉพาะเจ้าของสลิป; มี lock กันกดซ้ำแล้วบันทึกสองครั้ง
 
 **ตัวอย่าง status:**
 ```
-📥 กำลังตรวจสลิป 3 รูป
+📥 กำลังตรวจสลิป 3 รูป ในทุกพอร์ต
 
-1️⃣ ✅ ยอด 200.85 THB, Ref: ABC123 → Transaction `tx-1`
-2️⃣ ⏳ attempt 1/5 failed, retrying...
-3️⃣ ⏳ รอคิว...
+1️⃣ ✅ ยอด 200.85 THB, Ref: ABC123 → BUY 10 AAPL · พอร์ต "US Growth" · 27 Oct 2026
+2️⃣ 🆕 ยอด 3,407.49 THB, Ref: -, Order: ORD-88231 → บันทึกรายการใหม่: BUY 100 PTT.BK · ...
+3️⃣ ⏸️ ยอด 1,000.00 THB, Ref: XYZ → พบหลายรายการที่ตรงกัน — เลือกในข้อความด้านล่าง
 ```
 
 ---
@@ -291,6 +287,8 @@ type SlipMatchResult =
 | `slip-matcher.ts` | Pure matching logic (testable) |
 | `slip.service.ts` | Image validation → Gemini → save (shared) |
 | `discord-interactions.service.ts` | Batch upload + live status |
+| `slip-prompts.ts` | Discord follow-ups: pick a transaction / portfolio, fill in a trade |
+| `slip-messages.ts` | How slip results read in Discord |
 | `gemini.util.ts` | Extraction prompt + parsing |
 | `slip-matcher.test.ts` | 12 unit tests |
 

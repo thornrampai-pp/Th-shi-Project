@@ -20,7 +20,7 @@ const commands = [
   },
   {
     name: 'upload-slip',
-    description: 'แนบสลิป (สูงสุด 5 รูป) — จับคู่กับธุรกรรมให้อัตโนมัติ',
+    description: 'แนบสลิป (สูงสุด 5 รูป) — จับคู่กับธุรกรรม หรือบันทึกรายการใหม่ให้อัตโนมัติ',
     // Option names must match SLIP_IMAGE_OPTIONS / SLIP_PORTFOLIO_OPTION in
     // discord-interactions.service.ts. Required options must come first.
     options: [
@@ -28,7 +28,7 @@ const commands = [
       {
         type: OPTION_STRING,
         name: 'portfolio',
-        description: 'จับคู่เฉพาะในพอร์ตนี้ (ไม่เลือก = ทุกพอร์ต)',
+        description: 'ค้นและบันทึกรายการใหม่ในพอร์ตนี้ (ไม่เลือก = ค้นทุกพอร์ต, ถามตอนบันทึก)',
         required: false,
         autocomplete: true,
       },

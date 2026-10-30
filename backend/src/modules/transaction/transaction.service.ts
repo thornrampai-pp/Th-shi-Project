@@ -15,6 +15,7 @@ import {
   resolveTaxFxRate,
   sourceCountryOf,
 } from "../tax/tax.service";
+import { logAuditEvent } from "../audit/audit.service";
 
 export type TransactionTypeValue =
   | "BUY"
@@ -148,6 +149,14 @@ export async function createTransaction(
   // rebuild snapshots if this was dated into the past. Never blocks the response.
   refreshHistoryAfterTransaction(input.portfolioId, transaction.executedAt).catch((err) => {
     console.error("❌ Failed to refresh history after transaction:", err);
+  });
+
+  logAuditEvent(userId, "CREATE_TRANSACTION", {
+    transactionId: transaction.id,
+    portfolioId: input.portfolioId,
+    type: input.type,
+  }).catch((err) => {
+    console.error("❌ Failed to write audit log for CREATE_TRANSACTION:", err);
   });
 
   return transaction;

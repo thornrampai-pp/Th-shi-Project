@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../common/errors/AppError';
 import { assertPortfolioOwnership } from '../../common/utils/portfolio-ownership.util';
+import { logAuditEvent } from '../audit/audit.service';
 
 export type StrategyTypeValue = 'VALUE' | 'GROWTH' | 'DIVIDEND' | 'TRADING' | 'QUANT_ALGO';
 export type PortfolioTypeValue = 'REAL' | 'PAPER';
@@ -90,8 +91,13 @@ export async function updatePortfolio(
 }
 
 export async function deletePortfolio(userId: string, id: string): Promise<boolean> {
-  await assertPortfolioOwnership(userId, id);
+  const portfolio = await assertPortfolioOwnership(userId, id);
   await prisma.portfolio.update({ where: { id }, data: { deletedAt: new Date() } });
+
+  logAuditEvent(userId, 'DELETE_PORTFOLIO', { portfolioId: id, name: portfolio.name }).catch((err) => {
+    console.error('❌ Failed to write audit log for DELETE_PORTFOLIO:', err);
+  });
+
   return true;
 }
 

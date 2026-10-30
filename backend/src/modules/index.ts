@@ -22,6 +22,7 @@ import './watchlist/watchlist.schema';
 import './alert/alert.schema';
 import './trading/trading.schema';
 import './history/history.schema';
+import './audit/audit.schema';
 
 // Add each new module's import above as phases land, then it's registered —
 // nothing else in this file needs to change.

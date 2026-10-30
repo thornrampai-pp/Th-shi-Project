@@ -136,6 +136,8 @@ export async function getLedgerEntries(
     from?: Date;
     to?: Date;
     accountType?: AccountTypeValue;
+    limit?: number;
+    offset?: number;
   },
 ) {
   await assertPortfolioOwnership(userId, portfolioId);
@@ -152,6 +154,8 @@ export async function getLedgerEntries(
     orderBy: {
       createdAt: "desc",
     },
+    take: Math.min(filters.limit ?? 50, 200),
+    skip: filters.offset ?? 0,
   });
 }
 

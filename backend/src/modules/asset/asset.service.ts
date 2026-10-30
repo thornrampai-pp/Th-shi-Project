@@ -304,6 +304,7 @@ export async function getAssetPriceHistory(
   assetId: string,
   from: Date,
   to: Date,
+  pagination?: { limit?: number; offset?: number },
 ) {
   return prisma.assetPrice.findMany({
     where: {
@@ -320,6 +321,9 @@ export async function getAssetPriceHistory(
     orderBy: {
       timestamp: "asc",
     },
+
+    take: Math.min(pagination?.limit ?? 1000, 5000),
+    skip: pagination?.offset ?? 0,
   });
 }
 

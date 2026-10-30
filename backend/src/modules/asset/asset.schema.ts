@@ -460,6 +460,9 @@ builder.queryField("assetPriceHistory", (t) =>
       to: t.arg.string({
         required: true,
       }),
+
+      limit: t.arg.int(),
+      offset: t.arg.int(),
     },
 
     resolve: (_root, args, context: GraphQLContext) => {
@@ -469,6 +472,7 @@ builder.queryField("assetPriceHistory", (t) =>
         String(args.assetId),
         new Date(args.from),
         new Date(args.to),
+        { limit: args.limit ?? undefined, offset: args.offset ?? undefined },
       );
     },
   }),

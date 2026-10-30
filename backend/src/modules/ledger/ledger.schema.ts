@@ -36,6 +36,8 @@ builder.queryField('ledgerEntries', (t) =>
       from: t.arg.string(),
       to: t.arg.string(),
       accountType: t.arg({ type: AccountTypeEnum }),
+      limit: t.arg.int(),
+      offset: t.arg.int(),
     },
     resolve: (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
@@ -43,6 +45,8 @@ builder.queryField('ledgerEntries', (t) =>
         from: args.from ? new Date(args.from) : undefined,
         to: args.to ? new Date(args.to) : undefined,
         accountType: (args.accountType as AccountTypeValue) ?? undefined,
+        limit: args.limit ?? undefined,
+        offset: args.offset ?? undefined,
       });
     },
   }),

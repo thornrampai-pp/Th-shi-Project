@@ -122,6 +122,7 @@ interface PositionShape {
   realizedPLHome: unknown;
   realizedStockPLHome: unknown;
   realizedFxPLHome: unknown;
+  targetWeight: unknown;
   updatedAt: Date;
 }
 
@@ -137,6 +138,8 @@ export const PositionType = builder.objectRef<PositionShape>('Position').impleme
     realizedPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedPLHome) }),
     realizedStockPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedStockPLHome) }),
     realizedFxPLHome: t.field({ type: 'Float', resolve: (p) => Number(p.realizedFxPLHome) }),
+    /** Target allocation %, used by the rebalance drift report. Null = no target set. */
+    targetWeight: t.field({ type: 'Float', nullable: true, resolve: (p) => numOrNull(p.targetWeight) }),
     updatedAt: t.field({ type: 'String', resolve: (p) => p.updatedAt.toISOString() }),
   }),
 });
@@ -242,6 +245,27 @@ builder.queryField('position', (t) =>
     resolve: (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
       return transactionService.getPosition(userId, String(args.portfolioId), String(args.assetId));
+    },
+  }),
+);
+
+builder.mutationField('setPositionTargetWeight', (t) =>
+  t.field({
+    type: PositionType,
+    description: 'Sets (or clears, with null) a position’s target allocation % for rebalancing',
+    args: {
+      portfolioId: t.arg.id({ required: true }),
+      assetId: t.arg.id({ required: true }),
+      targetWeight: t.arg.float(),
+    },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return transactionService.setPositionTargetWeight(
+        userId,
+        String(args.portfolioId),
+        String(args.assetId),
+        args.targetWeight ?? null,
+      );
     },
   }),
 );

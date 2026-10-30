@@ -1242,3 +1242,33 @@ export async function getPosition(
 
   return position;
 }
+
+/**
+ * Sets (or clears, with `null`) a position's target allocation % — used by the
+ * rebalance drift report. Only an existing position can be targeted; there must be
+ * at least one transaction against this asset first.
+ */
+export async function setPositionTargetWeight(
+  userId: string,
+  portfolioId: string,
+  assetId: string,
+  targetWeight: number | null,
+) {
+  await assertPortfolioOwnership(userId, portfolioId);
+
+  if (targetWeight != null && (targetWeight < 0 || targetWeight > 100)) {
+    throw AppError.badRequest("targetWeight must be between 0 and 100");
+  }
+
+  const position = await prisma.position.findUnique({
+    where: { portfolioId_assetId: { portfolioId, assetId } },
+  });
+  if (!position) {
+    throw AppError.notFound("Position not found");
+  }
+
+  return prisma.position.update({
+    where: { portfolioId_assetId: { portfolioId, assetId } },
+    data: { targetWeight },
+  });
+}

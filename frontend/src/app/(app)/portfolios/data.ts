@@ -215,3 +215,79 @@ export async function loadPortfolio(portfolioId: string) {
     throw e;
   }
 }
+
+const PortfolioFxBreakdownQuery = graphql(`
+  query PortfolioFxBreakdown($portfolioId: ID!) {
+    portfolioFxBreakdown(portfolioId: $portfolioId) {
+      homeCurrency
+      positions {
+        assetId
+        symbol
+        currency
+        quantity
+        marketPrice
+        currentFxRate
+        costBasis
+        costBasisHome
+        marketValueHome
+        unrealizedPLHome
+        unrealizedStockPLHome
+        unrealizedFxPLHome
+        realizedPLHome
+        realizedStockPLHome
+        realizedFxPLHome
+      }
+      totals {
+        unrealizedPLHome
+        unrealizedStockPLHome
+        unrealizedFxPLHome
+        realizedPLHome
+        realizedStockPLHome
+        realizedFxPLHome
+        complete
+      }
+    }
+  }
+`);
+
+/** P/L in the home currency split into stock-price and FX components, per position and in total. */
+export const getFxBreakdown = cache(async (portfolioId: string) => {
+  const { portfolioFxBreakdown: b } = await serverQuery(PortfolioFxBreakdownQuery, { portfolioId });
+  return {
+    homeCurrency: b?.homeCurrency ?? "THB",
+    positions: compact(b?.positions).flatMap((p) =>
+      p.assetId && p.symbol
+        ? [
+            {
+              assetId: p.assetId,
+              symbol: p.symbol,
+              currency: p.currency ?? "",
+              quantity: p.quantity ?? 0,
+              marketPrice: p.marketPrice ?? null,
+              currentFxRate: p.currentFxRate ?? null,
+              costBasis: p.costBasis ?? 0,
+              costBasisHome: p.costBasisHome ?? null,
+              marketValueHome: p.marketValueHome ?? null,
+              unrealizedPLHome: p.unrealizedPLHome ?? null,
+              unrealizedStockPLHome: p.unrealizedStockPLHome ?? null,
+              unrealizedFxPLHome: p.unrealizedFxPLHome ?? null,
+              realizedPLHome: p.realizedPLHome ?? 0,
+              realizedStockPLHome: p.realizedStockPLHome ?? 0,
+              realizedFxPLHome: p.realizedFxPLHome ?? 0,
+            },
+          ]
+        : [],
+    ),
+    totals: {
+      unrealizedPLHome: b?.totals?.unrealizedPLHome ?? 0,
+      unrealizedStockPLHome: b?.totals?.unrealizedStockPLHome ?? 0,
+      unrealizedFxPLHome: b?.totals?.unrealizedFxPLHome ?? 0,
+      realizedPLHome: b?.totals?.realizedPLHome ?? 0,
+      realizedStockPLHome: b?.totals?.realizedStockPLHome ?? 0,
+      realizedFxPLHome: b?.totals?.realizedFxPLHome ?? 0,
+      complete: b?.totals?.complete ?? true,
+    },
+  };
+});
+
+export type FxBreakdown = Awaited<ReturnType<typeof getFxBreakdown>>;

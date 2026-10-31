@@ -6,6 +6,7 @@ import { graphql } from "@/gql";
 import { compact } from "@/lib/graphql/normalize";
 import { serverQuery } from "@/lib/graphql/server";
 import DiscordSection from "./DiscordSection";
+import AuditLogSection from "./AuditLogSection";
 import { PasswordForm, ProfileForm } from "./AccountForms";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -27,12 +28,24 @@ const SettingsQuery = graphql(`
       events
       webhookUrlPreview
     }
+    myAuditLogs(limit: 20) {
+      id
+      action
+      metadataJson
+      createdAt
+    }
   }
 `);
 
 export default async function SettingsPage() {
-  const { me, notificationChannels } = await serverQuery(SettingsQuery);
+  const { me, notificationChannels, myAuditLogs } = await serverQuery(SettingsQuery);
   if (!me) redirect("/login");
+
+  const auditLogs = compact(myAuditLogs).flatMap((l) =>
+    l.id && l.action && l.createdAt
+      ? [{ id: l.id, action: l.action, metadataJson: l.metadataJson ?? null, createdAt: l.createdAt }]
+      : [],
+  );
 
   const channels = compact(notificationChannels).flatMap((c) =>
     c.id
@@ -70,6 +83,7 @@ export default async function SettingsPage() {
         </Card>
       </div>
       <DiscordSection linked={!!me.discordLinked} isAdmin={me.role === "ADMIN"} channels={channels} />
+      <AuditLogSection logs={auditLogs} />
     </PageContainer>
   );
 }

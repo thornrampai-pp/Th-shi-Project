@@ -291,3 +291,82 @@ export const getFxBreakdown = cache(async (portfolioId: string) => {
 });
 
 export type FxBreakdown = Awaited<ReturnType<typeof getFxBreakdown>>;
+
+const RebalanceDriftQuery = graphql(`
+  query RebalanceDrift($portfolioId: ID!) {
+    rebalanceDrift(portfolioId: $portfolioId) {
+      currency
+      totalValue
+      items {
+        assetId
+        symbol
+        currentWeight
+        targetWeight
+        driftPct
+        marketValue
+        marketPrice
+        suggestedValue
+        suggestedQuantity
+      }
+    }
+  }
+`);
+
+export type RebalanceDriftItem = NonNullable<
+  NonNullable<Awaited<ReturnType<typeof getRebalanceDrift>>>["items"]
+>[number];
+
+/** Null when no position in this portfolio has a target weight set yet. */
+export const getRebalanceDrift = cache(async (portfolioId: string) => {
+  try {
+    const { rebalanceDrift: d } = await serverQuery(RebalanceDriftQuery, { portfolioId });
+    if (!d) return null;
+    return {
+      currency: d.currency ?? "THB",
+      totalValue: d.totalValue ?? 0,
+      items: compact(d.items).flatMap((i) =>
+        i.assetId && i.symbol
+          ? [
+              {
+                assetId: i.assetId,
+                symbol: i.symbol,
+                currentWeight: i.currentWeight ?? 0,
+                targetWeight: i.targetWeight ?? 0,
+                driftPct: i.driftPct ?? 0,
+                marketValue: i.marketValue ?? 0,
+                marketPrice: i.marketPrice ?? 0,
+                suggestedValue: i.suggestedValue ?? 0,
+                suggestedQuantity: i.suggestedQuantity ?? null,
+              },
+            ]
+          : [],
+      ),
+    };
+  } catch (e) {
+    // "no position has a target weight yet" — not a real error, just an empty report.
+    if (e instanceof GraphQLRequestError) return null;
+    throw e;
+  }
+});
+
+const RebalanceLogsQuery = graphql(`
+  query RebalanceLogs($portfolioId: ID!) {
+    rebalanceLogs(portfolioId: $portfolioId, limit: 20) {
+      id
+      executedAt
+      totalValueBefore
+      description
+    }
+  }
+`);
+
+export const getRebalanceLogs = cache(async (portfolioId: string) => {
+  const { rebalanceLogs } = await serverQuery(RebalanceLogsQuery, { portfolioId });
+  return compact(rebalanceLogs).flatMap((l) =>
+    l.id && l.executedAt
+      ? [{ id: l.id, executedAt: l.executedAt, totalValueBefore: l.totalValueBefore ?? 0, description: l.description ?? null }]
+      : [],
+  );
+});
+
+export type RebalanceLog = Awaited<ReturnType<typeof getRebalanceLogs>>[number];

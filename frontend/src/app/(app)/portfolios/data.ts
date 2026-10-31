@@ -370,3 +370,98 @@ export const getRebalanceLogs = cache(async (portfolioId: string) => {
 });
 
 export type RebalanceLog = Awaited<ReturnType<typeof getRebalanceLogs>>[number];
+
+const OrdersQuery = graphql(`
+  query PortfolioOrders($portfolioId: ID!) {
+    orders(portfolioId: $portfolioId) {
+      id
+      assetId
+      side
+      orderType
+      quantity
+      limitPrice
+      filledQty
+      avgFillPrice
+      status
+      submittedAt
+      filledAt
+      cancelledAt
+      transactionId
+      asset {
+        symbol
+        currency
+      }
+    }
+  }
+`);
+
+export const getOrders = cache(async (portfolioId: string) => {
+  const { orders } = await serverQuery(OrdersQuery, { portfolioId });
+  return compact(orders).flatMap((o) =>
+    o.id && o.side && o.orderType && o.status && o.submittedAt
+      ? [
+          {
+            id: o.id,
+            assetId: o.assetId ?? "",
+            symbol: o.asset?.symbol ?? "—",
+            currency: o.asset?.currency ?? null,
+            side: o.side,
+            orderType: o.orderType,
+            quantity: o.quantity ?? 0,
+            limitPrice: o.limitPrice ?? null,
+            filledQty: o.filledQty ?? 0,
+            avgFillPrice: o.avgFillPrice ?? null,
+            status: o.status,
+            submittedAt: o.submittedAt,
+            filledAt: o.filledAt ?? null,
+            cancelledAt: o.cancelledAt ?? null,
+            transactionId: o.transactionId ?? null,
+          },
+        ]
+      : [],
+  );
+});
+
+export type Order = Awaited<ReturnType<typeof getOrders>>[number];
+
+const TradingSignalsQuery = graphql(`
+  query PortfolioTradingSignals($portfolioId: ID!) {
+    tradingSignals(portfolioId: $portfolioId, isExecuted: false) {
+      id
+      assetId
+      signalType
+      strength
+      price
+      source
+      createdAt
+      asset {
+        symbol
+        currency
+      }
+    }
+  }
+`);
+
+/** Open (not yet executed or dismissed) signals from an external strategy — advisory only. */
+export const getTradingSignals = cache(async (portfolioId: string) => {
+  const { tradingSignals } = await serverQuery(TradingSignalsQuery, { portfolioId });
+  return compact(tradingSignals).flatMap((s) =>
+    s.id && s.signalType && s.createdAt
+      ? [
+          {
+            id: s.id,
+            assetId: s.assetId ?? "",
+            symbol: s.asset?.symbol ?? "—",
+            currency: s.asset?.currency ?? null,
+            signalType: s.signalType,
+            strength: s.strength ?? null,
+            price: s.price ?? 0,
+            source: s.source ?? "",
+            createdAt: s.createdAt,
+          },
+        ]
+      : [],
+  );
+});
+
+export type TradingSignal = Awaited<ReturnType<typeof getTradingSignals>>[number];

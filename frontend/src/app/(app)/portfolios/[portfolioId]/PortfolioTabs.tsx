@@ -10,6 +10,7 @@ export default function PortfolioTabs({ portfolioId }: { portfolioId: string }) 
   const tabs = [
     { href: base, label: "Holdings" },
     { href: `${base}/transactions`, label: "Transactions" },
+    { href: `${base}/orders`, label: "Orders" },
     { href: `${base}/rebalance`, label: "Rebalance" },
     { href: `${base}/fx`, label: "FX" },
   ];

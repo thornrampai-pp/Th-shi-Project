@@ -22,6 +22,7 @@ describe.skipIf(!runIntegrationTests)("rebalance.service (real DB)", () => {
   let userId: string;
   let portfolioId: string;
   let assetId: string;
+  let extraAssetIds: string[] = [];
 
   beforeEach(async () => {
     const user = await createTestUser();
@@ -35,7 +36,8 @@ describe.skipIf(!runIntegrationTests)("rebalance.service (real DB)", () => {
   });
 
   afterEach(async () => {
-    await cleanupTestUser(userId, [assetId]);
+    await cleanupTestUser(userId, [assetId, ...extraAssetIds]);
+    extraAssetIds = [];
   });
 
   describe("setPositionTargetWeight", () => {
@@ -46,6 +48,7 @@ describe.skipIf(!runIntegrationTests)("rebalance.service (real DB)", () => {
 
     it("rejects a position that doesn't exist yet", async () => {
       const otherAsset = await createTestAsset({ currency: "THB" });
+      extraAssetIds.push(otherAsset.id);
       await expect(setPositionTargetWeight(userId, portfolioId, otherAsset.id, 50)).rejects.toThrow(/not found/i);
     });
 

@@ -24,7 +24,7 @@ import {
 import type { SlipMatchCandidate } from './slip-matcher';
 
 export const GEMINI_MAX_ATTEMPTS = 5;
-const GEMINI_RETRY_BASE_DELAY_MS = 1000;
+export const GEMINI_RETRY_BASE_DELAY_MS = 1000;
 /** Without a date on the slip, only look this far back for an amount match. */
 const UNDATED_SLIP_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -440,7 +440,7 @@ async function createFromSlip(
  * the portfolio already holds, then any known listing, then ask Yahoo — trying the
  * Thai listing for a THB slip.
  */
-async function resolveSlipAsset(symbol: string, slipCurrency: string | null, portfolioId: string) {
+export async function resolveSlipAsset(symbol: string, slipCurrency: string | null, portfolioId: string) {
   const base = baseSymbol(symbol);
   const typed = symbol.trim().toUpperCase();
   const known = await prisma.asset.findMany({
@@ -462,7 +462,7 @@ async function resolveSlipAsset(symbol: string, slipCurrency: string | null, por
   }
 }
 
-function assertSlipServicesConfigured() {
+export function assertSlipServicesConfigured() {
   if (!env.GEMINI_API_KEY) {
     throw AppError.badRequest('Slip OCR is not configured — set GEMINI_API_KEY');
   }

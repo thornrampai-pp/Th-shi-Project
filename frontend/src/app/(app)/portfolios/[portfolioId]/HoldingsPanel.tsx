@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatMoney, formatQuantity, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
-import type { Holding } from "../data";
+import type { Holding, PortfolioListItem } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
+import ImportStatementDialog from "./ImportStatementDialog";
 import SlipUploadDialog from "./SlipUploadDialog";
+import TransferAssetDialog from "./TransferAssetDialog";
 import RecordTransactionDialog from "./transactions/RecordTransactionDialog";
 import LocalDateTime from "@/components/LocalDateTime";
 import Select from "@/components/Select";
@@ -21,7 +23,7 @@ type SortKey = keyof typeof SORTS;
 
 const toolbarButton = "rounded-md bg-field px-4 py-2 text-sm hover:bg-field/70";
 
-type Props = { portfolioId: string; currency: string; holdings: Holding[] };
+type Props = { portfolioId: string; currency: string; holdings: Holding[]; portfolios: PortfolioListItem[] };
 
 const closeDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
@@ -32,10 +34,12 @@ function PriceAsOf({ source, iso }: { source: Holding["priceSource"]; iso: strin
   return <LocalDateTime iso={iso} format="short" />;
 }
 
-export default function HoldingsPanel({ portfolioId, currency, holdings }: Props) {
+export default function HoldingsPanel({ portfolioId, currency, holdings, portfolios }: Props) {
+  const otherPortfolios = portfolios.filter((p) => p.id !== portfolioId);
   const [sort, setSort] = useState<SortKey>("weight");
-  const [dialog, setDialog] = useState<"slip" | "asset" | null>(null);
+  const [dialog, setDialog] = useState<"slip" | "asset" | "statement" | null>(null);
   const [selling, setSelling] = useState<string | null>(null); // assetId
+  const [transferring, setTransferring] = useState<string | null>(null); // assetId
   const rows = useMemo(() => [...holdings].sort(SORTS[sort].compare), [holdings, sort]);
 
   return (
@@ -55,6 +59,9 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
         </Select>
         <button type="button" onClick={() => setDialog("slip")} className={toolbarButton}>
           Upload slips
+        </button>
+        <button type="button" onClick={() => setDialog("statement")} className={toolbarButton}>
+          Import statement
         </button>
         <button
           type="button"
@@ -111,15 +118,27 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
                   {formatSignedMoney(h.unrealizedPL)}
                   <p className="text-xs">{formatSignedPct(h.unrealizedPLPct)}</p>
                 </td>
-                <td className="px-4 py-2.5 text-right">
-                  <button
-                    type="button"
-                    onClick={() => setSelling(h.assetId)}
-                    aria-label={`Sell ${h.symbol}`}
-                    className="rounded-md border border-border px-3 py-1 text-xs hover:bg-background"
-                  >
-                    Sell
-                  </button>
+                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                  <div className="flex justify-end gap-2">
+                    {otherPortfolios.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTransferring(h.assetId)}
+                        aria-label={`Transfer ${h.symbol}`}
+                        className="rounded-md border border-border px-3 py-1 text-xs hover:bg-background"
+                      >
+                        Transfer
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelling(h.assetId)}
+                      aria-label={`Sell ${h.symbol}`}
+                      className="rounded-md border border-border px-3 py-1 text-xs hover:bg-background"
+                    >
+                      Sell
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -129,6 +148,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
       <p className="text-xs text-muted-foreground">Prices and values in {currency}, converted from each asset&apos;s trading currency at the latest rate.</p>
 
       {dialog === "slip" && <SlipUploadDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
+      {dialog === "statement" && <ImportStatementDialog portfolioId={portfolioId} portfolios={portfolios} onClose={() => setDialog(null)} />}
       {dialog === "asset" && <AddAssetDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
       {selling && (
         <RecordTransactionDialog
@@ -145,6 +165,21 @@ export default function HoldingsPanel({ portfolioId, currency, holdings }: Props
           onClose={() => setSelling(null)}
         />
       )}
+      {transferring &&
+        (() => {
+          const holding = holdings.find((h) => h.assetId === transferring);
+          if (!holding) return null;
+          return (
+            <TransferAssetDialog
+              portfolioId={portfolioId}
+              assetId={holding.assetId}
+              symbol={holding.symbol}
+              quantity={holding.quantity}
+              otherPortfolios={otherPortfolios}
+              onClose={() => setTransferring(null)}
+            />
+          );
+        })()}
     </section>
   );
 }

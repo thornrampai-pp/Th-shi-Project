@@ -40,6 +40,22 @@ const commands = [
       })),
     ],
   },
+  {
+    name: 'upload-statement',
+    description: 'แนบ statement (PDF/รูป) — หุ้นที่ถืออยู่เข้าพอร์ตเดิม ตัวใหม่ถามก่อน',
+    // Option names must match STATEMENT_DOCUMENT_OPTION / STATEMENT_PORTFOLIO_OPTION in
+    // discord-interactions.service.ts.
+    options: [
+      { type: OPTION_ATTACHMENT, name: 'document', description: 'ไฟล์ statement (PDF หรือรูป)', required: true },
+      {
+        type: OPTION_STRING,
+        name: 'portfolio',
+        description: 'พอร์ตสำหรับหุ้นที่ยังไม่มีในพอร์ตไหน (ไม่เลือก = ถามตอนบันทึก)',
+        required: false,
+        autocomplete: true,
+      },
+    ],
+  },
 ];
 
 async function main() {

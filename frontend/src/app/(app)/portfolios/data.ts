@@ -139,6 +139,8 @@ export const getPortfolioList = cache(async () => {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 });
 
+export type PortfolioListItem = Awaited<ReturnType<typeof getPortfolioList>>[number];
+
 export const getPortfolio = cache(async (portfolioId: string) => {
   const { portfolioHoldings } = await serverQuery(PortfolioHoldingsQuery, { portfolioId });
   return toPortfolio(portfolioHoldings);

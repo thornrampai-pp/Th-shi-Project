@@ -2,7 +2,7 @@
  * Slip images are validated from their actual bytes, not the client-declared MIME type:
  * a renamed PDF/HTML file would otherwise sail through as "image/jpeg".
  */
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'] as const;
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'] as const;
 export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
 
 export const IMAGE_EXTENSION: Record<AllowedImageType, string> = {
@@ -10,6 +10,7 @@ export const IMAGE_EXTENSION: Record<AllowedImageType, string> = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
+  'application/pdf': 'pdf',
 };
 
 export class ImageValidationError extends Error {}
@@ -27,6 +28,7 @@ export function sniffImageType(bytes: Buffer): AllowedImageType | null {
     const brand = bytes.toString('ascii', 8, 12);
     if (['heic', 'heix', 'hevc', 'heim', 'heis', 'mif1', 'msf1'].includes(brand)) return 'image/heic';
   }
+  if (bytes.length >= 5 && bytes.toString('ascii', 0, 5) === '%PDF-') return 'application/pdf';
   return null;
 }
 

@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma";
 
-export type AuditAction = "CREATE_TRANSACTION" | "DELETE_PORTFOLIO" | "FORCE_REBALANCE";
+export type AuditAction = "CREATE_TRANSACTION" | "DELETE_PORTFOLIO" | "FORCE_REBALANCE" | "TRANSFER_ASSET";
 
 /**
  * Best-effort audit trail. Callers fire this without awaiting (same convention as

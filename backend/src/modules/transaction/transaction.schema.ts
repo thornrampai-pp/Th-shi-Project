@@ -4,11 +4,26 @@ import { GraphQLContext, requireAuth } from '../../common/middlewares/auth.middl
 import * as transactionService from './transaction.service';
 import type { TransactionTypeValue } from './transaction.service';
 import * as slipService from './slip.service';
+import * as statementImportService from './statement-import.service';
+import * as transferService from './transfer.service';
 import * as fxBreakdownService from './fx-breakdown.service';
 import type { PositionFxBreakdown } from './fx-breakdown.service';
 
 export const TransactionTypeEnum = builder.enumType('TransactionType', {
-  values: ['BUY', 'SELL', 'DEPOSIT', 'WITHDRAW', 'DIVIDEND', 'REPATRIATION', 'FEE', 'TAX', 'SPLIT', 'ADJUSTMENT'] as const,
+  values: [
+    'BUY',
+    'SELL',
+    'DEPOSIT',
+    'WITHDRAW',
+    'DIVIDEND',
+    'REPATRIATION',
+    'FEE',
+    'TAX',
+    'SPLIT',
+    'ADJUSTMENT',
+    'TRANSFER_OUT',
+    'TRANSFER_IN',
+  ] as const,
 });
 
 function numOrNull(value: unknown): number | null {
@@ -317,6 +332,47 @@ builder.mutationField('createTransaction', (t) =>
   }),
 );
 
+interface TransferAssetResultShape {
+  from: TransactionShape;
+  to: TransactionShape;
+}
+
+const TransferAssetResultType = builder.objectRef<TransferAssetResultShape>('TransferAssetResult').implement({
+  fields: (t) => ({
+    from: t.field({ type: TransactionType, resolve: (r) => r.from }),
+    to: t.field({ type: TransactionType, resolve: (r) => r.to }),
+  }),
+});
+
+builder.mutationField('transferAsset', (t) =>
+  t.field({
+    type: TransferAssetResultType,
+    description:
+      'Moves a holding from one of your portfolios to another — not a sale, so nothing is realized. ' +
+      'Each moved tax lot keeps its own original price, FX rate and date.',
+    args: {
+      fromPortfolioId: t.arg.id({ required: true }),
+      toPortfolioId: t.arg.id({ required: true }),
+      assetId: t.arg.id({ required: true }),
+      quantity: t.arg.float({ required: true }),
+      executedAt: t.arg.string(),
+      note: t.arg.string(),
+    },
+    resolve: async (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      const result = await transferService.transferAsset(userId, {
+        fromPortfolioId: String(args.fromPortfolioId),
+        toPortfolioId: String(args.toPortfolioId),
+        assetId: String(args.assetId),
+        quantity: args.quantity,
+        executedAt: args.executedAt ? new Date(args.executedAt) : undefined,
+        note: args.note ?? undefined,
+      });
+      return { from: result.out, to: result.in };
+    },
+  }),
+);
+
 builder.mutationField('uploadTransactionSlip', (t) =>
   t.field({
     type: SlipVerificationType,
@@ -424,6 +480,137 @@ builder.mutationField('autoMatchSlips', (t) =>
         { portfolioId: args.portfolioId ? String(args.portfolioId) : undefined },
       );
       return results.map(toSlipMatchResult);
+    },
+  }),
+);
+
+/* ------------------------- Statement import (one document, many trades) ------------------------- */
+
+const STATEMENT_ROW_STATUSES = ['CREATED', 'DUPLICATE', 'UNREADABLE', 'ERROR'] as const;
+const StatementRowStatusEnum = builder.enumType('StatementRowStatus', { values: STATEMENT_ROW_STATUSES });
+
+interface StatementRowResultShape {
+  status: (typeof STATEMENT_ROW_STATUSES)[number];
+  message: string | null;
+  transactionId: string | null;
+  orderId: string | null;
+  date: string | null;
+  transactionType: string | null;
+  symbol: string | null;
+  quantity: number | null;
+  price: number | null;
+  currency: string | null;
+}
+
+const StatementRowResultType = builder.objectRef<StatementRowResultShape>('StatementRowResult').implement({
+  fields: (t) => ({
+    status: t.field({ type: StatementRowStatusEnum, resolve: (r) => r.status }),
+    message: t.exposeString('message', { nullable: true }),
+    transactionId: t.exposeString('transactionId', { nullable: true }),
+    orderId: t.exposeString('orderId', { nullable: true }),
+    date: t.exposeString('date', { nullable: true }),
+    transactionType: t.exposeString('transactionType', { nullable: true }),
+    symbol: t.exposeString('symbol', { nullable: true }),
+    quantity: t.exposeFloat('quantity', { nullable: true }),
+    price: t.exposeFloat('price', { nullable: true }),
+    currency: t.exposeString('currency', { nullable: true }),
+  }),
+});
+
+interface StatementImportResultShape {
+  broker: string | null;
+  rows: StatementRowResultShape[];
+}
+
+const StatementImportResultType = builder.objectRef<StatementImportResultShape>('StatementImportResult').implement({
+  fields: (t) => ({
+    broker: t.exposeString('broker', { nullable: true }),
+    rows: t.field({ type: [StatementRowResultType], resolve: (r) => r.rows }),
+  }),
+});
+
+function toStatementRowResult(result: statementImportService.StatementRowResult): StatementRowResultShape {
+  return {
+    status: result.status.toUpperCase() as StatementRowResultShape['status'],
+    message: result.message,
+    transactionId: result.transactionId,
+    orderId: result.row.orderId,
+    date: result.row.date,
+    transactionType: result.row.transactionType,
+    symbol: result.row.symbol,
+    quantity: result.row.quantity,
+    price: result.row.price,
+    currency: result.row.currency,
+  };
+}
+
+const StatementGroupType = builder.objectRef<statementImportService.StatementGroup>('StatementGroup').implement({
+  fields: (t) => ({
+    symbol: t.exposeString('symbol'),
+    rowCount: t.exposeInt('rowCount'),
+    heldInPortfolioIds: t.exposeStringList('heldInPortfolioIds'),
+    suggestedPortfolioId: t.exposeString('suggestedPortfolioId', { nullable: true }),
+  }),
+});
+
+const StatementPreviewType = builder
+  .objectRef<statementImportService.StatementPreview>('StatementPreview')
+  .implement({
+    fields: (t) => ({
+      statementId: t.exposeString('statementId'),
+      broker: t.exposeString('broker', { nullable: true }),
+      groups: t.field({ type: [StatementGroupType], resolve: (p) => p.groups }),
+      unreadableCount: t.exposeInt('unreadableCount'),
+    }),
+  });
+
+const StatementAssignmentInput = builder.inputType('StatementAssignmentInput', {
+  fields: (t) => ({
+    symbol: t.string({ required: true }),
+    portfolioId: t.id({ description: 'An existing portfolio to record this asset in' }),
+    newPortfolioName: t.string({ description: 'Or the name of a new portfolio to create for it' }),
+  }),
+});
+
+builder.mutationField('previewStatement', (t) =>
+  t.field({
+    type: StatementPreviewType,
+    description:
+      'Step 1 of a statement import: reads the document (PDF or image) and groups its trade rows by asset, ' +
+      'with the portfolio each asset is already held in. Nothing is recorded until confirmStatement.',
+    args: { imageBase64: t.arg.string({ required: true }), mimeType: t.arg.string() },
+    resolve: (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      return statementImportService.previewStatement(userId, {
+        imageBase64: args.imageBase64,
+        mimeType: args.mimeType ?? undefined,
+      });
+    },
+  }),
+);
+
+builder.mutationField('confirmStatement', (t) =>
+  t.field({
+    type: StatementImportResultType,
+    description:
+      'Step 2: records every row of a previewed statement in the portfolio chosen for its asset ' +
+      '(or a new one). Safe to repeat: a row already recorded comes back as DUPLICATE.',
+    args: {
+      statementId: t.arg.string({ required: true }),
+      assignments: t.arg({ type: [StatementAssignmentInput], required: true }),
+    },
+    resolve: async (_root, args, context: GraphQLContext) => {
+      const userId = requireAuth(context);
+      const result = await statementImportService.confirmStatement(
+        userId,
+        args.statementId,
+        args.assignments.map((a) => ({
+          symbol: a.symbol,
+          portfolioId: a.portfolioId ? String(a.portfolioId) : undefined,
+          newPortfolioName: a.newPortfolioName ?? undefined,
+        })),
+      );
+      return { broker: result.broker, rows: result.rows.map(toStatementRowResult) };
     },
   }),
 );

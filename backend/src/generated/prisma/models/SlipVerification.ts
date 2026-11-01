@@ -395,11 +395,11 @@ export type SlipVerificationOrderByWithRelationInput = {
 export type SlipVerificationWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   transactionId?: string
-  imageKey?: string
   transRef?: string
   AND?: Prisma.SlipVerificationWhereInput | Prisma.SlipVerificationWhereInput[]
   OR?: Prisma.SlipVerificationWhereInput[]
   NOT?: Prisma.SlipVerificationWhereInput | Prisma.SlipVerificationWhereInput[]
+  imageKey?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   imageMimeType?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
   imageSize?: Prisma.IntNullableFilter<"SlipVerification"> | number | null
   imageUrl?: Prisma.StringNullableFilter<"SlipVerification"> | string | null
@@ -418,7 +418,7 @@ export type SlipVerificationWhereUniqueInput = Prisma.AtLeast<{
   rawPayload?: Prisma.JsonNullableFilter<"SlipVerification">
   isAmountMatched?: Prisma.BoolFilter<"SlipVerification"> | boolean
   transaction?: Prisma.XOR<Prisma.TransactionScalarRelationFilter, Prisma.TransactionWhereInput>
-}, "id" | "transactionId" | "imageKey" | "transRef">
+}, "id" | "transactionId" | "transRef">
 
 export type SlipVerificationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

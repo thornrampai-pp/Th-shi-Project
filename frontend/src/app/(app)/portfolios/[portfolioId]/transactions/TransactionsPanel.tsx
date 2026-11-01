@@ -18,10 +18,12 @@ const TYPE_LABEL: Record<string, string> = {
   TAX: "Tax",
   SPLIT: "Split",
   ADJUSTMENT: "Adjustment",
+  TRANSFER_OUT: "Transfer out",
+  TRANSFER_IN: "Transfer in",
 };
 
-/** Money leaving the portfolio's cash is shown negative. */
-const OUTFLOW = new Set(["BUY", "WITHDRAW", "FEE", "TAX"]);
+/** Money (or, for a transfer, cost basis) leaving the portfolio is shown negative. */
+const OUTFLOW = new Set(["BUY", "WITHDRAW", "FEE", "TAX", "TRANSFER_OUT"]);
 
 type Props = {
   portfolioId: string;

@@ -471,6 +471,8 @@ enum TransactionType {
   TAX // จ่ายภาษี
   SPLIT // การแตกพาร์หุ้น
   ADJUSTMENT // ปรับปรุงยอดเงินสด/หุ้นให้ตรงกับกระดานจริง
+  TRANSFER_OUT // ย้ายสินทรัพย์ออกไปอีกพอร์ตหนึ่ง (ไม่ใช่การขาย ไม่เกิดกำไร/ขาดทุน)
+  TRANSFER_IN // รับสินทรัพย์ที่ย้ายมาจากอีกพอร์ตหนึ่ง (คงต้นทุนและวันที่ซื้อเดิม)
 }
 
 /// สถานะของธุรกรรม
@@ -528,7 +530,8 @@ model RebalanceLog {
 model SlipVerification {
   id            String  @id @default(uuid())
   transactionId String  @unique // ผูกกับ Transaction หลัก 1:1
-  imageKey      String? @unique // object key ของรูปสลิปใน Cloudflare R2 (อ่านผ่าน presigned URL เท่านั้น)
+  imageKey      String? // object key ของรูปสลิปใน Cloudflare R2 (อ่านผ่าน presigned URL เท่านั้น) — ไม่ unique
+  // เพราะธุรกรรมหลายรายการที่นำเข้าจาก statement เดียวกันพร้อมกันแชร์ไฟล์ต้นฉบับไฟล์เดียวกันได้
   imageMimeType String? // MIME type ที่ตรวจจาก magic bytes ตอนอัปโหลด (image/jpeg, image/png, ...)
   imageSize     Int? // ขนาดไฟล์ (bytes)
   imageUrl      String? // LEGACY: data URI base64 จากเวอร์ชันก่อนใช้ R2 — ย้ายด้วย npm run slips:migrate-to-r2 แล้วจะเป็น null

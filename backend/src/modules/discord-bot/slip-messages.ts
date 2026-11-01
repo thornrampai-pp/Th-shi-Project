@@ -3,6 +3,7 @@
 import { prisma } from '../../config/prisma';
 import type { SlipExtraction } from '../../common/integrations/gemini.util';
 import type { SlipBatchItemResult, SlipTradeDraft } from '../transaction/slip.service';
+import type { StatementImportSummary } from '../transaction/statement-import.service';
 
 /** The transaction ids a result refers to, for loadTransactionSummaries(). */
 export function transactionIdsOf(result: SlipBatchItemResult): string[] {
@@ -90,6 +91,29 @@ export function describeSlip(extracted: SlipExtraction): string {
   const amount = extracted.amount != null ? formatMoney(extracted.amount) : '-';
   const order = extracted.orderRef ? `, Order: ${extracted.orderRef}` : '';
   return `ยอด ${amount} ${extracted.currency ?? 'THB'}, Ref: ${extracted.transRef ?? '-'}${order}`;
+}
+
+/** The follow-up message for /upload-statement — a summary, since a statement can have
+ * far more rows than fit in one Discord message (the 2000-char limit). */
+export function describeStatementResult(result: StatementImportSummary): string {
+  const { rows } = result;
+  const count = (status: StatementImportSummary['rows'][number]['status']) =>
+    rows.filter((r) => r.status === status).length;
+
+  const header = `📄 ${result.broker ?? 'Statement'} — ${rows.length} รายการ`;
+  const summary =
+    `🆕 บันทึกใหม่ ${count('created')} · ⏭️ ซ้ำ (ข้าม) ${count('duplicate')} · ` +
+    `❓ อ่านไม่ได้ ${count('unreadable')} · ❌ error ${count('error')}`;
+
+  const MAX_LISTED = 15;
+  const problems = rows.filter((r) => r.status === 'unreadable' || r.status === 'error');
+  const lines = problems.slice(0, MAX_LISTED).map((r) => {
+    const label = [r.row.orderId ? `Order ${r.row.orderId}` : null, r.row.symbol].filter(Boolean).join(' ');
+    return `${r.status === 'error' ? '❌' : '❓'} ${label || '(ไม่ทราบรายการ)'} — ${r.message ?? ''}`;
+  });
+  const more = problems.length > MAX_LISTED ? `\n...และอีก ${problems.length - MAX_LISTED} รายการที่มีปัญหา` : '';
+
+  return [header, summary, ...lines].join('\n') + more;
 }
 
 export function describeDraft(draft: SlipTradeDraft): string {

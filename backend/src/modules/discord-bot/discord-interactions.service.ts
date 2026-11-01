@@ -1,6 +1,8 @@
 import { prisma } from '../../config/prisma';
 import { redis } from '../../config/redis';
 import { autoMatchSlips } from '../transaction/slip.service';
+import { previewStatement } from '../transaction/statement-import.service';
+import type { StatementAssignment } from '../transaction/statement-import.service';
 import {
   CHOICE_NAME_MAX,
   INTERACTION_TYPE_AUTOCOMPLETE,
@@ -19,6 +21,7 @@ import {
 } from './discord-api';
 import type { DiscordAttachment, DiscordInteraction, DiscordInteractionResponse, DiscordMessage } from './discord-api';
 import { describeResult, loadTransactionSummaries, transactionIdsOf } from './slip-messages';
+import { finishStatement, handleStatementInteraction, isStatementCustomId, openStatementPrompt } from './statement-prompts';
 import { downloadAttachment, handleSlipInteraction, isSlipCustomId, needsPrompt, openSlipPrompt } from './slip-prompts';
 
 export type { DiscordInteraction, DiscordInteractionResponse } from './discord-api';
@@ -27,6 +30,8 @@ export type { DiscordInteraction, DiscordInteractionResponse } from './discord-a
 const SLIP_IMAGE_OPTIONS = ['image1', 'image2', 'image3', 'image4', 'image5'];
 const SLIP_PORTFOLIO_OPTION = 'portfolio';
 const SLIP_NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+const STATEMENT_DOCUMENT_OPTION = 'document';
+const STATEMENT_PORTFOLIO_OPTION = 'portfolio';
 
 export function isPing(interaction: DiscordInteraction): boolean {
   return interaction.type === INTERACTION_TYPE_PING;
@@ -63,6 +68,13 @@ export async function handleInteraction(interaction: DiscordInteraction): Promis
     return handleSlipInteraction(interaction, discordUserId);
   }
 
+  if (
+    (interaction.type === INTERACTION_TYPE_COMPONENT || interaction.type === INTERACTION_TYPE_MODAL_SUBMIT) &&
+    isStatementCustomId(interaction.data?.custom_id)
+  ) {
+    return handleStatementInteraction(interaction, discordUserId);
+  }
+
   if (commandName === 'link') {
     return handleLinkCommand(interaction, discordUserId);
   }
@@ -70,6 +82,13 @@ export async function handleInteraction(interaction: DiscordInteraction): Promis
   if (commandName === 'upload-slip') {
     processUploadSlipAsync(interaction, discordUserId).catch((err) => {
       console.error('❌ Discord upload-slip processing failed:', err);
+    });
+    return { type: RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE };
+  }
+
+  if (commandName === 'upload-statement') {
+    processUploadStatementAsync(interaction, discordUserId).catch((err) => {
+      console.error('❌ Discord upload-statement processing failed:', err);
     });
     return { type: RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE };
   }
@@ -121,7 +140,10 @@ async function handleAutocomplete(
   discordUserId: string,
 ): Promise<DiscordInteractionResponse> {
   const focused = interaction.data?.options?.find((o) => o.focused);
-  if (interaction.data?.name !== 'upload-slip' || focused?.name !== SLIP_PORTFOLIO_OPTION) {
+  const isPortfolioOption =
+    (interaction.data?.name === 'upload-slip' && focused?.name === SLIP_PORTFOLIO_OPTION) ||
+    (interaction.data?.name === 'upload-statement' && focused?.name === STATEMENT_PORTFOLIO_OPTION);
+  if (!isPortfolioOption) {
     return { type: RESPONSE_TYPE_AUTOCOMPLETE_RESULT, data: { choices: [] } };
   }
 
@@ -266,5 +288,82 @@ async function processUploadSlipAsync(interaction: DiscordInteraction, discordUs
       followupUrl,
       `❌ อ่านสลิปไม่สำเร็จ: ${err instanceof Error ? err.message : 'unknown error'}`,
     );
+  }
+}
+
+/**
+ * One document, many trades. Each asset goes to the portfolio that already holds it; the
+ * ones that can't be placed on their own (held nowhere / in several) go to the optional
+ * `portfolio` option, or — without it — are asked about in a follow-up prompt.
+ */
+async function processUploadStatementAsync(interaction: DiscordInteraction, discordUserId: string): Promise<void> {
+  const followupUrl = originalMessageUrl(interaction);
+
+  try {
+    const user = await prisma.user.findUnique({ where: { discordUserId } });
+    if (!user) {
+      await editMessage(followupUrl, '❌ ยังไม่ได้เชื่อมบัญชี Discord กับแอป — รัน /link ก่อน');
+      return;
+    }
+
+    const attachmentId = interaction.data?.options?.find((o) => o.name === STATEMENT_DOCUMENT_OPTION)?.value;
+    const attachment = attachmentId ? interaction.data?.resolved?.attachments?.[attachmentId] : undefined;
+    if (!attachment) {
+      await editMessage(followupUrl, '❌ กรุณาแนบไฟล์ statement');
+      return;
+    }
+
+    const portfolioValue = interaction.data?.options?.find((o) => o.name === STATEMENT_PORTFOLIO_OPTION)?.value;
+    const fallback = await resolvePortfolioOption(user.id, portfolioValue);
+    if (fallback === 'not_found') {
+      await editMessage(followupUrl, `❌ ไม่พบพอร์ต "${portfolioValue}" — เลือกจากรายการที่ขึ้นมาตอนพิมพ์`);
+      return;
+    }
+
+    await editMessage(followupUrl, '📥 กำลังอ่าน statement...');
+
+    const download = await downloadAttachment({ url: attachment.url, contentType: attachment.content_type, size: attachment.size });
+    if ('error' in download) {
+      await editMessage(followupUrl, download.error);
+      return;
+    }
+
+    const preview = await previewStatement(user.id, download, {
+      onAttemptFailed: async (attempt, max) => {
+        await editMessage(
+          followupUrl,
+          attempt < max ? `⏳ attempt ${attempt}/${max} failed, retrying...` : `❌ attempt ${attempt}/${max} failed`,
+        );
+      },
+    });
+
+    const resolved: StatementAssignment[] = [];
+    const unresolvedSymbols: string[] = [];
+    for (const group of preview.groups) {
+      const portfolioId = group.suggestedPortfolioId ?? fallback?.id;
+      if (portfolioId) resolved.push({ symbol: group.symbol, portfolioId });
+      else unresolvedSymbols.push(group.symbol);
+    }
+
+    if (unresolvedSymbols.length === 0) {
+      await editMessage(followupUrl, await finishStatement(user.id, preview.statementId, resolved));
+      return;
+    }
+
+    await editMessage(
+      followupUrl,
+      await openStatementPrompt({
+        statementId: preview.statementId,
+        userId: user.id,
+        discordUserId,
+        resolved,
+        unresolvedSymbols,
+      }),
+    );
+  } catch (err) {
+    await editMessage(
+      followupUrl,
+      `❌ นำเข้า statement ไม่สำเร็จ: ${err instanceof Error ? err.message : 'unknown error'}`,
+    ).catch(() => undefined);
   }
 }

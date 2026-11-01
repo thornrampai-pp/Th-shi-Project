@@ -6,6 +6,7 @@ const ACTION_LABEL: Record<string, string> = {
   DELETE_PORTFOLIO: "Deleted a portfolio",
   CREATE_TRANSACTION: "Recorded a transaction",
   FORCE_REBALANCE: "Recorded a rebalance",
+  TRANSFER_ASSET: "Transferred an asset between portfolios",
 };
 
 function summarize(metadataJson: string | null): string {

@@ -6,6 +6,7 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0
 const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBPVP8 ')]);
 const HEIC = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypheic'), Buffer.alloc(4)]);
 const PDF = Buffer.from('%PDF-1.7\n');
+const HTML = Buffer.from('<!DOCTYPE html><html></html>');
 const b64 = (buf: Buffer) => buf.toString('base64');
 
 describe('sniffImageType', () => {
@@ -14,7 +15,8 @@ describe('sniffImageType', () => {
     [PNG, 'image/png'],
     [WEBP, 'image/webp'],
     [HEIC, 'image/heic'],
-    [PDF, null],
+    [PDF, 'application/pdf'],
+    [HTML, null],
     [Buffer.alloc(0), null],
   ])('detects %#', (bytes, expected) => {
     expect(sniffImageType(bytes)).toBe(expected);
@@ -37,8 +39,12 @@ describe('decodeAndValidateImage', () => {
     expect(decodeAndValidateImage(b64(WEBP), undefined, 1024).mimeType).toBe('image/webp');
   });
 
-  it('rejects files that are not allowed images', () => {
-    expect(() => decodeAndValidateImage(b64(PDF), 'image/jpeg', 1024)).toThrow(/Unsupported/);
+  it('accepts a PDF', () => {
+    expect(decodeAndValidateImage(b64(PDF), 'application/pdf', 1024).mimeType).toBe('application/pdf');
+  });
+
+  it('rejects files that are not an allowed type', () => {
+    expect(() => decodeAndValidateImage(b64(HTML), 'image/jpeg', 1024)).toThrow(/Unsupported/);
   });
 
   it('rejects a declared type that contradicts the content', () => {

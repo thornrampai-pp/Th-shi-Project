@@ -189,6 +189,29 @@ async function valuatePortfolio(
 }
 
 /**
+ * What a TRANSFER put into / took out of the portfolio's equity: the moved shares at the
+ * period-end close — the same price the snapshot values every other holding at, so the
+ * flow and the valuation cancel exactly and the transfer itself shows as 0% return.
+ * Falls back to cost when the asset has no stored price yet (as valuatePortfolio does).
+ */
+async function transferMarketValue(
+  t: { mainAssetId: string | null; mainQuantity: unknown; baseCurrAmount: unknown },
+  asOf: Date,
+  baseCurrency: string,
+  rateTo: ReturnType<typeof createRateResolver>,
+): Promise<number> {
+  if (!t.mainAssetId || t.mainQuantity == null) return 0;
+  const asset = await prisma.asset.findUnique({ where: { id: t.mainAssetId } });
+  if (!asset) return 0;
+  const close = await prisma.assetPrice.findFirst({
+    where: { assetId: asset.id, timeframe: "1D", timestamp: { lte: asOf } },
+    orderBy: { timestamp: "desc" },
+  });
+  const value = close ? Number(t.mainQuantity) * Number(close.closePrice) : Number(t.baseCurrAmount ?? 0);
+  return value * (await rateTo(asset.currency, baseCurrency));
+}
+
+/**
  * Creates (or replaces) the snapshot for one portfolio on one UTC day. A snapshot
  * dated D values the portfolio at the END of D (or now, if D is today), with that
  * day's prices and FX — so rebuilding a past day always gives the same result.
@@ -212,17 +235,23 @@ export async function createSnapshot(
   });
 
   const periodStart = previousSnapshot ? endOfUtcDay(previousSnapshot.date) : new Date(0);
-  const cashMovements = await prisma.transaction.findMany({
+  // Money — or, for a transfer, shares — that crossed the portfolio's boundary this period.
+  const externalFlows = await prisma.transaction.findMany({
     where: {
       portfolioId,
       status: "COMPLETED",
-      type: { in: ["DEPOSIT", "WITHDRAW"] },
+      type: { in: ["DEPOSIT", "WITHDRAW", "TRANSFER_IN", "TRANSFER_OUT"] },
       executedAt: { gt: periodStart, lte: asOf },
     },
   });
   const rateTo = createRateResolver(asOf);
   let netCashFlow = 0;
-  for (const t of cashMovements) {
+  for (const t of externalFlows) {
+    if (t.type === "TRANSFER_IN" || t.type === "TRANSFER_OUT") {
+      const value = await transferMarketValue(t, asOf, valuation.currency, rateTo);
+      netCashFlow += t.type === "TRANSFER_IN" ? value : -value;
+      continue;
+    }
     const amount = t.baseCurrAmount != null ? Number(t.baseCurrAmount) : 0;
     const meta = (t.metadata ?? {}) as { currency?: string };
     const fx = await rateTo(meta.currency ?? valuation.currency, valuation.currency);

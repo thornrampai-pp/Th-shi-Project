@@ -1,7 +1,8 @@
 /**
  * Pure reconstruction of positions at any point in time from the transaction log.
  * Mirrors the accounting in transaction.service.ts (weighted-average cost incl. fees on
- * BUY, FIFO lot consumption + realizedPL on SELL, ratio scaling on SPLIT), so a
+ * BUY, FIFO lot consumption + realizedPL on SELL, ratio scaling on SPLIT) and
+ * transfer.service.ts (TRANSFER_OUT/IN move lots between portfolios, no P/L), so a
  * snapshot for a past date sees the portfolio exactly as it was that day — the
  * Position table only ever holds the current state.
  */
@@ -93,6 +94,34 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
         break;
       }
 
+      case 'TRANSFER_OUT': {
+        if (quantity <= 0) break;
+        // FIFO like SELL, but the cost basis leaves with the shares — nothing is realized.
+        let remaining = quantity;
+        for (const lot of position.lots) {
+          if (remaining <= EPSILON) break;
+          const take = Math.min(lot.quantity, remaining);
+          lot.quantity -= take;
+          remaining -= take;
+        }
+        position.lots = position.lots.filter((lot) => lot.quantity > EPSILON);
+        position.quantity = Math.max(0, position.quantity - quantity);
+        position.avgPrice = remainingAvgCost(position.lots, position.quantity);
+        break;
+      }
+
+      case 'TRANSFER_IN': {
+        if (quantity <= 0) break;
+        const moved = transferredLotsOf(tx, quantity, price);
+        const movedCost = moved.reduce((sum, lot) => sum + lot.quantity * lot.unitCost, 0);
+        const newQuantity = position.quantity + quantity;
+        position.avgPrice = (position.quantity * position.avgPrice + movedCost) / newQuantity;
+        position.quantity = newQuantity;
+        position.lots.push(...moved);
+        position.lots.sort((a, b) => a.executedAt.getTime() - b.executedAt.getTime());
+        break;
+      }
+
       case 'DIVIDEND':
         position.totalDiv += tx.baseCurrAmount ?? 0;
         break;
@@ -112,6 +141,31 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
   }
 
   return positions;
+}
+
+/**
+ * The lots a TRANSFER_IN brought over, each with its ORIGINAL price and purchase date
+ * (transfer.service.ts stores them in the metadata) so a later SELL here consumes the
+ * same lots, in the same order, as it did on the real TaxLots. Falls back to one lot at
+ * the transfer's average cost if the metadata is missing or doesn't add up.
+ */
+function transferredLotsOf(tx: ReplayTransaction, quantity: number, avgCost: number): ReplayLot[] {
+  const fallback: ReplayLot[] = [{ quantity, unitCost: avgCost, executedAt: tx.executedAt }];
+  const meta = (tx.metadata ?? {}) as { lots?: unknown };
+  if (!Array.isArray(meta.lots) || meta.lots.length === 0) return fallback;
+
+  const lots: ReplayLot[] = [];
+  for (const raw of meta.lots) {
+    const lot = raw as { quantity?: unknown; unitCost?: unknown; executedAt?: unknown };
+    const executedAt = typeof lot.executedAt === 'string' ? new Date(lot.executedAt) : null;
+    if (typeof lot.quantity !== 'number' || typeof lot.unitCost !== 'number' || !executedAt || Number.isNaN(executedAt.getTime())) {
+      return fallback;
+    }
+    lots.push({ quantity: lot.quantity, unitCost: lot.unitCost, executedAt });
+  }
+
+  const total = lots.reduce((sum, lot) => sum + lot.quantity, 0);
+  return Math.abs(total - quantity) <= 1e-6 * Math.max(1, quantity) ? lots : fallback;
 }
 
 function remainingAvgCost(lots: ReplayLot[], quantity: number): number {

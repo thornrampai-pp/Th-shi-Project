@@ -191,3 +191,29 @@ export async function recordTransactionAction(portfolioId: string, input: NewTra
     await serverQuery(RecordTransactionMutation, variables);
   });
 }
+
+const TransferAssetMutation = graphql(`
+  mutation TransferAsset($fromPortfolioId: ID!, $toPortfolioId: ID!, $assetId: ID!, $quantity: Float!, $note: String) {
+    transferAsset(
+      fromPortfolioId: $fromPortfolioId
+      toPortfolioId: $toPortfolioId
+      assetId: $assetId
+      quantity: $quantity
+      note: $note
+    ) {
+      from {
+        id
+      }
+      to {
+        id
+      }
+    }
+  }
+`);
+
+export async function transferAssetAction(
+  fromPortfolioId: string,
+  input: { toPortfolioId: string; assetId: string; quantity: number; note?: string },
+) {
+  return run(() => serverQuery(TransferAssetMutation, { fromPortfolioId, ...input }));
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { formatMoney, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
 import AllocationDonut from "../AllocationDonut";
-import { loadPortfolio } from "../data";
+import { getPortfolioList, loadPortfolio } from "../data";
 import StatCard from "../StatCard";
 import HoldingsPanel from "./HoldingsPanel";
 
@@ -17,6 +17,7 @@ export default async function PortfolioPage({ params }: Props) {
   const portfolio = await loadPortfolio((await params).portfolioId);
   if (!portfolio) notFound();
   const { currency } = portfolio;
+  const portfolios = await getPortfolioList();
 
   return (
     <>
@@ -40,7 +41,12 @@ export default async function PortfolioPage({ params }: Props) {
         </div>
       </div>
 
-      <HoldingsPanel portfolioId={portfolio.id} currency={currency} holdings={portfolio.holdings} />
+      <HoldingsPanel
+        portfolioId={portfolio.id}
+        currency={currency}
+        holdings={portfolio.holdings}
+        portfolios={portfolios}
+      />
     </>
   );
 }

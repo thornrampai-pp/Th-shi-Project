@@ -13,6 +13,8 @@ import {
   missingDraftFields,
 } from '../transaction/slip.service';
 import type { SlipBatchItemResult, SlipTradeDraft, SlipUpload } from '../transaction/slip.service';
+import { createPortfolio } from '../portfolio/portfolio.service';
+import { AppError } from '../../common/errors/AppError';
 import {
   MESSAGE_FLAG_EPHEMERAL,
   RESPONSE_TYPE_CHANNEL_MESSAGE,
@@ -135,6 +137,42 @@ export async function handleSlipInteraction(
       await save(id, pending);
       return update(await promptFor(id, pending));
 
+    case 'newportfolio':
+      return { type: RESPONSE_TYPE_MODAL, data: portfolioFormFor(id) };
+
+    case 'portfolio_submit': {
+      const values = modalValues(interaction);
+      const name = (values.get('name') ?? '').trim();
+      const currency = (values.get('currency') ?? '').trim().toUpperCase() || 'THB';
+      if (!name) {
+        pending.message = 'กรอกชื่อพอร์ต';
+        await save(id, pending);
+        return update(await promptFor(id, pending));
+      }
+      try {
+        const portfolio = await createPortfolio(pending.userId, {
+          name,
+          strategy: 'VALUE',
+          baseCurrency: currency,
+          type: 'REAL',
+          isMargin: false,
+        });
+        pending.portfolioId = portfolio.id;
+        pending.message = null;
+      } catch (err) {
+        pending.message = err instanceof AppError ? err.message : 'สร้างพอร์ตไม่สำเร็จ — ลองอีกครั้ง';
+      }
+      await save(id, pending);
+      // Discord can't respond to a modal submit with another modal, so this can't call
+      // nextStep() directly — it might want to show the trade-details form. Land on the
+      // prompt instead; its "📝 กรอกข้อมูล" button (a fresh component interaction) opens that.
+      if (!pending.portfolioId) return update(await promptFor(id, pending));
+      const ready =
+        missingDraftFields(pending.draft).length === 0 && pending.extracted.confidence !== 'low' && !pending.message;
+      if (!ready) return update(await promptFor(id, pending));
+      return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, false));
+    }
+
     case 'form':
       return { type: RESPONSE_TYPE_MODAL, data: formFor(id, pending) };
 
@@ -250,8 +288,13 @@ async function promptFor(id: string, pending: PendingSlip): Promise<DiscordMessa
       orderBy: { name: 'asc' },
       take: SELECT_MAX_OPTIONS,
     });
+    const newPortfolioButton = button(customId('newportfolio', id), '➕ สร้างพอร์ตใหม่', portfolios.length === 0);
+
     if (portfolios.length === 0) {
-      return { content: `${header}\nยังไม่มีพอร์ต — สร้างพอร์ตในแอปก่อน แล้วส่งสลิปใหม่`, components: [] };
+      return {
+        content: `${header}\nยังไม่มีพอร์ตเลย — สร้างพอร์ตแรกได้เลยที่นี่${note}`,
+        components: [actionRow(newPortfolioButton, cancel)],
+      };
     }
     return {
       content: `${header}\nไม่พบรายการที่ตรงกัน — เลือกพอร์ตที่จะเพิ่มรายการนี้${note}`,
@@ -263,7 +306,7 @@ async function promptFor(id: string, pending: PendingSlip): Promise<DiscordMessa
             portfolios.map((p) => ({ label: `${p.name} (${p.type})`, value: p.id })),
           ),
         ),
-        actionRow(cancel),
+        actionRow(newPortfolioButton, cancel),
       ],
     };
   }
@@ -285,6 +328,17 @@ async function promptFor(id: string, pending: PendingSlip): Promise<DiscordMessa
         button(customId('change', id), 'เปลี่ยนพอร์ต'),
         cancel,
       ),
+    ],
+  };
+}
+
+function portfolioFormFor(id: string): DiscordModal {
+  return {
+    custom_id: customId('portfolio_submit', id),
+    title: 'สร้างพอร์ตใหม่',
+    components: [
+      textInputRow('name', 'ชื่อพอร์ต', null, true),
+      textInputRow('currency', 'สกุลเงินหลัก (ไม่บังคับ, ค่าเริ่มต้น THB)', null, false),
     ],
   };
 }

@@ -13,6 +13,7 @@
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
     "discord:register-commands": "ts-node scripts/register-discord-commands.ts",
+    "discord:dm": "ts-node scripts/send-discord-dm.ts",
     "slips:migrate-to-r2": "ts-node scripts/migrate-slip-images-to-r2.ts"
   },
   "keywords": [],

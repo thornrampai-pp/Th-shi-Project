@@ -1,4 +1,5 @@
 import { env } from '../../config/env';
+import { recordDiscordEvent } from '../monitoring/usage-metrics';
 
 export interface DiscordEmbedField {
   name: string;
@@ -27,6 +28,16 @@ const DISCORD_API = 'https://discord.com/api/v10';
  * an account) is the only delivery channel.
  */
 export async function sendDiscordDirectMessage(discordUserId: string, content: string): Promise<void> {
+  try {
+    await sendDirectMessage(discordUserId, content);
+    recordDiscordEvent('dm', true);
+  } catch (err) {
+    recordDiscordEvent('dm', false);
+    throw err;
+  }
+}
+
+async function sendDirectMessage(discordUserId: string, content: string): Promise<void> {
   const token = env.DISCORD_BOT_TOKEN;
   if (!token) {
     throw new Error('DISCORD_BOT_TOKEN is not configured');

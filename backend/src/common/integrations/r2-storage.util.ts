@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env';
+import { recordR2Operation } from '../monitoring/usage-metrics';
 
 /**
  * Cloudflare R2 through its S3-compatible API. The bucket is private — objects are
@@ -30,6 +31,7 @@ export async function putObject(key: string, body: Buffer, contentType: string):
   await getClient().send(
     new PutObjectCommand({ Bucket: env.R2_BUCKET, Key: key, Body: body, ContentType: contentType, ContentLength: body.length }),
   );
+  recordR2Operation('classA');
 }
 
 export async function deleteObject(key: string): Promise<void> {
@@ -37,5 +39,8 @@ export async function deleteObject(key: string): Promise<void> {
 }
 
 export async function getPresignedReadUrl(key: string, ttlSeconds = env.R2_PRESIGN_TTL_SECONDS): Promise<string> {
-  return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: key }), { expiresIn: ttlSeconds });
+  const url = await getSignedUrl(getClient(), new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: key }), { expiresIn: ttlSeconds });
+  // Signing is local — the GetObject (Class B) happens when the browser opens the URL.
+  recordR2Operation('classB');
+  return url;
 }

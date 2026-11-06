@@ -13,6 +13,11 @@ const optionalString = z.preprocess(
   z.string().optional(),
 );
 
+const optionalPositiveInt = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.coerce.number().int().positive().optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -57,6 +62,12 @@ const envSchema = z.object({
   FMP_API_KEY: optionalString, // reserved — FMP integration is not implemented yet
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
+  // Gemini's quota for your tier/model (see AI Studio → Rate limits). The API doesn't
+  // report it, so the admin System page compares its own call counts to these. Unset =
+  // usage shown without a limit.
+  GEMINI_RPM_LIMIT: optionalPositiveInt, // requests per minute
+  GEMINI_TPM_LIMIT: optionalPositiveInt, // tokens per minute
+  GEMINI_RPD_LIMIT: optionalPositiveInt, // requests per day (resets midnight Pacific)
   DISCORD_PUBLIC_KEY: optionalString, // required only when the Discord bot is enabled
   DISCORD_BOT_TOKEN: optionalString,
   DISCORD_APPLICATION_ID: optionalString,
@@ -73,6 +84,9 @@ const envSchema = z.object({
   // Daily storage check: alert ADMIN users (SYSTEM_ALERT) when slip images use more than
   // these percentages of the quota. Default quota = R2 free tier (10 GB).
   R2_STORAGE_QUOTA_BYTES: z.coerce.number().int().positive().default(10 * 1024 ** 3),
+  // Monthly R2 operation allowance shown on the System page. Defaults = R2 free tier.
+  R2_CLASS_A_MONTHLY_LIMIT: z.coerce.number().int().positive().default(1_000_000),
+  R2_CLASS_B_MONTHLY_LIMIT: z.coerce.number().int().positive().default(10_000_000),
   R2_STORAGE_ALERT_PERCENTS: z
     .string()
     .default("80,90,100")

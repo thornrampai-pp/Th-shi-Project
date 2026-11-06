@@ -11,6 +11,7 @@ const AppShellMeQuery = graphql(`
     me {
       email
       firstName
+      role
     }
     dataSyncedAt
   }
@@ -29,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span className="hidden text-sm font-semibold tracking-wide sm:inline">Tōshi</span>
           </Link>
 
-          <NavLinks />
+          <NavLinks isAdmin={me?.role === "ADMIN"} />
 
           <div className="ml-auto flex shrink-0 items-center gap-3">
             {name && (

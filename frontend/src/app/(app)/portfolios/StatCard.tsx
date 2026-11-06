@@ -8,8 +8,8 @@ export default function StatCard({
   valueClassName,
 }: {
   label: string;
-  value: string;
-  detail?: string;
+  value: React.ReactNode;
+  detail?: React.ReactNode;
   valueClassName?: string;
 }) {
   return (

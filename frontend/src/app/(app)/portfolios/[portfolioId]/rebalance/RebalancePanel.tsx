@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { recordRebalanceAction, setTargetWeightAction } from "@/actions/rebalance";
+import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatQuantity, formatSignedPct, plColor } from "@/lib/format";
 import { formatDate } from "@/lib/dates";
 import type { Holding, RebalanceDriftItem, RebalanceLog } from "../../data";
@@ -130,8 +131,8 @@ export default function RebalancePanel({ portfolioId, currency, holdings, driftI
                     ) : (
                       <span className={row.suggestedValue > 0 ? "text-gain" : "text-loss"}>
                         {row.suggestedValue > 0 ? "Buy" : "Sell"}{" "}
-                        {row.suggestedQuantity != null ? formatQuantity(Math.abs(row.suggestedQuantity)) : ""}{" "}
-                        ({formatMoney(Math.abs(row.suggestedValue), currency)})
+                        {row.suggestedQuantity != null && <Private>{formatQuantity(Math.abs(row.suggestedQuantity))}</Private>}{" "}
+                        (<Private>{formatMoney(Math.abs(row.suggestedValue), currency)}</Private>)
                       </span>
                     )}
                   </td>
@@ -156,7 +157,7 @@ export default function RebalancePanel({ portfolioId, currency, holdings, driftI
                   {log.description && <p className="truncate text-xs text-muted-foreground">{log.description}</p>}
                 </div>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatMoney(log.totalValueBefore, currency)}
+                  <Private>{formatMoney(log.totalValueBefore, currency)}</Private>
                 </span>
               </li>
             ))}

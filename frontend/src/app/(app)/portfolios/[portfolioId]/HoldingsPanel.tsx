@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatQuantity, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
 import type { Holding, PortfolioListItem } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
@@ -104,7 +105,9 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
                   </Link>
                   <p className="max-w-48 truncate text-xs text-muted-foreground">{h.name}</p>
                 </td>
-                <td className="px-4 py-2.5 text-right">{formatQuantity(h.quantity)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <Private>{formatQuantity(h.quantity)}</Private>
+                </td>
                 <td className="px-4 py-2.5 text-right">{h.weight.toFixed(1)}%</td>
                 <td className="px-4 py-2.5 text-right">{formatMoney(h.avgPrice)}</td>
                 <td className="px-4 py-2.5 text-right">
@@ -113,9 +116,11 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
                     <PriceAsOf source={h.priceSource} iso={h.priceAsOf} />
                   </p>
                 </td>
-                <td className="px-4 py-2.5 text-right">{formatMoney(h.marketValue)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <Private>{formatMoney(h.marketValue)}</Private>
+                </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(h.unrealizedPL)}`}>
-                  {formatSignedMoney(h.unrealizedPL)}
+                  <Private>{formatSignedMoney(h.unrealizedPL)}</Private>
                   <p className="text-xs">{formatSignedPct(h.unrealizedPLPct)}</p>
                 </td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">

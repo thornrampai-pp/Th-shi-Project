@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Private } from "@/components/AmountPrivacy";
 import { formatDate } from "@/lib/dates";
 import { formatMoney, formatQuantity, formatSignedMoney, plColor } from "@/lib/format";
 import type { Transaction } from "../../data";
@@ -94,25 +95,31 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
                 <td className="px-4 py-2.5 font-semibold">{t.assetSymbol ?? "—"}</td>
                 <td className="px-4 py-2.5 text-right">
                   {t.quantity != null && t.price != null ? (
-                    `${formatQuantity(t.quantity)} × ${formatMoney(t.price)}`
+                    <>
+                      <Private>{formatQuantity(t.quantity)}</Private> × {formatMoney(t.price)}
+                    </>
                   ) : t.quantity != null ? (
-                    formatQuantity(t.quantity)
+                    <Private>{formatQuantity(t.quantity)}</Private>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                  {t.amount != null ? formatSignedMoney(OUTFLOW.has(t.type) ? -t.amount : t.amount, t.currency ?? undefined) : "—"}
+                  {t.amount != null ? (
+                    <Private>{formatSignedMoney(OUTFLOW.has(t.type) ? -t.amount : t.amount, t.currency ?? undefined)}</Private>
+                  ) : (
+                    "—"
+                  )}
                   {(t.fee > 0 || t.taxWithheld > 0) && (
                     <p className="text-xs text-muted-foreground">
-                      {t.fee > 0 && `fee ${formatMoney(t.fee)}`}
+                      {t.fee > 0 && <>fee <Private>{formatMoney(t.fee)}</Private></>}
                       {t.fee > 0 && t.taxWithheld > 0 && " · "}
-                      {t.taxWithheld > 0 && `tax ${formatMoney(t.taxWithheld)}`}
+                      {t.taxWithheld > 0 && <>tax <Private>{formatMoney(t.taxWithheld)}</Private></>}
                     </p>
                   )}
                 </td>
                 <td className={`px-4 py-2.5 text-right ${t.realizedPL != null ? plColor(t.realizedPL) : ""}`}>
-                  {t.realizedPL != null ? formatSignedMoney(t.realizedPL) : <span className="text-muted-foreground">—</span>}
+                  {t.realizedPL != null ? <Private>{formatSignedMoney(t.realizedPL)}</Private> : <span className="text-muted-foreground">—</span>}
                 </td>
                 <td className="px-4 py-2.5 text-center">
                   {t.hasSlip ? (

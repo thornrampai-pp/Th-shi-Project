@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatQuantity, formatSignedMoney, plColor } from "@/lib/format";
 import { getFxBreakdown } from "../../data";
 import { loadPortfolio } from "../../data";
@@ -49,29 +50,31 @@ export default async function FxBreakdownPage({ params }: Props) {
                   <p className="font-semibold">{p.symbol}</p>
                   <p className="text-xs text-muted-foreground">{p.currency}</p>
                 </td>
-                <td className="px-4 py-2.5 text-right">{formatQuantity(p.quantity)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <Private>{formatQuantity(p.quantity)}</Private>
+                </td>
                 <td className="px-4 py-2.5 text-right">
                   {p.currentFxRate != null ? formatMoney(p.currentFxRate) : <span className="text-muted-foreground">—</span>}
                 </td>
                 <td className={`px-4 py-2.5 text-right ${p.unrealizedStockPLHome != null ? plColor(p.unrealizedStockPLHome) : ""}`}>
                   {p.unrealizedStockPLHome != null ? (
-                    formatSignedMoney(p.unrealizedStockPLHome, homeCurrency)
+                    <Private>{formatSignedMoney(p.unrealizedStockPLHome, homeCurrency)}</Private>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className={`px-4 py-2.5 text-right ${p.unrealizedFxPLHome != null ? plColor(p.unrealizedFxPLHome) : ""}`}>
                   {p.unrealizedFxPLHome != null ? (
-                    formatSignedMoney(p.unrealizedFxPLHome, homeCurrency)
+                    <Private>{formatSignedMoney(p.unrealizedFxPLHome, homeCurrency)}</Private>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(p.realizedStockPLHome)}`}>
-                  {formatSignedMoney(p.realizedStockPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(p.realizedStockPLHome, homeCurrency)}</Private>
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(p.realizedFxPLHome)}`}>
-                  {formatSignedMoney(p.realizedFxPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(p.realizedFxPLHome, homeCurrency)}</Private>
                 </td>
               </tr>
             ))}
@@ -83,16 +86,16 @@ export default async function FxBreakdownPage({ params }: Props) {
                   Total
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(totals.unrealizedStockPLHome)}`}>
-                  {formatSignedMoney(totals.unrealizedStockPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(totals.unrealizedStockPLHome, homeCurrency)}</Private>
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(totals.unrealizedFxPLHome)}`}>
-                  {formatSignedMoney(totals.unrealizedFxPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(totals.unrealizedFxPLHome, homeCurrency)}</Private>
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(totals.realizedStockPLHome)}`}>
-                  {formatSignedMoney(totals.realizedStockPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(totals.realizedStockPLHome, homeCurrency)}</Private>
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(totals.realizedFxPLHome)}`}>
-                  {formatSignedMoney(totals.realizedFxPLHome, homeCurrency)}
+                  <Private>{formatSignedMoney(totals.realizedFxPLHome, homeCurrency)}</Private>
                 </td>
               </tr>
             </tfoot>

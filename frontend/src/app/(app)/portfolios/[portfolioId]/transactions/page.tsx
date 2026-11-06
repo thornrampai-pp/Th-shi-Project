@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Private } from "@/components/AmountPrivacy";
 import { formatMoney } from "@/lib/format";
 import { getTransactions, loadPortfolio } from "../../data";
 import TransactionsPanel from "./TransactionsPanel";
@@ -28,7 +29,8 @@ export default async function TransactionsPage({ params }: Props) {
                 {cashAccounts.filter((o) => o.currency === c.currency).length > 1 &&
                   (c.isDomestic ? " · domestic" : " · foreign")}
               </p>
-              <p className="font-semibold tabular-nums">{formatMoney(c.balance, c.currency)}</p>
+              <p className="font-semibold tabular-nums"><Private>{formatMoney(c.balance, c.currency)}</Private>
+              </p>
             </li>
           ))}
         </ul>

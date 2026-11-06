@@ -1,4 +1,5 @@
 import { redis } from '../../config/redis';
+import { recordCacheAccess } from '../monitoring/usage-metrics';
 
 export const CACHE_TTL = {
   QUOTE: 60 * 3, // 3 min — live-ish price
@@ -11,13 +12,16 @@ export async function getOrSetCache<T>(
   ttlSeconds: number,
   fetcher: () => Promise<T>,
 ): Promise<T> {
+  const startedAt = performance.now();
   const cached = await redis.get(key);
   if (cached) {
+    recordCacheAccess(key, true, performance.now() - startedAt);
     return JSON.parse(cached) as T;
   }
 
   const value = await fetcher();
   await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+  recordCacheAccess(key, false, performance.now() - startedAt);
   return value;
 }
 

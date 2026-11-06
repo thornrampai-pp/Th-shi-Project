@@ -3,6 +3,8 @@ import { env } from '../../config/env';
 import { verifyDiscordSignature } from '../../common/integrations/discord-signature.util';
 import { handleInteraction, isPing, pongResponse } from './discord-interactions.service';
 import type { DiscordInteraction } from './discord-interactions.service';
+import { recordDiscordEvent } from '../../common/monitoring/usage-metrics';
+import { discordInteractionLabel } from '../../common/monitoring/metrics-keys';
 
 /**
  * POST /discord/interactions — Discord's HTTP Interactions Endpoint.
@@ -27,6 +29,8 @@ export function createDiscordInteractionsRouter(): Router {
       !timestamp ||
       !verifyDiscordSignature({ signature, timestamp, rawBody, publicKey: env.DISCORD_PUBLIC_KEY })
     ) {
+      // Discord itself probes the endpoint with bad signatures, so a few of these are normal.
+      recordDiscordEvent('invalidSignature', false);
       res.status(401).send('invalid request signature');
       return;
     }
@@ -39,14 +43,19 @@ export function createDiscordInteractionsRouter(): Router {
       return;
     }
 
+    const label = discordInteractionLabel(interaction.type, interaction.data?.name);
+
     if (isPing(interaction)) {
+      recordDiscordEvent('interaction', true, label);
       res.json(pongResponse());
       return;
     }
 
     try {
       res.json(await handleInteraction(interaction));
+      recordDiscordEvent('interaction', true, label);
     } catch (err) {
+      recordDiscordEvent('interaction', false, label);
       console.error('❌ Discord interaction failed:', err);
       res.json({ type: 4, data: { content: '❌ เกิดข้อผิดพลาดภายในระบบ' } });
     }

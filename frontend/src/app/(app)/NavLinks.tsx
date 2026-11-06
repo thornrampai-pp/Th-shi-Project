@@ -11,12 +11,16 @@ const LINKS = [
   { href: "/tax", label: "Tax" },
 ];
 
-export default function NavLinks() {
+/** Admins get every normal tab plus System; the backend still checks the role. */
+const ADMIN_LINKS = [{ href: "/system", label: "System" }];
+
+export default function NavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const links = isAdmin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
 
   return (
     <nav className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1">
-      {LINKS.map(({ href, label }) => {
+      {links.map(({ href, label }) => {
         const active = pathname.startsWith(href);
         return (
           <Link

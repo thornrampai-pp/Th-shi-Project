@@ -69,3 +69,6 @@ Desktop.ini
 # Claude Code (per-machine permissions)
 # =========================
 .claude/
+
+# Personal script inputs (e.g. which symbol goes to which portfolio)
+backend/scripts/local/

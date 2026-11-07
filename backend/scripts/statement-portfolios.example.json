@@ -1,0 +1,6 @@
+{
+  "_comment": "Copy to scripts/local/statement-portfolios.json (git-ignored). Symbol as printed on the statement → portfolio name (created if missing).",
+  "VOO": "Long term",
+  "AAPL": "Stocks",
+  "K-USA-A(A)": "Funds"
+}

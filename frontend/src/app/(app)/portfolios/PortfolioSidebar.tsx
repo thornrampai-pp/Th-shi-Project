@@ -15,7 +15,8 @@ export default function PortfolioSidebar({ portfolios }: { portfolios: Item[] })
 
   const links = [{ id: "", name: "Overview", type: "" }, ...portfolios].map((p) => {
     const href = p.id ? `/portfolios/${p.id}` : "/portfolios";
-    const active = pathname === href;
+    // A portfolio stays selected on its tabs (/transactions, /fx, …); Overview only on itself.
+    const active = pathname === href || (p.id !== "" && pathname.startsWith(`${href}/`));
     return (
       <Link
         key={href}
@@ -23,7 +24,11 @@ export default function PortfolioSidebar({ portfolios }: { portfolios: Item[] })
         aria-current={active ? "page" : undefined}
         className={cn(
           "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition",
-          active ? "bg-background font-semibold" : "bg-muted hover:bg-background",
+          // Phones: a row on the dark header strip, styled like the top nav. Desktop: the
+          // light sidebar — only the selected one gets a filled box.
+          active
+            ? "bg-white/15 font-semibold text-white md:bg-muted md:text-foreground"
+            : "text-white/70 hover:bg-white/10 hover:text-white md:text-muted-foreground md:hover:bg-muted md:hover:text-foreground",
         )}
       >
         <span className="truncate">{p.name}</span>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Th from "@/components/Th";
 import { notFound } from "next/navigation";
 import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatQuantity, formatSignedMoney, plColor } from "@/lib/format";
@@ -27,16 +28,16 @@ export default async function FxBreakdownPage({ params }: Props) {
         <table className="w-full min-w-[54rem] text-sm">
           <thead>
             <tr className="bg-chrome text-left text-xs font-medium text-white">
-              <th className="px-4 py-2.5">Asset</th>
-              <th className="px-4 py-2.5 text-right">Quantity</th>
-              <th className="px-4 py-2.5 text-right">FX rate</th>
-              <th className="px-4 py-2.5 text-right">Unrealized — stock</th>
-              <th className="px-4 py-2.5 text-right">Unrealized — FX</th>
-              <th className="px-4 py-2.5 text-right">Realized — stock</th>
-              <th className="px-4 py-2.5 text-right">Realized — FX</th>
+              <Th title="Asset" hint="symbol · currency" />
+              <Th title="Quantity" hint="units you hold" align="right" />
+              <Th title="FX rate" hint="today, to home currency" align="right" />
+              <Th title="Unrealized — stock" hint="from the price, unsold" align="right" />
+              <Th title="Unrealized — FX" hint="from the exchange rate, unsold" align="right" />
+              <Th title="Realized — stock" hint="from the price, sold" align="right" />
+              <Th title="Realized — FX" hint="from the exchange rate, sold" align="right" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60 tabular-nums">
+          <tbody className="divide-y divide-border/60 tabular-nums [&_td]:align-top">
             {positions.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">

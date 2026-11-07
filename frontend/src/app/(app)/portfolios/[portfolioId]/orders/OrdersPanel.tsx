@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Th from "@/components/Th";
 import { cancelOrderAction, dismissSignalAction } from "@/actions/trading";
 import { formatDate } from "@/lib/dates";
 import { formatMoney, formatQuantity } from "@/lib/format";
@@ -110,20 +111,18 @@ export default function OrdersPanel({ portfolioId, portfolioType, orders, signal
           <table className="w-full min-w-[50rem] text-sm">
             <thead>
               <tr className="bg-chrome text-left text-xs font-medium text-white">
-                <th className="px-4 py-2.5">Asset</th>
-                <th className="px-4 py-2.5">Side</th>
-                <th className="px-4 py-2.5">Type</th>
-                <th className="px-4 py-2.5 text-right">Quantity</th>
-                <th className="px-4 py-2.5 text-right">Filled</th>
-                <th className="px-4 py-2.5 text-right">Avg fill</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Submitted</th>
-                <th className="px-4 py-2.5">
-                  <span className="sr-only">Actions</span>
-                </th>
+                <Th title="Asset" hint="symbol" />
+                <Th title="Side" hint="buy / sell" />
+                <Th title="Type" hint="market / limit" />
+                <Th title="Quantity" hint="units ordered" align="right" />
+                <Th title="Filled" hint="units done so far" align="right" />
+                <Th title="Avg fill" hint="price per unit paid" align="right" />
+                <Th title="Status" hint="where it stands" />
+                <Th title="Submitted" hint="when placed" />
+                <Th title="Actions" srOnly />
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60 tabular-nums">
+            <tbody className="divide-y divide-border/60 tabular-nums [&_td]:align-top">
               {orders.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-16 text-center text-muted-foreground">

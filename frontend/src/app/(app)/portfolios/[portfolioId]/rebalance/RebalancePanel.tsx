@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Th from "@/components/Th";
 import { recordRebalanceAction, setTargetWeightAction } from "@/actions/rebalance";
 import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatQuantity, formatSignedPct, plColor } from "@/lib/format";
@@ -87,11 +88,11 @@ export default function RebalancePanel({ portfolioId, currency, holdings, driftI
           <table className="w-full min-w-[48rem] text-sm">
             <thead>
               <tr className="bg-chrome text-left text-xs font-medium text-white">
-                <th className="px-4 py-2.5">Asset</th>
-                <th className="px-4 py-2.5 text-right">Current %</th>
-                <th className="px-4 py-2.5 text-right">Target %</th>
-                <th className="px-4 py-2.5 text-right">Drift</th>
-                <th className="px-4 py-2.5 text-right">Suggested</th>
+                <Th title="Asset" hint="symbol" />
+                <Th title="Current %" hint="of portfolio now" align="right" />
+                <Th title="Target %" hint="what you aim for" align="right" />
+                <Th title="Drift" hint="current − target" align="right" />
+                <Th title="Suggested" hint="trade to get back on target" align="right" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 tabular-nums">

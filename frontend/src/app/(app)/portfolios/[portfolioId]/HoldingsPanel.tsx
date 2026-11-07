@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Private } from "@/components/AmountPrivacy";
-import { formatMoney, formatQuantity, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
+import { formatQuantity, formatSignedPct, plColor } from "@/lib/format";
 import type { Holding, PortfolioListItem } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
 import ImportStatementDialog from "./ImportStatementDialog";
@@ -12,6 +12,7 @@ import TransferAssetDialog from "./TransferAssetDialog";
 import RecordTransactionDialog from "./transactions/RecordTransactionDialog";
 import LocalDateTime from "@/components/LocalDateTime";
 import Select from "@/components/Select";
+import Th from "@/components/Th";
 
 const SORTS = {
   weight: { label: "Largest first", compare: (a: Holding, b: Holding) => b.weight - a.weight },
@@ -27,6 +28,56 @@ const toolbarButton = "rounded-md bg-field px-4 py-2 text-sm hover:bg-field/70";
 type Props = { portfolioId: string; currency: string; holdings: Holding[]; portfolios: PortfolioListItem[] };
 
 const closeDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+const currencyFormats = new Map<string, Intl.NumberFormat>();
+
+/** "$620.33", "฿22,679.46" — the currency's own symbol, 2 decimals. */
+function money(value: number, currency: string, signed = false): string {
+  let format = currencyFormats.get(currency);
+  if (!format) {
+    try {
+      format = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } catch {
+      format = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    currencyFormats.set(currency, format);
+  }
+  const text = format.format(Math.abs(value));
+  return signed ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${text}` : value < 0 ? `−${text}` : text;
+}
+
+/**
+ * An amount in the asset's own currency, with the portfolio-currency figure in
+ * brackets underneath — "$620.33 (฿22,679.46)". `value` comes in portfolio currency,
+ * converted at `holding.fxRate`, so dividing by it gives back the asset's figure.
+ * Assets already in the portfolio currency show one figure.
+ */
+function Amount({
+  value,
+  holding,
+  currency,
+  signed = false,
+}: {
+  value: number;
+  holding: Holding;
+  currency: string;
+  signed?: boolean;
+}) {
+  const own = holding.assetCurrency;
+  if (!own || own === currency || !(holding.fxRate > 0)) return <>{money(value, currency, signed)}</>;
+  return (
+    <>
+      {money(value / holding.fxRate, own, signed)}
+      <span className="block text-xs text-muted-foreground">({money(value, currency, signed)})</span>
+    </>
+  );
+}
 
 /** Daily bars are stamped 00:00 UTC of their trading day, so show that day as-is. */
 function PriceAsOf({ source, iso }: { source: Holding["priceSource"]; iso: string | null }) {
@@ -77,19 +128,20 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
         <table className="w-full min-w-[44rem] text-sm">
           <thead>
             <tr className="bg-chrome text-left text-xs font-medium text-white">
-              <th className="px-4 py-2.5">Asset</th>
-              <th className="px-4 py-2.5 text-right">Quantity</th>
-              <th className="px-4 py-2.5 text-right">Weight</th>
-              <th className="px-4 py-2.5 text-right">Avg cost</th>
-              <th className="px-4 py-2.5 text-right">Price</th>
-              <th className="px-4 py-2.5 text-right">Value</th>
-              <th className="px-4 py-2.5 text-right">Profit / Loss</th>
+              <Th title="Asset" hint="symbol · name" />
+              <Th title="Units" hint="you hold" align="right" />
+              <Th title="Weight" hint="of this portfolio" align="right" />
+              <Th title="Avg cost" hint="per unit, incl. fees" align="right" />
+              <Th title="Price" hint="per unit, latest" align="right" />
+              <Th title="Value" hint="units × price" align="right" />
+              <Th title="Profit / Loss" hint="value − cost, unsold" align="right" />
               <th className="px-4 py-2.5">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60 tabular-nums">
+          {/* Top-aligned, so each cell's first line (the main figure) sits on one line across the row. */}
+          <tbody className="divide-y divide-border/60 tabular-nums [&_td]:align-top">
             {rows.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
@@ -109,18 +161,24 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
                   <Private>{formatQuantity(h.quantity)}</Private>
                 </td>
                 <td className="px-4 py-2.5 text-right">{h.weight.toFixed(1)}%</td>
-                <td className="px-4 py-2.5 text-right">{formatMoney(h.avgPrice)}</td>
                 <td className="px-4 py-2.5 text-right">
-                  {formatMoney(h.marketPrice)}
+                  <Amount value={h.avgPrice} holding={h} currency={currency} />
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <Amount value={h.marketPrice} holding={h} currency={currency} />
                   <p className="text-xs whitespace-nowrap text-muted-foreground">
                     <PriceAsOf source={h.priceSource} iso={h.priceAsOf} />
                   </p>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <Private>{formatMoney(h.marketValue)}</Private>
+                  <Private>
+                    <Amount value={h.marketValue} holding={h} currency={currency} />
+                  </Private>
                 </td>
                 <td className={`px-4 py-2.5 text-right ${plColor(h.unrealizedPL)}`}>
-                  <Private>{formatSignedMoney(h.unrealizedPL)}</Private>
+                  <Private>
+                    <Amount value={h.unrealizedPL} holding={h} currency={currency} signed />
+                  </Private>
                   <p className="text-xs">{formatSignedPct(h.unrealizedPLPct)}</p>
                 </td>
                 <td className="px-4 py-2.5 text-right whitespace-nowrap">
@@ -150,7 +208,10 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">Prices and values in {currency}, converted from each asset&apos;s trading currency at the latest rate.</p>
+      <p className="text-xs text-muted-foreground">
+        Amounts are in each asset&apos;s own currency; the figure in brackets is the same amount in {currency} at
+        today&apos;s exchange rate (cost included — gains or losses from the exchange rate itself are in the FX tab).
+      </p>
 
       {dialog === "slip" && <SlipUploadDialog portfolioId={portfolioId} onClose={() => setDialog(null)} />}
       {dialog === "statement" && <ImportStatementDialog portfolioId={portfolioId} portfolios={portfolios} onClose={() => setDialog(null)} />}

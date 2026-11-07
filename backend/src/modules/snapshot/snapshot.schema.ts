@@ -112,6 +112,10 @@ const HoldingType =builder.objectRef<snapshotService.HoldingSummary>('Holding').
     symbol: t.exposeString('symbol'),
     name: t.exposeString('name'),
     assetCurrency: t.exposeString('assetCurrency', { description: "The asset's trading currency" }),
+    fxRate: t.exposeFloat('fxRate', {
+      description:
+        "Rate (assetCurrency → portfolio currency) the amounts were converted at — today's rate for live valuations. Divide by it for the asset's own currency.",
+    }),
     quantity: t.exposeFloat('quantity'),
     avgPrice: t.exposeFloat('avgPrice'),
     marketPrice: t.exposeFloat('marketPrice'),

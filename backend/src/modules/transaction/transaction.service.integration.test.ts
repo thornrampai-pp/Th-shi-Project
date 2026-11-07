@@ -38,6 +38,35 @@ describe.skipIf(!runIntegrationTests)("transaction.service (real DB)", () => {
     await cleanupTestUser(userId, [assetId]);
   });
 
+  describe("duplicate broker orders (externalRef)", () => {
+    const buy = (pid: string, externalRef: string) =>
+      createTransaction(userId, { portfolioId: pid, type: "BUY", assetId, quantity: 1, price: 10, externalRef });
+
+    it("refuses an order already recorded in the same portfolio", async () => {
+      await createCashAccount(portfolioId, { balance: 1_000 });
+      await buy(portfolioId, "ORD-1");
+      await expect(buy(portfolioId, "ORD-1")).rejects.toThrow(/already recorded in this portfolio/);
+    });
+
+    it("refuses an order already recorded in another of the user's portfolios", async () => {
+      const other = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Other" });
+      await createCashAccount(portfolioId, { balance: 1_000 });
+      await createCashAccount(other.id, { balance: 1_000 });
+      await buy(portfolioId, "ORD-2");
+      await expect(buy(other.id, "ORD-2")).rejects.toMatchObject({ code: "CONFLICT" });
+      expect(await prisma.transaction.count({ where: { externalRef: "ORD-2" } })).toBe(1);
+    });
+
+    it("allows re-recording an order whose portfolio was deleted", async () => {
+      const old = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Old" });
+      await createCashAccount(old.id, { balance: 1_000 });
+      await createCashAccount(portfolioId, { balance: 1_000 });
+      await buy(old.id, "ORD-3");
+      await prisma.portfolio.update({ where: { id: old.id }, data: { deletedAt: new Date() } });
+      await expect(buy(portfolioId, "ORD-3")).resolves.toBeTruthy();
+    });
+  });
+
   describe("BUY", () => {
     it("rejects a non-positive quantity or price", async () => {
       await createCashAccount(portfolioId, { balance: 100_000 });

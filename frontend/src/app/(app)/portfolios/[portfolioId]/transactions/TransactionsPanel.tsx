@@ -90,6 +90,14 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
                 <td className="px-4 py-2.5 whitespace-nowrap">{formatDate(t.executedAt)}</td>
                 <td className="px-4 py-2.5">
                   <span className="rounded bg-field px-1.5 py-0.5 text-xs font-medium">{TYPE_LABEL[t.type] ?? t.type}</span>
+                  {t.autoFunded && (
+                    <span
+                      className="ml-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-600 dark:text-amber-400"
+                      title="Created automatically to fund a buy (from a statement, slip or “fund with deposit”) — not money you actually transferred in"
+                    >
+                      auto
+                    </span>
+                  )}
                   {t.note && <p className="mt-1 max-w-56 truncate text-xs text-muted-foreground" title={t.note}>{t.note}</p>}
                 </td>
                 <td className="px-4 py-2.5 font-semibold">{t.assetSymbol ?? "—"}</td>

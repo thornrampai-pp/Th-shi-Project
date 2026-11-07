@@ -163,6 +163,7 @@ const PortfolioTransactionsQuery = graphql(`
       realizedPL
       note
       hasSlip
+      autoFunded
     }
     cashAccounts(portfolioId: $portfolioId) {
       id
@@ -195,6 +196,7 @@ export const getTransactions = cache(async (portfolioId: string) => {
               realizedPL: t.realizedPL ?? null,
               note: t.note ?? null,
               hasSlip: t.hasSlip ?? false,
+              autoFunded: t.autoFunded ?? false,
             },
           ]
         : [],

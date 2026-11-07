@@ -329,7 +329,8 @@ async function runHistoryRepair(portfolioId: string, from: Date): Promise<void> 
 /** Only past-dated transactions invalidate existing snapshots. */
 /**
  * Runs (in the background) after every recorded transaction:
- * - backdated into existing snapshots → full repair (history coverage + rebuild)
+ * - backdated into existing snapshots → full repair (history coverage + rebuild),
+ *   debounced so a burst of uploads rebuilds once
  * - otherwise → just fetch any price/FX history the portfolio is now missing, so a
  *   newly added asset is valued at market right away instead of at cost until the
  *   next daily sync. Already-covered series cost no Yahoo call.
@@ -341,10 +342,46 @@ export async function refreshHistoryAfterTransaction(portfolioId: string, execut
     select: { id: true },
   });
   if (affected) {
-    scheduleHistoryRepair(portfolioId, day);
+    scheduleDebouncedRepair(portfolioId, day);
     return;
   }
   await ensureHistoryCoverage([portfolioId]);
+}
+
+/**
+ * A statement or a run of uploads records many backdated transactions seconds apart;
+ * repairing after each one rebuilds the same snapshots over and over. Each new one
+ * restarts the wait (keeping the earliest date), so a burst ends in one rebuild.
+ * In-process only: a restart inside the window just leaves it to the daily sync.
+ */
+const REPAIR_DEBOUNCE_MS = 45_000;
+const pendingRepairs = new Map<string, { from: Date; timer: NodeJS.Timeout }>();
+
+/**
+ * Rebuilds a portfolio's history from `from` and waits for it — for scripts that
+ * record many transactions and exit (an in-process debounce would die with them).
+ * Any debounced repair still waiting for this portfolio is folded in.
+ */
+export async function rebuildHistoryNow(portfolioId: string, from: Date): Promise<void> {
+  const waiting = pendingRepairs.get(portfolioId);
+  if (waiting) {
+    clearTimeout(waiting.timer);
+    pendingRepairs.delete(portfolioId);
+  }
+  const earliest = waiting && waiting.from.getTime() < from.getTime() ? waiting.from : from;
+  await runHistoryRepair(portfolioId, utcDay(earliest));
+}
+
+function scheduleDebouncedRepair(portfolioId: string, from: Date): void {
+  const existing = pendingRepairs.get(portfolioId);
+  const earliest = existing && existing.from.getTime() < from.getTime() ? existing.from : from;
+  if (existing) clearTimeout(existing.timer);
+  const timer = setTimeout(() => {
+    pendingRepairs.delete(portfolioId);
+    scheduleHistoryRepair(portfolioId, earliest);
+  }, REPAIR_DEBOUNCE_MS);
+  timer.unref();
+  pendingRepairs.set(portfolioId, { from: earliest, timer });
 }
 
 export async function requestSnapshotRebuild(userId: string, portfolioId: string, from?: Date): Promise<boolean> {

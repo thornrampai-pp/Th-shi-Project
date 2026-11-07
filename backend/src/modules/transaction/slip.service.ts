@@ -11,6 +11,7 @@ import {
   decodeAndValidateImage,
 } from '../../common/utils/image-validation.util';
 import { env } from '../../config/env';
+import { withExtractionCache } from '../../common/utils/extraction-cache.util';
 import { findOrFetchAssetBySymbol } from '../asset/asset.service';
 import { createTransaction } from './transaction.service';
 import {
@@ -487,7 +488,12 @@ function validateSlipImage(imageBase64: string, mimeType?: string): ValidatedIma
  * slip Gemini read but found no amount on is not — at temperature 0 it would just read
  * the same nothing again.
  */
-async function extractSlipsWithRetry(
+function extractSlipsWithRetry(images: ValidatedImage[], hooks: SlipExtractionHooks = {}): Promise<SlipExtraction[]> {
+  // The same images uploaded again reuse the earlier read (no Gemini call).
+  return withExtractionCache('slips', images.map((image) => image.bytes), () => readSlipsWithRetry(images, hooks));
+}
+
+async function readSlipsWithRetry(
   images: ValidatedImage[],
   hooks: SlipExtractionHooks = {},
 ): Promise<SlipExtraction[]> {

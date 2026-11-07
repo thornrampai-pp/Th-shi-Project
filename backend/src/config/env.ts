@@ -71,6 +71,8 @@ const envSchema = z.object({
   // Gemini's quota for your tier/model (see AI Studio → Rate limits). The API doesn't
   // report it, so the admin System page compares its own call counts to these. Unset =
   // usage shown without a limit.
+  // Per-request timeout. Multi-page statement PDFs take ~60s; 3 minutes leaves headroom.
+  GEMINI_TIMEOUT_MS: z.coerce.number().int().min(10_000).max(600_000).default(180_000),
   GEMINI_RPM_LIMIT: optionalPositiveInt, // requests per minute
   GEMINI_TPM_LIMIT: optionalPositiveInt, // tokens per minute
   GEMINI_RPD_LIMIT: optionalPositiveInt, // requests per day (resets midnight Pacific)

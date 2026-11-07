@@ -87,13 +87,19 @@ export async function createTransaction(
   const externalRef = input.externalRef?.trim() || undefined;
   input = { ...input, externalRef };
   if (externalRef) {
-    // The unique index would also refuse it, but only after the ledger work — say why up front.
+    // A broker order is recorded once per user, not once per portfolio — the unique index
+    // only covers one portfolio, so re-uploading a statement into another portfolio
+    // would otherwise duplicate it. Deleted portfolios don't count.
     const existing = await prisma.transaction.findFirst({
-      where: { portfolioId: input.portfolioId, externalRef },
-      select: { id: true },
+      where: { externalRef, portfolio: { userId, deletedAt: null } },
+      select: { portfolioId: true, portfolio: { select: { name: true } } },
     });
     if (existing) {
-      throw AppError.conflict(`Order ${externalRef} is already recorded in this portfolio`);
+      throw AppError.conflict(
+        existing.portfolioId === input.portfolioId
+          ? `Order ${externalRef} is already recorded in this portfolio`
+          : `Order ${externalRef} is already recorded in portfolio "${existing.portfolio.name}"`,
+      );
     }
   }
 

@@ -14,8 +14,12 @@ export interface SlipImagePayload {
   mimeType: string;
 }
 
-/** Without it a hung request would hold the upload open indefinitely. */
-const GEMINI_TIMEOUT_MS = 90_000;
+/**
+ * Without it a hung request would hold the upload open indefinitely. Multi-page PDFs
+ * routinely take ~60s, so this leaves headroom before a timeout throws away a read
+ * that was about to arrive (and spends another call on the retry).
+ */
+const GEMINI_TIMEOUT_MS = env.GEMINI_TIMEOUT_MS;
 
 /**
  * `retryable` is false for 4xx other than 429 — a missing model, bad key or bad request

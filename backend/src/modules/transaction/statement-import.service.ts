@@ -5,6 +5,7 @@
 // same imageKey (SlipVerification.imageKey is intentionally not unique — see the
 // migration that dropped its unique index).
 import { randomUUID } from 'crypto';
+import { sha256Hex, withExtractionCache } from '../../common/utils/extraction-cache.util';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../common/errors/AppError';
 import { assertPortfolioOwnership } from '../../common/utils/portfolio-ownership.util';
@@ -47,6 +48,8 @@ export interface StatementImportSummary {
 type ValidatedDocument = ReturnType<typeof decodeAndValidateImage>;
 
 const PENDING_TTL_SECONDS = 60 * 60;
+// Same as the Gemini read cache — a retry within this window reuses both.
+const STORED_FILE_TTL_SECONDS = 30 * 24 * 3600;
 const pendingKey = (id: string) => `statement-import:${id}`;
 
 /** What the preview step parks in Redis until the user says where each asset goes. */
@@ -109,8 +112,7 @@ export async function previewStatement(
     throw AppError.badRequest('Could not find any trade rows in this document');
   }
 
-  const imageKey = buildStatementKey(userId, document.mimeType);
-  await putObject(imageKey, document.bytes, document.mimeType);
+  const imageKey = await storeStatementOnce(userId, document);
 
   const statementId = randomUUID();
   const pending: PendingStatement = {
@@ -164,19 +166,20 @@ export async function confirmStatement(
   // Resolve each symbol to a portfolio first (creating the new ones), so a bad
   // assignment fails before anything is recorded.
   const portfolioBySymbol = new Map<string, string>();
+  // Several assets sent to the same new portfolio name share one new portfolio.
+  const createdByName = new Map<string, string>();
   for (const a of assignments) {
     const symbol = a.symbol.trim().toUpperCase();
     if (a.portfolioId) {
       await assertPortfolioOwnership(userId, a.portfolioId);
       portfolioBySymbol.set(symbol, a.portfolioId);
     } else if (a.newPortfolioName?.trim()) {
-      const created = await createPortfolio(userId, {
-        name: a.newPortfolioName.trim(),
-        strategy: 'VALUE',
-        baseCurrency: 'THB',
-        type: 'REAL',
-      });
-      portfolioBySymbol.set(symbol, created.id);
+      const name = a.newPortfolioName.trim();
+      const portfolioId =
+        createdByName.get(name.toLowerCase()) ??
+        (await createPortfolio(userId, { name, strategy: 'VALUE', baseCurrency: 'THB', type: 'REAL' })).id;
+      createdByName.set(name.toLowerCase(), portfolioId);
+      portfolioBySymbol.set(symbol, portfolioId);
     }
   }
 
@@ -292,7 +295,19 @@ function validateStatementDocument(imageBase64: string, mimeType?: string): Vali
   }
 }
 
-async function extractStatementWithRetry(
+function extractStatementWithRetry(document: ValidatedDocument, hooks: SlipExtractionHooks): Promise<StatementExtraction> {
+  // The same file uploaded again (e.g. to retry rows that failed) reuses the earlier
+  // read; rows already recorded are skipped by order number at confirm time. A read
+  // that found no rows isn't kept, so a later attempt can still do better.
+  return withExtractionCache(
+    'statement',
+    [document.bytes],
+    () => readStatementWithRetry(document, hooks),
+    (extraction) => extraction.rows.length > 0,
+  );
+}
+
+async function readStatementWithRetry(
   document: ValidatedDocument,
   hooks: SlipExtractionHooks,
 ): Promise<StatementExtraction> {
@@ -319,6 +334,21 @@ async function extractStatementWithRetry(
   throw AppError.badRequest(
     `Could not read this statement: ${lastError instanceof Error ? lastError.message : 'unknown error'}`,
   );
+}
+
+/**
+ * Uploads the document to R2 — once per user and file: the same file uploaded again
+ * (a retry) reuses the stored copy instead of leaving another orphan object behind.
+ */
+async function storeStatementOnce(userId: string, document: ValidatedDocument): Promise<string> {
+  const fileKey = `statement-file:${userId}:${sha256Hex(document.bytes)}`;
+  const known = await redis.get(fileKey).catch(() => null);
+  if (known) return known;
+
+  const imageKey = buildStatementKey(userId, document.mimeType);
+  await putObject(imageKey, document.bytes, document.mimeType);
+  await redis.set(fileKey, imageKey, 'EX', STORED_FILE_TTL_SECONDS).catch(() => {});
+  return imageKey;
 }
 
 function buildStatementKey(userId: string, mimeType: keyof typeof IMAGE_EXTENSION): string {

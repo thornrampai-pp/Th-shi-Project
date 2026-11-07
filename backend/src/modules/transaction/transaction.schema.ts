@@ -45,6 +45,7 @@ interface TransactionShape {
   exchangeRate: unknown;
   metadata: unknown;
   externalRef: string | null;
+  parentTxId?: string | null;
   createdAt: Date;
   // Preloaded by listTransactions(); resolved per row elsewhere.
   assetSymbol?: string | null;
@@ -109,6 +110,11 @@ export const TransactionType = builder.objectRef<TransactionShape>('Transaction'
     }),
     realizedFxPLHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).realizedFxPLHome) }),
     costBasisHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).costBasisHome) }),
+    autoFunded: t.boolean({
+      description:
+        'A DEPOSIT the app created to fund a BUY (fundWithDeposit, e.g. from a statement or slip) rather than money actually transferred in',
+      resolve: (tr) => tr.type === 'DEPOSIT' && !!tr.parentTxId,
+    }),
     note: t.field({
       type: 'String',
       nullable: true,

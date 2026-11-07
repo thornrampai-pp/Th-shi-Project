@@ -16,7 +16,10 @@ vi.mock("../../common/integrations/r2-storage.util", async (importOriginal) => (
 }));
 
 import { prisma } from "../../config/prisma";
+import { redis } from "../../config/redis";
+import { extractionCacheKey, sha256Hex } from "../../common/utils/extraction-cache.util";
 import { extractStatementData } from "../../common/integrations/gemini.util";
+import { putObject } from "../../common/integrations/r2-storage.util";
 import { createTransaction } from "./transaction.service";
 import { confirmStatement, previewStatement } from "./statement-import.service";
 import {
@@ -28,7 +31,9 @@ import {
 } from "../../test-utils/integration";
 
 const mockExtract = vi.mocked(extractStatementData);
-const upload = { imageBase64: Buffer.from("%PDF-1.4\nstatement").toString("base64"), mimeType: "application/pdf" };
+// Gemini reads are cached by file hash, so every test uploads different bytes.
+let upload: { imageBase64: string; mimeType: string };
+let uploadBytes: Buffer;
 
 describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () => {
   let userId: string;
@@ -39,6 +44,10 @@ describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () =
   const orderIds = { held: "", fresh: "" };
 
   beforeEach(async () => {
+    uploadBytes = Buffer.from(`%PDF-1.4\nstatement ${Date.now()} ${Math.random()}`);
+    upload = { imageBase64: uploadBytes.toString("base64"), mimeType: "application/pdf" };
+    mockExtract.mockClear();
+    vi.mocked(putObject).mockClear();
     userId = (await createTestUser()).id;
     home = (await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB" })).id;
     other = (await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB" })).id;
@@ -59,7 +68,38 @@ describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () =
   });
 
   afterEach(async () => {
+    await redis.del(extractionCacheKey("statement", sha256Hex(uploadBytes)));
     await cleanupTestUser(userId, [held.id, fresh.id]);
+  });
+
+  it("uploading the same file again reuses the earlier read instead of calling Gemini", async () => {
+    await previewStatement(userId, upload);
+    const again = await previewStatement(userId, upload);
+    expect(mockExtract).toHaveBeenCalledTimes(1);
+    expect(again.groups.map((g) => g.symbol).sort()).toEqual([held.symbol, fresh.symbol].sort());
+  });
+
+  it("stores the same file in R2 only once", async () => {
+    await previewStatement(userId, upload);
+    await previewStatement(userId, upload);
+    expect(vi.mocked(putObject)).toHaveBeenCalledTimes(1);
+  });
+
+  it("two assets sent to the same new portfolio name share one new portfolio", async () => {
+    const preview = await previewStatement(userId, upload);
+    const name = `Shared ${Date.now()}`;
+    await confirmStatement(userId, preview.statementId, [
+      { symbol: held.symbol, newPortfolioName: name },
+      { symbol: fresh.symbol, newPortfolioName: name },
+    ]);
+    expect(await prisma.portfolio.count({ where: { userId, name } })).toBe(1);
+  });
+
+  it("doesn't keep a read that found no rows, so the next upload tries again", async () => {
+    mockExtract.mockResolvedValueOnce({ broker: "Test Broker", rows: [] });
+    await expect(previewStatement(userId, upload)).rejects.toThrow(/no trade rows|any trade rows/i);
+    await previewStatement(userId, upload);
+    expect(mockExtract).toHaveBeenCalledTimes(2);
   });
 
   it("groups rows by asset: one already held goes to its portfolio, a new one has to be asked about", async () => {

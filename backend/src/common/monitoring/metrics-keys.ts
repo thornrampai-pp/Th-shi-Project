@@ -16,6 +16,8 @@ export const METRICS_KEYS = {
   r2Month: (month: string) => `sys:r2:month:${month}`,
   discordDay: (day: string) => `sys:discord:day:${day}`,
   discordLastInteraction: 'sys:discord:last-interaction',
+  secDay: (day: string) => `sys:sec:day:${day}`,
+  secLog: 'sys:sec:log',
 } as const;
 
 const pacificDay = new Intl.DateTimeFormat('en-CA', {

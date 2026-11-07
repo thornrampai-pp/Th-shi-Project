@@ -13,6 +13,17 @@ import {
   yahooSymbolOf,
   type YahooQuoteSummary,
 } from "../../common/integrations/yahoo-finance.util";
+import {
+  AmbiguousFundError,
+  SEC_FUND_EXCHANGE,
+  fetchFundNavs,
+  findFundByCode,
+  fundDisplayName,
+  fundExternalId,
+  isSecConfigured,
+  normalizeFundCode,
+  parseFundExternalId,
+} from "../../common/integrations/sec-fund.util";
 
 /**
  * ---------------------------------------------------------
@@ -20,7 +31,12 @@ import {
  * ---------------------------------------------------------
  */
 
-export type AssetTypeValue = "STOCK" | "ETF" | "CRYPTO" | "FOREX" | "GOLD";
+export type AssetTypeValue = "STOCK" | "ETF" | "CRYPTO" | "FOREX" | "GOLD" | "MUTUAL_FUND";
+
+/** Thai mutual funds are priced by daily NAV from the SEC, never by Yahoo. */
+export function isFundAsset(asset: { exchange: string }): boolean {
+  return asset.exchange === SEC_FUND_EXCHANGE;
+}
 
 /**
  * ---------------------------------------------------------
@@ -177,6 +193,8 @@ export async function findOrFetchAssetBySymbol(
 ) {
   const normalizedSymbol = symbol.trim().toUpperCase();
 
+  if (exchange === SEC_FUND_EXCHANGE) return findOrFetchFund(normalizedSymbol);
+
   const existing = await prisma.asset.findUnique({
     where: {
       symbol_exchange: {
@@ -190,7 +208,125 @@ export async function findOrFetchAssetBySymbol(
     return existing;
   }
 
-  return syncAssetFromYahoo(normalizedSymbol, exchange);
+  // A Thai fund already added (e.g. K-2510) — no need to ask Yahoo first.
+  if (exchange === "GLOBAL") {
+    const fund = await prisma.asset.findUnique({
+      where: { symbol_exchange: { symbol: normalizeFundCode(normalizedSymbol), exchange: SEC_FUND_EXCHANGE } },
+    });
+    if (fund) return fund;
+  }
+
+  try {
+    return await syncAssetFromYahoo(normalizedSymbol, exchange);
+  } catch (yahooErr) {
+    // Yahoo has no Thai mutual funds — try the SEC before giving up.
+    if (exchange !== "GLOBAL" || !isSecConfigured()) throw yahooErr;
+    try {
+      return await findOrFetchFund(normalizedSymbol);
+    } catch (fundErr) {
+      if (fundErr instanceof AppError && fundErr.code === "NOT_FOUND") {
+        throw AppError.notFound(`No stock or Thai mutual fund found for "${normalizedSymbol}"`);
+      }
+      throw fundErr;
+    }
+  }
+}
+
+/**
+ * ---------------------------------------------------------
+ * Thai Mutual Funds (SEC)
+ * ---------------------------------------------------------
+ */
+
+/** How far back the first NAV pull goes, so a new fund has a price straight away. */
+const INITIAL_NAV_DAYS = 45;
+
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The fund asset for an SEC fund code — a fund ("K-2510") or one unit class of a
+ * multi-class fund ("K-USA-A(A)") — created from its SEC profile.
+ */
+export async function findOrFetchFund(code: string) {
+  const wanted = normalizeFundCode(code);
+  const existing = await prisma.asset.findUnique({
+    where: { symbol_exchange: { symbol: wanted, exchange: SEC_FUND_EXCHANGE } },
+  });
+  if (existing) return existing;
+
+  let match;
+  try {
+    match = await findFundByCode(wanted);
+  } catch (err) {
+    if (err instanceof AmbiguousFundError) {
+      throw AppError.badRequest(
+        `${err.code} มีหลายชนิดหน่วยลงทุน (NAV ต่างกัน) — ระบุชนิดที่ถือ: ${err.classes.join(", ")}`,
+      );
+    }
+    throw err;
+  }
+  if (!match) {
+    throw AppError.notFound(`No Thai mutual fund with code "${wanted}" at the SEC`);
+  }
+
+  const { profile, className } = match;
+  const symbol = normalizeFundCode(className ?? profile.proj_abbr_name);
+  const delistedAt = profile.cancel_date ? new Date(`${profile.cancel_date}T00:00:00Z`) : null;
+  const externalId = fundExternalId(profile.proj_id, className);
+  const asset = await prisma.asset.upsert({
+    where: { symbol_exchange: { symbol, exchange: SEC_FUND_EXCHANGE } },
+    update: { name: fundDisplayName(profile, className), externalId, delistedAt },
+    create: {
+      symbol,
+      exchange: SEC_FUND_EXCHANGE,
+      name: fundDisplayName(profile, className),
+      currency: "THB",
+      type: "MUTUAL_FUND",
+      sector: profile.comp_name_th ?? profile.comp_name_en ?? null,
+      externalId,
+      delistedAt,
+    },
+  });
+
+  // Best effort: a NAV now means holdings are valued from the start, not at cost.
+  const end = delistedAt ?? new Date();
+  const start = new Date(end.getTime() - INITIAL_NAV_DAYS * 24 * 3600 * 1000);
+  await syncFundNavs(asset, start, end).catch((err) =>
+    console.warn(`⚠️ Initial NAV pull failed for ${symbol}:`, err instanceof Error ? err.message : err),
+  );
+
+  return asset;
+}
+
+/** Stores the fund's daily NAVs for [start, end] as 1D closes; returns how many were new. */
+export async function syncFundNavs(
+  asset: { id: string; symbol: string; externalId: string | null },
+  start: Date,
+  end: Date = new Date(),
+): Promise<number> {
+  if (!asset.externalId) {
+    throw AppError.badRequest(`Fund ${asset.symbol} has no SEC project id`);
+  }
+  const { projId, className } = parseFundExternalId(asset.externalId);
+  const navs = await fetchFundNavs(projId, isoDay(start), isoDay(end), className);
+  if (navs.length === 0) return 0;
+
+  const { count } = await prisma.assetPrice.createMany({
+    data: navs.map((nav) => ({
+      assetId: asset.id,
+      timestamp: new Date(`${nav.nav_date}T00:00:00Z`),
+      timeframe: "1D",
+      closePrice: nav.last_val,
+    })),
+    skipDuplicates: true,
+  });
+  return count;
+}
+
+async function getFundAsset(assetId: string) {
+  return prisma.asset.findUniqueOrThrow({ where: { id: assetId } });
 }
 
 /**
@@ -240,6 +376,8 @@ export async function refreshAssetPriceHistory(
 
   const period1 = new Date();
   period1.setDate(period1.getDate() - days);
+
+  if (isFundAsset(asset)) return syncFundNavs(asset, period1, period2);
 
   const bars = await fetchYahooHistorical(yahooSymbolOf(asset), period1, period2);
 
@@ -375,6 +513,10 @@ export async function syncAssetFundamentals(assetId: string) {
     if (existing) {
       return existing;
     }
+  }
+
+  if (isFundAsset(asset)) {
+    throw AppError.badRequest("Mutual funds have no company fundamentals");
   }
 
   const summary = await fetchYahooQuoteSummary(yahooSymbolOf(asset));
@@ -552,14 +694,17 @@ export async function getLatestPrice(asset: {
   symbol: string;
   exchange: string;
 }): Promise<number | null> {
-  try {
-    const quote = await getAssetQuote(yahooSymbolOf(asset));
-    if (quote.price != null) return quote.price;
-  } catch (err) {
-    console.warn(
-      `⚠️ Live quote failed for ${asset.symbol}, using last close:`,
-      err instanceof Error ? err.message : err,
-    );
+  // A fund's price is its latest daily NAV — the stored close below.
+  if (!isFundAsset(asset)) {
+    try {
+      const quote = await getAssetQuote(yahooSymbolOf(asset));
+      if (quote.price != null) return quote.price;
+    } catch (err) {
+      console.warn(
+        `⚠️ Live quote failed for ${asset.symbol}, using last close:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   const latest = await prisma.assetPrice.findFirst({
@@ -586,6 +731,8 @@ export async function backfillAssetPrices(
   start: Date,
   end: Date = new Date(),
 ): Promise<number> {
+  if (isFundAsset(asset)) return syncFundNavs(await getFundAsset(asset.id), start, end);
+
   const bars = await fetchYahooHistorical(yahooSymbolOf(asset), start, end);
   if (bars.length === 0) return 0;
 

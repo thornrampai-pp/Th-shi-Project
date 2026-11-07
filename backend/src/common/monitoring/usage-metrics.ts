@@ -117,6 +117,33 @@ export function recordDiscordEvent(kind: DiscordEventKind, ok: boolean, label?: 
   swallow(tx.expire(day, DAY_TTL_SECONDS).exec());
 }
 
+// ─── SEC Open API (Thai funds) ──────────────────────────────────────────────
+
+export interface SecLogEntry {
+  at: string;
+  path: string;
+  ok: boolean;
+  status: number | null;
+  ms: number;
+  error: string | null;
+}
+
+const SEC_LOG_SIZE = 50;
+
+export function recordSecCall(path: string, ok: boolean, status: number | null, ms: number, error: string | null): void {
+  const day = METRICS_KEYS.secDay(utcDay());
+  const entry: SecLogEntry = { at: new Date().toISOString(), path, ok, status, ms: Math.round(ms), error: error?.slice(0, 300) ?? null };
+  const tx = redis.multi().hincrby(day, 'requests', 1).hincrby(day, `path:${path}`, 1);
+  if (!ok) tx.hincrby(day, 'errors', 1);
+  swallow(
+    tx
+      .expire(day, DAY_TTL_SECONDS)
+      .lpush(METRICS_KEYS.secLog, JSON.stringify(entry))
+      .ltrim(METRICS_KEYS.secLog, 0, SEC_LOG_SIZE - 1)
+      .exec(),
+  );
+}
+
 // ─── Cloudflare R2 ──────────────────────────────────────────────────────────
 
 /**

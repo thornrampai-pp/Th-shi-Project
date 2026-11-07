@@ -58,7 +58,8 @@ export const AssetType = {
   ETF: 'ETF',
   CRYPTO: 'CRYPTO',
   FOREX: 'FOREX',
-  GOLD: 'GOLD'
+  GOLD: 'GOLD',
+  MUTUAL_FUND: 'MUTUAL_FUND'
 } as const
 
 export type AssetType = (typeof AssetType)[keyof typeof AssetType]

@@ -74,6 +74,9 @@ const envSchema = z.object({
   GEMINI_RPM_LIMIT: optionalPositiveInt, // requests per minute
   GEMINI_TPM_LIMIT: optionalPositiveInt, // tokens per minute
   GEMINI_RPD_LIMIT: optionalPositiveInt, // requests per day (resets midnight Pacific)
+  // Thai mutual funds — SEC Open API (secopendata.sec.or.th → subscribe "Fund API").
+  // One key covers fund search and daily NAV. Unset = funds can't be looked up.
+  SEC_API_KEY: optionalString,
   DISCORD_PUBLIC_KEY: optionalString, // required only when the Discord bot is enabled
   DISCORD_BOT_TOKEN: optionalString,
   DISCORD_APPLICATION_ID: optionalString,

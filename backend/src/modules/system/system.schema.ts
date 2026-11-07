@@ -1,7 +1,7 @@
 import { builder } from '../../graphql/builder';
 import { GraphQLContext, requireAdmin } from '../../common/middlewares/auth.middleware';
 import type { RedisEvent } from '../../common/monitoring/redis-events';
-import type { CacheLogEntry, GeminiLogEntry } from '../../common/monitoring/usage-metrics';
+import type { CacheLogEntry, GeminiLogEntry, SecLogEntry } from '../../common/monitoring/usage-metrics';
 import * as systemService from './system.service';
 import type {
   CacheStats,
@@ -12,6 +12,7 @@ import type {
   GeminiStatus,
   R2Status,
   RedisKeyGroup,
+  SecStatus,
   RedisStatus,
   SystemStatus,
 } from './system.service';
@@ -215,6 +216,29 @@ const DiscordStatusType = builder.objectRef<DiscordStatus>('DiscordStatus').impl
   }),
 });
 
+const SecLogEntryType = builder.objectRef<SecLogEntry>('SecLogEntry').implement({
+  fields: (t) => ({
+    at: t.exposeString('at'),
+    path: t.exposeString('path'),
+    ok: t.exposeBoolean('ok'),
+    status: t.exposeInt('status', { nullable: true }),
+    ms: t.exposeFloat('ms'),
+    error: t.exposeString('error', { nullable: true }),
+  }),
+});
+
+const SecStatusType = builder.objectRef<SecStatus>('SecStatus').implement({
+  fields: (t) => ({
+    configured: t.exposeBoolean('configured'),
+    requestsToday: t.exposeInt('requestsToday'),
+    errorsToday: t.exposeInt('errorsToday'),
+    funds: t.exposeInt('funds'),
+    heldFunds: t.exposeInt('heldFunds'),
+    latestNavDate: t.exposeString('latestNavDate', { nullable: true }),
+    log: t.field({ type: [SecLogEntryType], resolve: (s) => s.log }),
+  }),
+});
+
 const SystemStatusType = builder.objectRef<SystemStatus>('SystemStatus').implement({
   fields: (t) => ({
     generatedAt: t.field({ type: 'String', resolve: (s) => s.generatedAt.toISOString() }),
@@ -223,13 +247,14 @@ const SystemStatusType = builder.objectRef<SystemStatus>('SystemStatus').impleme
     gemini: t.field({ type: GeminiStatusType, resolve: (s) => s.gemini }),
     r2: t.field({ type: R2StatusType, resolve: (s) => s.r2 }),
     discord: t.field({ type: DiscordStatusType, resolve: (s) => s.discord }),
+    sec: t.field({ type: SecStatusType, resolve: (s) => s.sec }),
   }),
 });
 
 builder.queryField('systemStatus', (t) =>
   t.field({
     type: SystemStatusType,
-    description: 'Admin only — Redis health/keys/logs, cache hit rate, Gemini quota usage, Cloudflare R2 usage and Discord connectivity',
+    description: 'Admin only — Redis health/keys/logs, cache hit rate, Gemini quota usage, Cloudflare R2 usage, Discord connectivity and the SEC fund API',
     resolve: (_root, _args, context: GraphQLContext) => {
       requireAdmin(context);
       return systemService.getSystemStatus();

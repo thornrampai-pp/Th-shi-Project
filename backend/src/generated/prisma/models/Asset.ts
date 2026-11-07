@@ -34,6 +34,8 @@ export type AssetMinAggregateOutputType = {
   sector: string | null
   industry: string | null
   isPopular: boolean | null
+  externalId: string | null
+  delistedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +50,8 @@ export type AssetMaxAggregateOutputType = {
   sector: string | null
   industry: string | null
   isPopular: boolean | null
+  externalId: string | null
+  delistedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +66,8 @@ export type AssetCountAggregateOutputType = {
   sector: number
   industry: number
   isPopular: number
+  externalId: number
+  delistedAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -78,6 +84,8 @@ export type AssetMinAggregateInputType = {
   sector?: true
   industry?: true
   isPopular?: true
+  externalId?: true
+  delistedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -92,6 +100,8 @@ export type AssetMaxAggregateInputType = {
   sector?: true
   industry?: true
   isPopular?: true
+  externalId?: true
+  delistedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -106,6 +116,8 @@ export type AssetCountAggregateInputType = {
   sector?: true
   industry?: true
   isPopular?: true
+  externalId?: true
+  delistedAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -193,6 +205,8 @@ export type AssetGroupByOutputType = {
   sector: string | null
   industry: string | null
   isPopular: boolean
+  externalId: string | null
+  delistedAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: AssetCountAggregateOutputType | null
@@ -228,6 +242,8 @@ export type AssetWhereInput = {
   sector?: Prisma.StringNullableFilter<"Asset"> | string | null
   industry?: Prisma.StringNullableFilter<"Asset"> | string | null
   isPopular?: Prisma.BoolFilter<"Asset"> | boolean
+  externalId?: Prisma.StringNullableFilter<"Asset"> | string | null
+  delistedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   positions?: Prisma.PositionListRelationFilter
@@ -254,6 +270,8 @@ export type AssetOrderByWithRelationInput = {
   sector?: Prisma.SortOrderInput | Prisma.SortOrder
   industry?: Prisma.SortOrderInput | Prisma.SortOrder
   isPopular?: Prisma.SortOrder
+  externalId?: Prisma.SortOrderInput | Prisma.SortOrder
+  delistedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   positions?: Prisma.PositionOrderByRelationAggregateInput
@@ -284,6 +302,8 @@ export type AssetWhereUniqueInput = Prisma.AtLeast<{
   sector?: Prisma.StringNullableFilter<"Asset"> | string | null
   industry?: Prisma.StringNullableFilter<"Asset"> | string | null
   isPopular?: Prisma.BoolFilter<"Asset"> | boolean
+  externalId?: Prisma.StringNullableFilter<"Asset"> | string | null
+  delistedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   positions?: Prisma.PositionListRelationFilter
@@ -310,6 +330,8 @@ export type AssetOrderByWithAggregationInput = {
   sector?: Prisma.SortOrderInput | Prisma.SortOrder
   industry?: Prisma.SortOrderInput | Prisma.SortOrder
   isPopular?: Prisma.SortOrder
+  externalId?: Prisma.SortOrderInput | Prisma.SortOrder
+  delistedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssetCountOrderByAggregateInput
@@ -330,6 +352,8 @@ export type AssetScalarWhereWithAggregatesInput = {
   sector?: Prisma.StringNullableWithAggregatesFilter<"Asset"> | string | null
   industry?: Prisma.StringNullableWithAggregatesFilter<"Asset"> | string | null
   isPopular?: Prisma.BoolWithAggregatesFilter<"Asset"> | boolean
+  externalId?: Prisma.StringNullableWithAggregatesFilter<"Asset"> | string | null
+  delistedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Asset"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Asset"> | Date | string
 }
@@ -344,6 +368,8 @@ export type AssetCreateInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -370,6 +396,8 @@ export type AssetUncheckedCreateInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -396,6 +424,8 @@ export type AssetUpdateInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -422,6 +452,8 @@ export type AssetUncheckedUpdateInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -448,6 +480,8 @@ export type AssetCreateManyInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -462,6 +496,8 @@ export type AssetUpdateManyMutationInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -476,6 +512,8 @@ export type AssetUncheckedUpdateManyInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -500,6 +538,8 @@ export type AssetCountOrderByAggregateInput = {
   sector?: Prisma.SortOrder
   industry?: Prisma.SortOrder
   isPopular?: Prisma.SortOrder
+  externalId?: Prisma.SortOrder
+  delistedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -514,6 +554,8 @@ export type AssetMaxOrderByAggregateInput = {
   sector?: Prisma.SortOrder
   industry?: Prisma.SortOrder
   isPopular?: Prisma.SortOrder
+  externalId?: Prisma.SortOrder
+  delistedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -528,6 +570,8 @@ export type AssetMinOrderByAggregateInput = {
   sector?: Prisma.SortOrder
   industry?: Prisma.SortOrder
   isPopular?: Prisma.SortOrder
+  externalId?: Prisma.SortOrder
+  delistedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -721,6 +765,8 @@ export type AssetCreateWithoutLedgerEntriesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -746,6 +792,8 @@ export type AssetUncheckedCreateWithoutLedgerEntriesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -787,6 +835,8 @@ export type AssetUpdateWithoutLedgerEntriesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -812,6 +862,8 @@ export type AssetUncheckedUpdateWithoutLedgerEntriesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -837,6 +889,8 @@ export type AssetCreateWithoutPricesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -862,6 +916,8 @@ export type AssetUncheckedCreateWithoutPricesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -903,6 +959,8 @@ export type AssetUpdateWithoutPricesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -928,6 +986,8 @@ export type AssetUncheckedUpdateWithoutPricesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -953,6 +1013,8 @@ export type AssetCreateWithoutFundamentalsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -978,6 +1040,8 @@ export type AssetUncheckedCreateWithoutFundamentalsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1019,6 +1083,8 @@ export type AssetUpdateWithoutFundamentalsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1044,6 +1110,8 @@ export type AssetUncheckedUpdateWithoutFundamentalsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1069,6 +1137,8 @@ export type AssetCreateWithoutIndicatorsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1094,6 +1164,8 @@ export type AssetUncheckedCreateWithoutIndicatorsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1135,6 +1207,8 @@ export type AssetUpdateWithoutIndicatorsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1160,6 +1234,8 @@ export type AssetUncheckedUpdateWithoutIndicatorsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1185,6 +1261,8 @@ export type AssetCreateWithoutDividendsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1210,6 +1288,8 @@ export type AssetUncheckedCreateWithoutDividendsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1251,6 +1331,8 @@ export type AssetUpdateWithoutDividendsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1276,6 +1358,8 @@ export type AssetUncheckedUpdateWithoutDividendsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1301,6 +1385,8 @@ export type AssetCreateWithoutThesesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1326,6 +1412,8 @@ export type AssetUncheckedCreateWithoutThesesInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1367,6 +1455,8 @@ export type AssetUpdateWithoutThesesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1392,6 +1482,8 @@ export type AssetUncheckedUpdateWithoutThesesInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1417,6 +1509,8 @@ export type AssetCreateWithoutPositionsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   taxLots?: Prisma.TaxLotCreateNestedManyWithoutAssetInput
@@ -1442,6 +1536,8 @@ export type AssetUncheckedCreateWithoutPositionsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   taxLots?: Prisma.TaxLotUncheckedCreateNestedManyWithoutAssetInput
@@ -1483,6 +1579,8 @@ export type AssetUpdateWithoutPositionsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   taxLots?: Prisma.TaxLotUpdateManyWithoutAssetNestedInput
@@ -1508,6 +1606,8 @@ export type AssetUncheckedUpdateWithoutPositionsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   taxLots?: Prisma.TaxLotUncheckedUpdateManyWithoutAssetNestedInput
@@ -1533,6 +1633,8 @@ export type AssetCreateWithoutTaxLotsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1558,6 +1660,8 @@ export type AssetUncheckedCreateWithoutTaxLotsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1599,6 +1703,8 @@ export type AssetUpdateWithoutTaxLotsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1624,6 +1730,8 @@ export type AssetUncheckedUpdateWithoutTaxLotsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1649,6 +1757,8 @@ export type AssetCreateWithoutTradingSignalsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1674,6 +1784,8 @@ export type AssetUncheckedCreateWithoutTradingSignalsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1715,6 +1827,8 @@ export type AssetUpdateWithoutTradingSignalsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1740,6 +1854,8 @@ export type AssetUncheckedUpdateWithoutTradingSignalsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1765,6 +1881,8 @@ export type AssetCreateWithoutOrdersInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1790,6 +1908,8 @@ export type AssetUncheckedCreateWithoutOrdersInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1831,6 +1951,8 @@ export type AssetUpdateWithoutOrdersInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1856,6 +1978,8 @@ export type AssetUncheckedUpdateWithoutOrdersInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1881,6 +2005,8 @@ export type AssetCreateWithoutWatchListItemInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -1906,6 +2032,8 @@ export type AssetUncheckedCreateWithoutWatchListItemInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -1947,6 +2075,8 @@ export type AssetUpdateWithoutWatchListItemInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -1972,6 +2102,8 @@ export type AssetUncheckedUpdateWithoutWatchListItemInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1997,6 +2129,8 @@ export type AssetCreateWithoutAlertsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionCreateNestedManyWithoutAssetInput
@@ -2022,6 +2156,8 @@ export type AssetUncheckedCreateWithoutAlertsInput = {
   sector?: string | null
   industry?: string | null
   isPopular?: boolean
+  externalId?: string | null
+  delistedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   positions?: Prisma.PositionUncheckedCreateNestedManyWithoutAssetInput
@@ -2063,6 +2199,8 @@ export type AssetUpdateWithoutAlertsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUpdateManyWithoutAssetNestedInput
@@ -2088,6 +2226,8 @@ export type AssetUncheckedUpdateWithoutAlertsInput = {
   sector?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   industry?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isPopular?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  externalId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  delistedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   positions?: Prisma.PositionUncheckedUpdateManyWithoutAssetNestedInput
@@ -2243,6 +2383,8 @@ export type AssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   sector?: boolean
   industry?: boolean
   isPopular?: boolean
+  externalId?: boolean
+  delistedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   positions?: boolean | Prisma.Asset$positionsArgs<ExtArgs>
@@ -2270,6 +2412,8 @@ export type AssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   sector?: boolean
   industry?: boolean
   isPopular?: boolean
+  externalId?: boolean
+  delistedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["asset"]>
@@ -2284,6 +2428,8 @@ export type AssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   sector?: boolean
   industry?: boolean
   isPopular?: boolean
+  externalId?: boolean
+  delistedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["asset"]>
@@ -2298,11 +2444,13 @@ export type AssetSelectScalar = {
   sector?: boolean
   industry?: boolean
   isPopular?: boolean
+  externalId?: boolean
+  delistedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "symbol" | "name" | "type" | "currency" | "exchange" | "sector" | "industry" | "isPopular" | "createdAt" | "updatedAt", ExtArgs["result"]["asset"]>
+export type AssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "symbol" | "name" | "type" | "currency" | "exchange" | "sector" | "industry" | "isPopular" | "externalId" | "delistedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["asset"]>
 export type AssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   positions?: boolean | Prisma.Asset$positionsArgs<ExtArgs>
   taxLots?: boolean | Prisma.Asset$taxLotsArgs<ExtArgs>
@@ -2347,6 +2495,8 @@ export type $AssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     sector: string | null
     industry: string | null
     isPopular: boolean
+    externalId: string | null
+    delistedAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["asset"]>
@@ -2793,6 +2943,8 @@ export interface AssetFieldRefs {
   readonly sector: Prisma.FieldRef<"Asset", 'String'>
   readonly industry: Prisma.FieldRef<"Asset", 'String'>
   readonly isPopular: Prisma.FieldRef<"Asset", 'Boolean'>
+  readonly externalId: Prisma.FieldRef<"Asset", 'String'>
+  readonly delistedAt: Prisma.FieldRef<"Asset", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Asset", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Asset", 'DateTime'>
 }

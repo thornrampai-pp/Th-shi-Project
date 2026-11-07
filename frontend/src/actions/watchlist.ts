@@ -114,7 +114,7 @@ export async function searchAssetsAction(query: string): Promise<{ assets: Asset
     const { searchAssetSymbol } = await serverQuery(LookupSymbolQuery, { symbol: search });
     return { assets: compact([toAsset(searchAssetSymbol)]) };
   } catch (e) {
-    if (e instanceof GraphQLRequestError) return { assets: [], error: `No stock found for "${search}"` };
+    if (e instanceof GraphQLRequestError) return { assets: [], error: `No stock or fund found for "${search}"` };
     if (e instanceof TypeError) return { assets: [], error: "Couldn't reach the server" };
     throw e;
   }

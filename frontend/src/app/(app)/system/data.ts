@@ -147,6 +147,26 @@ export function toDiscord(d: Raw["discord"] | undefined) {
   };
 }
 
+export function toSec(x: Raw["sec"] | undefined) {
+  return {
+    configured: !!x?.configured,
+    requestsToday: n(x?.requestsToday),
+    errorsToday: n(x?.errorsToday),
+    funds: n(x?.funds),
+    heldFunds: n(x?.heldFunds),
+    latestNavDate: x?.latestNavDate ?? null,
+    log: compact(x?.log).map((l) => ({
+      at: l.at ?? "",
+      path: l.path ?? "",
+      ok: !!l.ok,
+      status: l.status ?? null,
+      ms: n(l.ms),
+      error: l.error ?? null,
+    })),
+  };
+}
+
+export type Sec = ReturnType<typeof toSec>;
 export type Discord = ReturnType<typeof toDiscord>;
 export type Gemini = ReturnType<typeof toGemini>;
 export type R2 = ReturnType<typeof toR2>;

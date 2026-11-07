@@ -2,6 +2,7 @@ import { env } from '../../config/env';
 import { prisma } from '../../config/prisma';
 import { redis } from '../../config/redis';
 import { isR2Configured } from '../../common/integrations/r2-storage.util';
+import { SEC_FUND_EXCHANGE, isSecConfigured } from '../../common/integrations/sec-fund.util';
 import { getRedisEvents } from '../../common/monitoring/redis-events';
 import type { RedisEvent } from '../../common/monitoring/redis-events';
 import {
@@ -15,7 +16,7 @@ import {
   utcMonth,
 } from '../../common/monitoring/metrics-keys';
 import { DISCORD_API } from '../discord-bot/discord-api';
-import type { CacheLogEntry, GeminiLogEntry } from '../../common/monitoring/usage-metrics';
+import type { CacheLogEntry, GeminiLogEntry, SecLogEntry } from '../../common/monitoring/usage-metrics';
 import { getSlipStorageUsage } from '../storage/storage.service';
 
 /**
@@ -142,6 +143,18 @@ export interface DiscordStatus {
   recentFailures: DiscordFailure[];
 }
 
+export interface SecStatus {
+  configured: boolean;
+  requestsToday: number;
+  errorsToday: number;
+  /** Fund assets known to the app / held in some portfolio. */
+  funds: number;
+  heldFunds: number;
+  /** Newest stored NAV across held funds (yyyy-mm-dd), null if none. */
+  latestNavDate: string | null;
+  log: SecLogEntry[];
+}
+
 export interface SystemStatus {
   generatedAt: Date;
   redis: RedisStatus;
@@ -149,6 +162,7 @@ export interface SystemStatus {
   gemini: GeminiStatus;
   r2: R2Status;
   discord: DiscordStatus;
+  sec: SecStatus;
 }
 
 function num(value: string | undefined): number | null {
@@ -491,13 +505,48 @@ async function getDiscordStatus(): Promise<DiscordStatus> {
   };
 }
 
+async function getSecStatus(): Promise<SecStatus> {
+  const heldWhere = { exchange: SEC_FUND_EXCHANGE, positions: { some: { quantity: { gt: 0 } } } };
+  const [funds, heldFunds, latestNav, metrics] = await Promise.all([
+    prisma.asset.count({ where: { exchange: SEC_FUND_EXCHANGE } }),
+    prisma.asset.count({ where: heldWhere }),
+    prisma.assetPrice.findFirst({
+      where: { timeframe: '1D', asset: heldWhere },
+      orderBy: { timestamp: 'desc' },
+      select: { timestamp: true },
+    }),
+    (async () => {
+      if (redis.status !== 'ready') return { day: {} as Record<string, string>, log: [] as string[] };
+      try {
+        const [day, log] = await Promise.all([
+          redis.hgetall(METRICS_KEYS.secDay(utcDay())),
+          redis.lrange(METRICS_KEYS.secLog, 0, LOG_LIMIT - 1),
+        ]);
+        return { day, log };
+      } catch {
+        return { day: {} as Record<string, string>, log: [] as string[] };
+      }
+    })(),
+  ]);
+  return {
+    configured: isSecConfigured(),
+    requestsToday: int(metrics.day.requests),
+    errorsToday: int(metrics.day.errors),
+    funds,
+    heldFunds,
+    latestNavDate: latestNav ? latestNav.timestamp.toISOString().slice(0, 10) : null,
+    log: parseJsonList<SecLogEntry>(metrics.log),
+  };
+}
+
 export async function getSystemStatus(): Promise<SystemStatus> {
-  const [redisStatus, cache, gemini, r2, discord] = await Promise.all([
+  const [redisStatus, cache, gemini, r2, discord, sec] = await Promise.all([
     getRedisStatus(),
     getCacheStats(),
     getGeminiStatus(),
     getR2Status(),
     getDiscordStatus(),
+    getSecStatus(),
   ]);
-  return { generatedAt: new Date(), redis: redisStatus, cache, gemini, r2, discord };
+  return { generatedAt: new Date(), redis: redisStatus, cache, gemini, r2, discord, sec };
 }

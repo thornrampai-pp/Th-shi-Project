@@ -197,6 +197,8 @@ model Asset {
   sector    String? // หมวดธุรกิจหลัก (เช่น Technology, Energy)
   industry  String? // อุตสาหกรรมย่อย (เช่น Software, Oil & Gas)
   isPopular Boolean   @default(false)
+  externalId String? // รหัสของผู้ให้ข้อมูล — กองทุนรวมไทยเก็บ proj_id ของ ก.ล.ต. (ใช้ดึง NAV)
+  delistedAt DateTime? // วันที่เลิกกองทุน/เพิกถอน — ราคาจะค้างที่ NAV/ราคาสุดท้าย
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -226,6 +228,7 @@ enum AssetType {
   CRYPTO // คริปโตเคอเรนซี
   FOREX // ค่าเงิน
   GOLD // ทองคำ
+  MUTUAL_FUND // กองทุนรวมไทย — ข้อมูลและ NAV จาก SEC Open API (exchange = "SEC-TH")
 }
 
 /// บันทึกประวัติราคาปิดรายวัน (Daily End-of-Day Price) ของสินทรัพย์แต่ละตัว

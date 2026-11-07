@@ -1,3 +1,4 @@
+import { SEC_FUND_EXCHANGE } from "../../common/integrations/sec-fund.util";
 import { prisma } from "../../config/prisma";
 import { getOrSetCache } from "../../common/utils/cache.util";
 import { AppError } from "../../common/errors/AppError";
@@ -110,6 +111,9 @@ function toInsights(summary: YahooInsightsSummary, now: Date): AssetInsights {
 export async function getAssetInsights(assetId: string): Promise<AssetInsights> {
   const asset = await prisma.asset.findUnique({ where: { id: assetId }, select: { symbol: true, exchange: true } });
   if (!asset) throw AppError.notFound("Asset not found");
+  if (asset.exchange === SEC_FUND_EXCHANGE) {
+    throw AppError.badRequest("Analyst insights aren't available for Thai mutual funds");
+  }
 
   const symbol = yahooSymbolOf(asset);
   return getOrSetCache(`insights:${symbol}`, INSIGHTS_TTL_SECONDS, async () =>

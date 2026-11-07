@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { redis } from "../../config/redis";
 import { fetchYahooQuotes, yahooSymbolOf } from "../../common/integrations/yahoo-finance.util";
+import { SEC_FUND_EXCHANGE } from "../../common/integrations/sec-fund.util";
 
 /** The newest market price seen for an asset, in its own currency. */
 export interface LatestQuote {
@@ -19,7 +20,8 @@ const BATCH_SIZE = 50;
  */
 export async function refreshHeldAssetQuotes(): Promise<number> {
   const held = await prisma.position.findMany({
-    where: { quantity: { gt: 0 }, portfolio: { deletedAt: null } },
+    // Funds have no live quote — they're valued from their daily NAV (stored closes).
+    where: { quantity: { gt: 0 }, portfolio: { deletedAt: null }, asset: { exchange: { not: SEC_FUND_EXCHANGE } } },
     distinct: ["assetId"],
     select: { asset: { select: { id: true, symbol: true, exchange: true } } },
   });

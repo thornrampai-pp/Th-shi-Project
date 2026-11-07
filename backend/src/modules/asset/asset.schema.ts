@@ -17,7 +17,7 @@ function numOrNull(value: unknown): number | null {
  * ========================================================= */
 
 export const AssetTypeEnum = builder.enumType("AssetType", {
-  values: ["STOCK", "ETF", "CRYPTO", "FOREX", "GOLD"] as const,
+  values: ["STOCK", "ETF", "CRYPTO", "FOREX", "GOLD", "MUTUAL_FUND"] as const,
 });
 
 export const DataPeriodEnum = builder.enumType("DataPeriod", {

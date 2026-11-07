@@ -2877,6 +2877,8 @@ export const AssetScalarFieldEnum = {
   sector: 'sector',
   industry: 'industry',
   isPopular: 'isPopular',
+  externalId: 'externalId',
+  delistedAt: 'delistedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

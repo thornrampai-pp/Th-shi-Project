@@ -28,6 +28,8 @@ const LEAD_DAYS = 7;
 // A stored series starting within this many days of the needed start counts as complete
 // (the needed start can fall on a weekend/holiday with no bar).
 const START_SLACK_DAYS = 5;
+// The last NAV/close before a delisting can be a few days before the delisting date.
+const DELISTED_TAIL_SLACK_DAYS = 10;
 
 const keys = {
   priceFrom: (assetId: string) => `history:price-from:${assetId}`,
@@ -75,6 +77,9 @@ async function ensurePriceCoverage(assetId: string, neededFrom: Date): Promise<v
     console.log(`📈 Backfilled ${count} daily closes for ${asset.symbol} since ${neededFrom.toISOString().slice(0, 10)}`);
     return;
   }
+
+  // A liquidated fund (or delisted asset) publishes nothing after it closed.
+  if (asset.delistedAt && last && last.timestamp.getTime() >= addDays(asset.delistedAt, -DELISTED_TAIL_SLACK_DAYS).getTime()) return;
 
   const today = utcDay(new Date()).toISOString().slice(0, 10);
   if (await needsTailRefresh(last?.timestamp ?? null, keys.priceTail(assetId, today))) {

@@ -6,11 +6,12 @@ import { graphql } from "@/gql";
 import { serverQuery } from "@/lib/graphql/server";
 import AutoRefresh from "./AutoRefresh";
 import CacheSection from "./CacheSection";
-import { toCache, toDiscord, toGemini, toR2, toRedis } from "./data";
+import { toCache, toDiscord, toGemini, toR2, toRedis, toSec } from "./data";
 import DiscordSection from "./DiscordSection";
 import GeminiSection from "./GeminiSection";
 import R2Section from "./R2Section";
 import RedisSection from "./RedisSection";
+import SecSection from "./SecSection";
 
 export const metadata: Metadata = { title: "System" };
 
@@ -145,6 +146,22 @@ const SystemStatusQuery = graphql(`
           error
         }
       }
+      sec {
+        configured
+        requestsToday
+        errorsToday
+        funds
+        heldFunds
+        latestNavDate
+        log {
+          at
+          path
+          ok
+          status
+          ms
+          error
+        }
+      }
       cache {
         hitsToday
         missesToday
@@ -188,7 +205,10 @@ export default async function SystemPage() {
         <GeminiSection gemini={toGemini(systemStatus?.gemini)} />
         <R2Section r2={toR2(systemStatus?.r2)} />
       </div>
-      <DiscordSection discord={toDiscord(systemStatus?.discord)} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <DiscordSection discord={toDiscord(systemStatus?.discord)} />
+        <SecSection sec={toSec(systemStatus?.sec)} />
+      </div>
       <RedisSection redis={toRedis(systemStatus?.redis)} />
       <CacheSection cache={toCache(systemStatus?.cache)} />
     </PageContainer>

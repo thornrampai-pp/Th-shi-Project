@@ -16,8 +16,9 @@ export interface ThesisInput {
   timeHorizon?: string;
 }
 
-// Theses backfilled by migration 20261026164441_thesis_sections got Thai titles;
-// users can rename those.
+// New theses start with these sections (users can rename them). The Thai defaults the
+// 20261026164441_thesis_sections backfill created were renamed to these by a later
+// migration (thesis_section_titles_english).
 export const DEFAULT_SECTION_TITLES = [
   "Business & Revenue",
   "Growth Drivers",

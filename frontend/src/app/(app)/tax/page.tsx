@@ -115,7 +115,7 @@ export default async function TaxPage({ searchParams }: Props) {
       {breakdown.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground">By type and country</h2>
-          <div className="overflow-x-auto rounded-md bg-muted">
+          <div className="relative overflow-x-auto rounded-md bg-muted">
             <table className="w-full min-w-[28rem] text-sm">
               <thead>
                 <tr className="bg-chrome text-left text-xs font-medium text-white">

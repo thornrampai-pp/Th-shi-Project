@@ -107,7 +107,7 @@ export default function OrdersPanel({ portfolioId, portfolioType, orders, signal
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-md bg-muted">
+        <div className="relative overflow-x-auto rounded-md bg-muted">
           <table className="w-full min-w-[50rem] text-sm">
             <thead>
               <tr className="bg-chrome text-left text-xs font-medium text-white">

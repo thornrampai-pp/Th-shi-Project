@@ -13,10 +13,11 @@ export default function StatCard({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex min-h-28 flex-col justify-between rounded-md bg-muted p-4">
-      <p className="text-sm font-semibold">{label}</p>
-      <div>
-        <p className={cn("text-2xl font-semibold tabular-nums", valueClassName)}>{value}</p>
+    // Two to a row on phones, so the four portfolio tiles fit without a long scroll.
+    <div className="flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-md bg-muted p-3 sm:min-h-28 sm:p-4">
+      <p className="text-xs font-semibold sm:text-sm">{label}</p>
+      <div className="min-w-0">
+        <p className={cn("text-lg font-semibold break-words tabular-nums sm:text-2xl", valueClassName)}>{value}</p>
         {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
       </div>
     </div>

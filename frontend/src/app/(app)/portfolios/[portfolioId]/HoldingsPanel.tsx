@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Private } from "@/components/AmountPrivacy";
-import { formatQuantity, formatSignedPct, plColor } from "@/lib/format";
+import { formatCurrency, formatQuantity, formatSignedPct, plColor } from "@/lib/format";
 import type { Holding, PortfolioListItem } from "../data";
 import AddAssetDialog from "./AddAssetDialog";
 import ImportStatementDialog from "./ImportStatementDialog";
@@ -29,29 +29,6 @@ type Props = { portfolioId: string; currency: string; holdings: Holding[]; portf
 
 const closeDay = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
-const currencyFormats = new Map<string, Intl.NumberFormat>();
-
-/** "$620.33", "฿22,679.46" — the currency's own symbol, 2 decimals. */
-function money(value: number, currency: string, signed = false): string {
-  let format = currencyFormats.get(currency);
-  if (!format) {
-    try {
-      format = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-        currencyDisplay: "narrowSymbol",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    } catch {
-      format = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    currencyFormats.set(currency, format);
-  }
-  const text = format.format(Math.abs(value));
-  return signed ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${text}` : value < 0 ? `−${text}` : text;
-}
-
 /**
  * An amount in the asset's own currency, with the portfolio-currency figure in
  * brackets underneath — "$620.33 (฿22,679.46)". `value` comes in portfolio currency,
@@ -70,11 +47,11 @@ function Amount({
   signed?: boolean;
 }) {
   const own = holding.assetCurrency;
-  if (!own || own === currency || !(holding.fxRate > 0)) return <>{money(value, currency, signed)}</>;
+  if (!own || own === currency || !(holding.fxRate > 0)) return <>{formatCurrency(value, currency, signed)}</>;
   return (
     <>
-      {money(value / holding.fxRate, own, signed)}
-      <span className="block text-xs text-muted-foreground">({money(value, currency, signed)})</span>
+      {formatCurrency(value / holding.fxRate, own, signed)}
+      <span className="block text-xs text-muted-foreground">({formatCurrency(value, currency, signed)})</span>
     </>
   );
 }
@@ -124,7 +101,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-md bg-muted">
+      <div className="relative overflow-x-auto rounded-md bg-muted">
         <table className="w-full min-w-[44rem] text-sm">
           <thead>
             <tr className="bg-chrome text-left text-xs font-medium text-white">

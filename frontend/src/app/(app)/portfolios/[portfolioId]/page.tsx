@@ -24,7 +24,7 @@ export default async function PortfolioPage({ params }: Props) {
     <>
       <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <AllocationDonut holdings={portfolio.holdings} legend="side" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <StatCard
             label="Total Profit"
             value={formatSignedPct(portfolio.unrealizedPLPct)}

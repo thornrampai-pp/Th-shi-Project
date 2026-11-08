@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const LINKS = [
+export const LINKS = [
   { href: "/portfolios", label: "Portfolios" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/alerts", label: "Alerts" },
@@ -14,9 +14,14 @@ const LINKS = [
 /** Admins get every normal tab plus System; the backend still checks the role. */
 const ADMIN_LINKS = [{ href: "/system", label: "System" }];
 
+export function navLinksFor(isAdmin: boolean) {
+  return isAdmin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
+}
+
+/** The section tabs in the desktop header (phones use MobileMenu instead). */
 export default function NavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
-  const links = isAdmin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
+  const links = navLinksFor(isAdmin);
 
   return (
     <nav className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1">

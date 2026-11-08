@@ -19,7 +19,7 @@ export default async function PortfoliosPage() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:max-w-2xl">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:max-w-2xl">
         <StatCard
           label="Total Profit"
           value={formatSignedPct(overview.unrealizedPLPct)}

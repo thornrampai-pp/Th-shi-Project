@@ -4,7 +4,7 @@
  * Gemini reads, Thai fund lookup).
  *
  *   npm run statements:bulk-upload -- --email you@example.com --dir ~/statements
- *     [--map scripts/local/statement-portfolios.json] [--max 5] [--dry-run]
+ *     [--map scripts/local/statement-portfolios.json] [--max 5] [--reserve 1] [--dry-run]
  *
  * - Files are processed oldest first by the date in their name (DDMMYYYY, YYYYMMDD,
  *   Buddhist-era years ok) — not by name, which puts 10/07 before 10/03, and a sell
@@ -15,8 +15,11 @@
  *   the map in scripts/local/ (git-ignored): it lists what you hold.
  * - Re-running is safe and cheap: files already read reuse their cached read (no
  *   Gemini call), rows already recorded come back as duplicates.
- * - Stops before the Gemini daily budget (GEMINI_RPD_LIMIT) is spent and paces new
- *   reads to GEMINI_RPM_LIMIT. Snapshots are rebuilt once per portfolio at the end.
+ * - Stops before the Gemini daily budget (GEMINI_RPD_LIMIT minus --reserve, default 1
+ *   left for normal app use) is spent — checked before each file AND after every failed
+ *   attempt, since one file can retry 5x across every fallback model. Stops the whole
+ *   run if every model answers 429. Paces new reads to GEMINI_RPM_LIMIT. Snapshots are
+ *   rebuilt once per portfolio at the end.
  * - --dry-run lists the order and what's cached without calling anything.
  */
 import 'dotenv/config';
@@ -30,6 +33,7 @@ import { extractionCacheKey, sha256Hex } from '../src/common/utils/extraction-ca
 import { dateFromFileName, sortByDateThenName } from '../src/common/utils/filename-date';
 import { METRICS_KEYS, geminiQuotaDay } from '../src/common/monitoring/metrics-keys';
 import type { StatementExtraction } from '../src/common/integrations/gemini.util';
+import { GeminiRequestError } from '../src/common/integrations/gemini.util';
 import { confirmStatement, previewStatement } from '../src/modules/transaction/statement-import.service';
 import type { StatementRowStatus } from '../src/modules/transaction/statement-import.service';
 import { createPortfolio } from '../src/modules/portfolio/portfolio.service';
@@ -48,8 +52,15 @@ interface Args {
   dir: string;
   map: string;
   max: number | null;
+  reserve: number;
   dryRun: boolean;
 }
+
+/** Thrown from the retry hook to stop the whole run, not just skip one file. */
+class QuotaGuard extends Error {}
+
+/** Every model in the chain answered 429 — more files would only burn more calls. */
+const isQuotaRefusal = (err: unknown) => err instanceof GeminiRequestError && err.status === 429;
 
 function parseArgs(argv: string[]): Args {
   const value = (flag: string) => {
@@ -64,11 +75,14 @@ function parseArgs(argv: string[]): Args {
     process.exit(1);
   }
   const max = value('--max');
+  const reserve = value('--reserve');
   return {
     email: email.trim().toLowerCase(),
     dir: expand(dir),
     map: expand(value('--map') ?? 'scripts/local/statement-portfolios.json'),
     max: max ? Number(max) : null,
+    // Gemini calls left untouched for normal app use (slip uploads etc.).
+    reserve: reserve ? Number(reserve) : 1,
     dryRun: argv.includes('--dry-run'),
   };
 }
@@ -135,6 +149,7 @@ async function main() {
   if (ordered.length === 0) throw new Error(`No PDF/image files in ${args.dir}`);
 
   const rpd = env.GEMINI_RPD_LIMIT ?? Infinity;
+  const budgetLimit = rpd - args.reserve;
   const spacingMs = env.GEMINI_RPM_LIMIT ? Math.ceil(60_000 / env.GEMINI_RPM_LIMIT) + 2_000 : 0;
   const usedAtStart = await geminiCallsToday();
   console.log(
@@ -164,14 +179,16 @@ async function main() {
   const rebuildFrom = new Map<string, Date>(); // portfolioId → earliest new trade
   let newReads = 0;
   let lastReadAt = 0;
+  let stoppedEarly = false;
 
   for (const [i, file] of ordered.entries()) {
     const label = `[${i + 1}/${ordered.length}] ${day(file.date)} ${file.name}`;
 
     if (!file.cached) {
       const used = await geminiCallsToday();
-      if (used >= rpd) {
-        console.log(`⏸️  Gemini daily budget spent (${used}/${rpd}) — stopping before ${file.name}. Run again tomorrow.`);
+      if (used >= budgetLimit) {
+        console.log(`⏸️  Gemini daily budget spent (${used}/${rpd}, reserve ${args.reserve}) — stopping before ${file.name}. Run again tomorrow.`);
+        stoppedEarly = true;
         break;
       }
       if (args.max !== null && newReads >= args.max) {
@@ -187,9 +204,23 @@ async function main() {
       preview = await previewStatement(
         user.id,
         { imageBase64: file.bytes.toString('base64'), mimeType: file.mimeType },
-        { onAttemptFailed: (attempt, max, err) => console.warn(`  ⚠️ attempt ${attempt}/${max}: ${err instanceof Error ? err.message.slice(0, 160) : err}`) },
+        {
+          onAttemptFailed: async (attempt, max, err) => {
+            console.warn(`  ⚠️ attempt ${attempt}/${max}: ${err instanceof Error ? err.message.slice(0, 160) : err}`);
+            // One file can retry 5x across 3 models (up to 15 calls), so the
+            // between-files check alone can overshoot the day: re-check mid-file.
+            const used = await geminiCallsToday();
+            if (used >= budgetLimit) throw new QuotaGuard(`Gemini budget reached mid-file (${used}/${rpd}, reserve ${args.reserve})`);
+            if (isQuotaRefusal(err)) throw new QuotaGuard('Gemini refused on quota (429) on every model');
+          },
+        },
       );
     } catch (err) {
+      if (err instanceof QuotaGuard) {
+        console.log(`${label} ⏸️  ${err.message} — stopping; this file stays queued for the next run.`);
+        stoppedEarly = true;
+        break;
+      }
       problems.push(`${file.name}: ${err instanceof Error ? err.message : err}`);
       console.log(`${label} ❌ ${err instanceof Error ? err.message : err}`);
       continue;
@@ -238,7 +269,7 @@ async function main() {
   }
 
   console.log(
-    `\n✅ Done — 🆕 ${totals.created} · ⏭️ ${totals.duplicate} · ❓ ${totals.unreadable} · ❌ ${totals.error}` +
+    `\n${stoppedEarly ? '⏸️  Stopped early' : '✅ Done'} — 🆕 ${totals.created} · ⏭️ ${totals.duplicate} · ❓ ${totals.unreadable} · ❌ ${totals.error}` +
       ` · new Gemini reads ${newReads} (today ${await geminiCallsToday()}/${rpd === Infinity ? '∞' : rpd})`,
   );
   if (problems.length > 0) {

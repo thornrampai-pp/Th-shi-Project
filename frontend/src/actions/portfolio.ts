@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { graphql } from "@/gql";
 import type { PortfolioType, RecordTransactionMutationVariables, StrategyType } from "@/gql/graphql";
-import { serverQuery } from "@/lib/graphql/server";
+import { GraphQLRequestError, serverQuery } from "@/lib/graphql/server";
 import { run } from "./run";
 
 const CreatePortfolioMutation = graphql(`
@@ -216,4 +216,48 @@ export async function transferAssetAction(
   input: { toPortfolioId: string; assetId: string; quantity: number; note?: string },
 ) {
   return run(() => serverQuery(TransferAssetMutation, { fromPortfolioId, ...input }));
+}
+
+const TransactionSlipQuery = graphql(`
+  query TransactionSlip($transactionId: ID!) {
+    transactionSlip(transactionId: $transactionId) {
+      imageUrl
+      imageMimeType
+      imageSize
+      transRef
+      verifiedAt
+    }
+  }
+`);
+
+export type SlipFile = {
+  url: string;
+  mimeType: string | null;
+  size: number | null;
+  ref: string | null;
+  attachedAt: string | null;
+};
+
+/**
+ * The slip/statement file attached to a transaction, as a short-lived presigned URL
+ * (R2_PRESIGN_TTL_SECONDS) — fetched when opened, never stored.
+ */
+export async function getTransactionSlipAction(transactionId: string): Promise<{ file?: SlipFile; error?: string }> {
+  try {
+    const { transactionSlip: slip } = await serverQuery(TransactionSlipQuery, { transactionId });
+    if (!slip?.imageUrl) return { error: "No file is attached to this transaction" };
+    return {
+      file: {
+        url: slip.imageUrl,
+        mimeType: slip.imageMimeType ?? null,
+        size: slip.imageSize ?? null,
+        ref: slip.transRef ?? null,
+        attachedAt: slip.verifiedAt ?? null,
+      },
+    };
+  } catch (e) {
+    if (e instanceof GraphQLRequestError) return { error: e.message };
+    if (e instanceof TypeError) return { error: "Couldn't reach the server" };
+    throw e;
+  }
 }

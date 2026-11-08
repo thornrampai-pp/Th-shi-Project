@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { formatMoney, formatQuantity, formatSignedMoney, plColor } from "@/lib/format";
 import type { Transaction } from "../../data";
 import RecordTransactionDialog, { type HoldingOption } from "./RecordTransactionDialog";
+import SlipPanel from "./SlipPanel";
 import Select from "@/components/Select";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -37,6 +38,7 @@ type Props = {
 export default function TransactionsPanel({ portfolioId, transactions, holdings, currencies }: Props) {
   const [type, setType] = useState("ALL");
   const [recording, setRecording] = useState(false);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
   const types = useMemo(() => [...new Set(transactions.map((t) => t.type))], [transactions]);
   const rows = type === "ALL" ? transactions : transactions.filter((t) => t.type === type);
 
@@ -65,7 +67,7 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-md bg-muted">
+      <div className="relative overflow-x-auto rounded-md bg-muted">
         <table className="w-full min-w-[46rem] text-sm">
           <thead>
             <tr className="bg-chrome text-left text-xs font-medium text-white">
@@ -87,7 +89,15 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
               </tr>
             )}
             {rows.map((t) => (
-              <tr key={t.id} className="align-top">
+              <tr
+                key={t.id}
+                // With the file panel open over the right side, a click anywhere on a row
+                // (with a file) switches to it — the View button may be under the panel.
+                onClick={t.hasSlip ? () => setViewing(t) : undefined}
+                className={`align-top ${t.hasSlip ? "cursor-pointer hover:bg-background/50" : ""} ${
+                  viewing?.id === t.id ? "bg-background" : ""
+                }`}
+              >
                 <td className="px-4 py-2.5 whitespace-nowrap">{formatDate(t.executedAt)}</td>
                 <td className="px-4 py-2.5">
                   <span className="rounded bg-field px-1.5 py-0.5 text-xs font-medium">{TYPE_LABEL[t.type] ?? t.type}</span>
@@ -132,9 +142,20 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
                 </td>
                 <td className="px-4 py-2.5 text-center">
                   {t.hasSlip ? (
-                    <span className="text-gain" title="Slip attached">
-                      ✓<span className="sr-only">Slip attached</span>
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewing(t);
+                      }}
+                      title="View the attached slip / statement"
+                      aria-pressed={viewing?.id === t.id}
+                      className={`rounded-md border px-2.5 py-0.5 text-xs text-gain hover:bg-background ${
+                        viewing?.id === t.id ? "border-gain bg-background" : "border-border"
+                      }`}
+                    >
+                      ✓ View<span className="sr-only"> slip for {t.assetSymbol ?? t.type}</span>
+                    </button>
                   ) : (
                     <span className="text-muted-foreground" title="No slip">
                       —<span className="sr-only">No slip</span>
@@ -156,6 +177,13 @@ export default function TransactionsPanel({ portfolioId, transactions, holdings,
           holdings={holdings}
           currencies={currencies}
           onClose={() => setRecording(false)}
+        />
+      )}
+      {viewing && (
+        <SlipPanel
+          transactionId={viewing.id}
+          title={`${TYPE_LABEL[viewing.type] ?? viewing.type}${viewing.assetSymbol ? ` ${viewing.assetSymbol}` : ""} · ${formatDate(viewing.executedAt)}`}
+          onClose={() => setViewing(null)}
         />
       )}
     </section>

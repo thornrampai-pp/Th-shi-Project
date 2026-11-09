@@ -46,11 +46,11 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-md bg-muted p-5">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <section className="min-w-0 space-y-3 rounded-md bg-muted p-4">
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="font-semibold">{title}</h2>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
         </div>
         {badge}
       </div>
@@ -59,48 +59,46 @@ export function Section({
   );
 }
 
+/** A dot + short label; the label is the tooltip-free summary of the section's health. */
 export function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-        ok ? "bg-gain/15 text-gain" : "bg-loss/15 text-loss",
-      )}
-    >
+    <span className={cn("inline-flex shrink-0 items-center gap-1.5 text-xs", ok ? "text-gain" : "text-loss")}>
       <span aria-hidden className={cn("size-1.5 rounded-full", ok ? "bg-gain" : "bg-loss")} />
       {label}
     </span>
   );
 }
 
-/** used / limit bar. Without a limit it shows the count alone. */
+/** used / limit on one line over a thin bar. Without a limit it shows the count alone. */
 export function Meter({
   label,
   used,
   limit,
   format = fmtNum,
   hint,
+  muted,
 }: {
   label: string;
   used: number;
   limit: number | null;
   format?: (v: number) => string;
   hint?: string;
+  muted?: boolean;
 }) {
   const pct = limit && limit > 0 ? (used / limit) * 100 : null;
   const tone = pct == null ? "bg-primary" : pct >= 90 ? "bg-loss" : pct >= 70 ? "bg-amber-500" : "bg-gain";
 
   return (
-    <div className="space-y-1.5 rounded-md bg-background/60 p-3">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="tabular-nums text-muted-foreground">
-          <span className="text-foreground">{format(used)}</span>
-          {limit != null ? ` / ${format(limit)}` : " · no limit set"}
+    <div className={cn("min-w-0 space-y-1", muted && "opacity-50")} title={hint}>
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="truncate text-muted-foreground">{label}</span>
+        <span className="shrink-0 tabular-nums">
+          {format(used)}
+          {limit != null && <span className="text-muted-foreground"> / {format(limit)}</span>}
         </span>
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-field"
+        className="h-1 overflow-hidden rounded-full bg-field"
         role="meter"
         aria-label={label}
         aria-valuenow={used}
@@ -109,34 +107,54 @@ export function Meter({
       >
         <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${Math.min(pct ?? 0, 100)}%` }} />
       </div>
-      <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-        <span>{hint}</span>
-        {pct != null && <span className="tabular-nums">{pct.toFixed(1)}%</span>}
-      </div>
     </div>
   );
 }
 
+/** One figure in a <Stats> row: small label over the value, detail as tooltip. */
 export function Stat({ label, value, detail }: { label: string; value: React.ReactNode; detail?: string }) {
   return (
-    <div className="min-w-0 rounded-md bg-background/60 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="truncate text-lg font-semibold tabular-nums">{value}</p>
-      {detail && <p className="truncate text-xs text-muted-foreground">{detail}</p>}
+    <div className="min-w-0" title={detail}>
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
+      <p className="truncate text-sm font-medium tabular-nums">{value}</p>
     </div>
+  );
+}
+
+export function Stats({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap gap-x-6 gap-y-2">{children}</div>;
+}
+
+/** Collapsed detail (logs, breakdowns) so the page stays a summary until asked. */
+export function Collapsible({
+  title,
+  open,
+  children,
+}: {
+  title: React.ReactNode;
+  open?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details open={open} className="group">
+      <summary className="cursor-pointer list-none text-xs text-muted-foreground hover:text-foreground">
+        <span className="inline-block transition-transform group-open:rotate-90">›</span> {title}
+      </summary>
+      <div className="mt-2">{children}</div>
+    </details>
   );
 }
 
 /** Horizontally scrollable on phones so wide log rows never push the page sideways. */
 export function Table({ head, children, empty }: { head: string[]; children: React.ReactNode; empty?: boolean }) {
-  if (empty) return <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>;
+  if (empty) return <p className="text-xs text-muted-foreground">Nothing recorded yet.</p>;
   return (
-    <div className="-mx-1 max-h-96 overflow-auto px-1">
-      <table className="w-full text-left text-sm">
+    <div className="-mx-1 max-h-72 overflow-auto px-1">
+      <table className="w-full text-left text-xs">
         <thead className="sticky top-0 bg-muted text-xs text-muted-foreground">
           <tr>
             {head.map((h) => (
-              <th key={h} className="py-2 pr-4 font-medium whitespace-nowrap">
+              <th key={h} className="py-1.5 pr-4 font-medium whitespace-nowrap">
                 {h}
               </th>
             ))}
@@ -148,4 +166,4 @@ export function Table({ head, children, empty }: { head: string[]; children: Rea
   );
 }
 
-export const td = "py-1.5 pr-4 whitespace-nowrap tabular-nums";
+export const td = "py-1 pr-4 whitespace-nowrap tabular-nums";

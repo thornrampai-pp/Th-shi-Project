@@ -165,6 +165,23 @@ describe.skipIf(!runIntegrationTests)("transaction.service (real DB)", () => {
       const lot = await prisma.taxLot.findFirstOrThrow({ where: { portfolioId, assetId } });
       expect(Number(lot.remainingQty)).toBe(6);
     });
+
+    it("closes the position when a full exit leaves only rounding dust", async () => {
+      // Dime prints 7 decimals: held 0.134256 after a split, statement sells 0.1342556.
+      await buy(0.134256, 44.095);
+
+      const sell = await createTransaction(userId, { portfolioId, type: "SELL", assetId, quantity: 0.1342556, price: 33.34 });
+
+      const position = await prisma.position.findUniqueOrThrow({
+        where: { portfolioId_assetId: { portfolioId, assetId } },
+      });
+      expect(Number(position.quantity)).toBe(0);
+      const lot = await prisma.taxLot.findFirstOrThrow({ where: { portfolioId, assetId } });
+      expect(Number(lot.remainingQty)).toBe(0);
+      // The recorded sale is still the statement's figure; the closed dust is noted.
+      expect(Number(sell.mainQuantity)).toBeCloseTo(0.1342556, 8);
+      expect((sell.metadata as { dustClosed?: number }).dustClosed).toBeCloseTo(0.0000004, 10);
+    });
   });
 
   describe("unsupported type", () => {

@@ -16,6 +16,7 @@ import {
   sourceCountryOf,
 } from "../tax/tax.service";
 import { logAuditEvent } from "../audit/audit.service";
+import { quantityRemovedBySell } from "./position-dust";
 
 export type TransactionTypeValue =
   | "BUY"
@@ -596,7 +597,13 @@ async function createSellTransaction(
       0,
     );
 
-    let remainingToSell = quantity;
+    // A full exit that leaves only rounding dust closes the position: the dust's lots
+    // and cost go out with this sale instead of staying open forever. Proceeds are
+    // still what the statement says (quantity x price).
+    const heldQuantity = Number(position.quantity);
+    const quantityRemoved = quantityRemovedBySell(heldQuantity, quantity);
+
+    let remainingToSell = quantityRemoved;
     let costBasisRemoved = 0;
     const consumedLots: FxLot[] = [];
     let allLotRatesKnown = true;
@@ -653,7 +660,7 @@ async function createSellTransaction(
 
     // FIFO removed specific lots, so the new average is the remaining lots' cost —
     // keeps avgPrice in line with the ASSET ledger balance and realizedPL.
-    const newQuantity = Number(position.quantity) - quantity;
+    const newQuantity = heldQuantity - quantityRemoved;
     const newAvgPrice =
       newQuantity > 1e-8 ? (openLotsCost - costBasisRemoved) / newQuantity : 0;
 
@@ -691,6 +698,7 @@ async function createSellTransaction(
             : {}),
           note: input.note,
           timeKnown: input.timeKnown,
+          ...(quantityRemoved !== quantity ? { dustClosed: quantityRemoved - quantity } : {}),
         },
       },
     });

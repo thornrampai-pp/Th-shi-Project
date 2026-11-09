@@ -44,6 +44,19 @@ describe('replayPositions', () => {
     expect(p.totalDiv).toBe(0);
   });
 
+  it('closes a position the sell would leave as dust (fractional-share rounding after a split)', () => {
+    const txs = [
+      tx({ type: 'BUY', executedAt: '2024-09-13', mainQuantity: 0.0134256, mainPrice: 440.95 }),
+      tx({ type: 'SPLIT', executedAt: '2024-10-01', metadata: { ratio: 10 } }),
+      tx({ type: 'SELL', executedAt: '2024-10-31', mainQuantity: 0.1342556, mainPrice: 33.34, fee: 0.01 }),
+    ];
+    const p = replayPositions(txs, new Date('2024-12-31')).get('PTT')!;
+    expect(p.quantity).toBe(0);
+    expect(p.lots).toHaveLength(0);
+    // The dust's cost leaves with the sale: proceeds - fee - full cost basis.
+    expect(p.realizedPL).toBeCloseTo(0.1342556 * 33.34 - 0.01 - 0.0134256 * 440.95, 8);
+  });
+
   it('consumes lots FIFO by purchase date even when recorded out of order', () => {
     const txs = [
       tx({ type: 'BUY', executedAt: '2026-02-10', mainQuantity: 10, mainPrice: 20 }),

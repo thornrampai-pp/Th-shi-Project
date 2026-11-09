@@ -6,6 +6,7 @@
  * snapshot for a past date sees the portfolio exactly as it was that day — the
  * Position table only ever holds the current state.
  */
+import { quantityRemovedBySell } from '../transaction/position-dust';
 
 export interface ReplayTransaction {
   type: string;
@@ -76,7 +77,9 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
 
       case 'SELL': {
         if (quantity <= 0) break;
-        let remaining = quantity;
+        // A leftover under POSITION_DUST_QTY is rounding, not shares — close it, like SELL does.
+        const removed = quantityRemovedBySell(position.quantity, quantity);
+        let remaining = removed;
         let costRemoved = 0;
         for (const lot of position.lots) {
           if (remaining <= EPSILON) break;
@@ -87,7 +90,7 @@ export function replayPositions(transactions: ReplayTransaction[], asOf: Date): 
         }
         position.lots = position.lots.filter((lot) => lot.quantity > EPSILON);
         position.realizedPL += quantity * price - tx.fee - costRemoved;
-        position.quantity = Math.max(0, position.quantity - quantity);
+        position.quantity = Math.max(0, position.quantity - removed);
         // FIFO removed specific lots, so the average of what's left is the remaining
         // lots' cost — keeping the old average would mismatch realizedPL and overstate P/L.
         position.avgPrice = remainingAvgCost(position.lots, position.quantity);

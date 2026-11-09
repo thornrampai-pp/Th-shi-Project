@@ -1,6 +1,9 @@
 import { redis } from '../../config/redis';
 import {
   METRICS_KEYS,
+  geminiModelCounts,
+  geminiModelErrorField,
+  geminiModelField,
   geminiQuotaDay,
   geminiRecentMember,
   keyGroup,
@@ -90,14 +93,27 @@ export function recordGeminiCall(call: GeminiCallRecord): void {
     .hincrby(day, 'outputTokens', call.outputTokens)
     .hincrby(day, 'totalTokens', call.totalTokens)
     .hincrby(day, `kind:${call.kind}`, 1)
-    .hincrby(day, `model:${call.model}`, 1);
-  if (!call.ok) tx.hincrby(day, 'errors', 1);
+    .hincrby(day, geminiModelField(call.model), 1);
+  if (!call.ok) tx.hincrby(day, 'errors', 1).hincrby(day, geminiModelErrorField(call.model), 1);
   if (call.status === 429) tx.hincrby(day, 'rateLimited', 1);
   tx.expire(day, DAY_TTL_SECONDS)
     .lpush(METRICS_KEYS.geminiLog, JSON.stringify(entry))
     .ltrim(METRICS_KEYS.geminiLog, 0, GEMINI_LOG_SIZE - 1);
 
   swallow(tx.exec());
+}
+
+/**
+ * Today's (Pacific day) call count per model — what the daily limit is checked against,
+ * since Gemini's quota is per model. Fails open: `{}` when Redis can't answer, so a
+ * metrics outage never blocks an upload.
+ */
+export async function geminiCallsTodayByModel(): Promise<Record<string, number>> {
+  try {
+    return geminiModelCounts(await redis.hgetall(METRICS_KEYS.geminiDay(geminiQuotaDay())));
+  } catch {
+    return {};
+  }
 }
 
 // ─── Discord ────────────────────────────────────────────────────────────────

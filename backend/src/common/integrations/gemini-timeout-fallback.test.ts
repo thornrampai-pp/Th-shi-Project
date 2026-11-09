@@ -9,7 +9,7 @@ vi.mock('../../config/env', () => ({
     GEMINI_TIMEOUT_MS: 180_000,
   },
 }));
-vi.mock('../monitoring/usage-metrics', () => ({ recordGeminiCall: vi.fn() }));
+vi.mock('../monitoring/usage-metrics', () => ({ recordGeminiCall: vi.fn(), geminiCallsTodayByModel: vi.fn(async () => ({})) }));
 
 import {
   GeminiRequestError,

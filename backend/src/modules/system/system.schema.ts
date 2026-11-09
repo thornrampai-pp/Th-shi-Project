@@ -2,6 +2,7 @@ import { builder } from '../../graphql/builder';
 import { GraphQLContext, requireAdmin } from '../../common/middlewares/auth.middleware';
 import type { RedisEvent } from '../../common/monitoring/redis-events';
 import type { CacheLogEntry, GeminiLogEntry, SecLogEntry } from '../../common/monitoring/usage-metrics';
+import type { GeminiModelUsage } from '../../common/monitoring/metrics-keys';
 import * as systemService from './system.service';
 import type {
   CacheStats,
@@ -133,6 +134,16 @@ const GeminiLogEntryType = builder.objectRef<GeminiLogEntry>('GeminiLogEntry').i
   }),
 });
 
+const GeminiModelUsageType = builder.objectRef<GeminiModelUsage>('GeminiModelUsage').implement({
+  fields: (t) => ({
+    model: t.exposeString('model'),
+    requests: t.exposeInt('requests'),
+    errors: t.exposeInt('errors'),
+    limit: t.exposeInt('limit', { nullable: true, description: 'GEMINI_RPD_LIMIT — the daily quota is per model' }),
+    inChain: t.exposeBoolean('inChain', { description: 'In the current GEMINI_MODEL → fallback chain' }),
+  }),
+});
+
 const GeminiStatusType = builder.objectRef<GeminiStatus>('GeminiStatus').implement({
   fields: (t) => ({
     configured: t.exposeBoolean('configured'),
@@ -142,8 +153,9 @@ const GeminiStatusType = builder.objectRef<GeminiStatus>('GeminiStatus').impleme
     tokensLastMinute: t.exposeFloat('tokensLastMinute'),
     rpmLimit: t.exposeInt('rpmLimit', { nullable: true }),
     tpmLimit: t.exposeFloat('tpmLimit', { nullable: true }),
-    rpdLimit: t.exposeInt('rpdLimit', { nullable: true }),
+    rpdLimit: t.exposeInt('rpdLimit', { nullable: true, description: 'Requests per day, per model' }),
     today: t.field({ type: GeminiTodayType, resolve: (s) => s.today }),
+    byModel: t.field({ type: [GeminiModelUsageType], resolve: (s) => s.byModel }),
     history: t.field({ type: [GeminiDayUsageType], resolve: (s) => s.history }),
     log: t.field({ type: [GeminiLogEntryType], resolve: (s) => s.log }),
   }),

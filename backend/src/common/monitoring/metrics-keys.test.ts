@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   discordInteractionLabel,
+  geminiModelCounts,
+  geminiModelUsage,
   geminiQuotaDay,
   geminiRecentMember,
   keyGroup,
@@ -9,6 +11,36 @@ import {
   tokensFromRecentMember,
   totalKeyspace,
 } from './metrics-keys';
+
+describe('geminiModelCounts', () => {
+  it('reads per-model call counts out of a day hash, ignoring the other fields', () => {
+    const fields = { requests: '9', 'model:a': '6', 'model:b': '3', 'modelErrors:a': '5', errors: '5' };
+    expect(geminiModelCounts(fields)).toEqual({ a: 6, b: 3 });
+  });
+});
+
+describe('geminiModelUsage', () => {
+  const fields = { 'model:primary': '9', 'modelErrors:primary': '7', 'model:old': '2', 'model:fallback': '1' };
+
+  it('lists the configured chain first, in order, with each model held to the per-model limit', () => {
+    const usage = geminiModelUsage(['primary', 'fallback'], fields, 15);
+    expect(usage.slice(0, 2)).toEqual([
+      { model: 'primary', requests: 9, errors: 7, limit: 15, inChain: true },
+      { model: 'fallback', requests: 1, errors: 0, limit: 15, inChain: true },
+    ]);
+  });
+
+  it('still shows models called today that are no longer in the chain', () => {
+    const usage = geminiModelUsage(['primary', 'fallback'], fields, 15);
+    expect(usage[2]).toEqual({ model: 'old', requests: 2, errors: 0, limit: 15, inChain: false });
+  });
+
+  it('shows a chain model with no calls yet as zero, and no limit when none is set', () => {
+    expect(geminiModelUsage(['fresh'], {}, null)).toEqual([
+      { model: 'fresh', requests: 0, errors: 0, limit: null, inChain: true },
+    ]);
+  });
+});
 
 describe('keyGroup', () => {
   it('uses the first segment for two-part keys', () => {

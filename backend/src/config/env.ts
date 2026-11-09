@@ -78,7 +78,7 @@ const envSchema = z.object({
   GEMINI_TIMEOUT_MS: z.coerce.number().int().min(10_000).max(600_000).default(180_000),
   GEMINI_RPM_LIMIT: optionalPositiveInt, // requests per minute
   GEMINI_TPM_LIMIT: optionalPositiveInt, // tokens per minute
-  GEMINI_RPD_LIMIT: optionalPositiveInt, // requests per day (resets midnight Pacific)
+  GEMINI_RPD_LIMIT: optionalPositiveInt, // requests per day PER MODEL (resets midnight Pacific) — enforced: a model at it isn't called
   // Thai mutual funds — SEC Open API (secopendata.sec.or.th → subscribe "Fund API").
   // One key covers fund search and daily NAV. Unset = funds can't be looked up.
   SEC_API_KEY: optionalString,

@@ -7,6 +7,7 @@ import { getRedisEvents } from '../../common/monitoring/redis-events';
 import type { RedisEvent } from '../../common/monitoring/redis-events';
 import {
   METRICS_KEYS,
+  geminiModelUsage,
   keyGroup,
   parseRedisInfo,
   recentGeminiQuotaDays,
@@ -15,6 +16,8 @@ import {
   utcDay,
   utcMonth,
 } from '../../common/monitoring/metrics-keys';
+import type { GeminiModelUsage } from '../../common/monitoring/metrics-keys';
+import { configuredGeminiModels } from '../../common/integrations/gemini.util';
 import { DISCORD_API } from '../discord-bot/discord-api';
 import type { CacheLogEntry, GeminiLogEntry, SecLogEntry } from '../../common/monitoring/usage-metrics';
 import { getSlipStorageUsage } from '../storage/storage.service';
@@ -86,8 +89,11 @@ export interface GeminiStatus {
   tokensLastMinute: number;
   rpmLimit: number | null;
   tpmLimit: number | null;
+  /** Per model — each model in the chain gets this many calls a day. */
   rpdLimit: number | null;
   today: GeminiDayUsage & { promptTokens: number; outputTokens: number; slipCalls: number; statementCalls: number };
+  /** Today's calls per model against rpdLimit: the chain first, then other models called. */
+  byModel: GeminiModelUsage[];
   history: GeminiDayUsage[];
   log: GeminiLogEntry[];
 }
@@ -337,6 +343,7 @@ async function getGeminiStatus(): Promise<GeminiStatus> {
     tpmLimit: env.GEMINI_TPM_LIMIT ?? null,
     rpdLimit: env.GEMINI_RPD_LIMIT ?? null,
     today: { ...toDayUsage(today, {}), promptTokens: 0, outputTokens: 0, slipCalls: 0, statementCalls: 0 },
+    byModel: geminiModelUsage(configuredGeminiModels(), {}, env.GEMINI_RPD_LIMIT ?? null),
     history: days.map((d) => toDayUsage(d, {})),
     log: [],
   };
@@ -365,6 +372,7 @@ async function getGeminiStatus(): Promise<GeminiStatus> {
         slipCalls: int(todayFields['kind:slip']),
         statementCalls: int(todayFields['kind:statement']),
       },
+      byModel: geminiModelUsage(configuredGeminiModels(), todayFields, env.GEMINI_RPD_LIMIT ?? null),
       history: days.map((d, i) => toDayUsage(d, dayFields[i] ?? {})),
       log: parseJsonList<GeminiLogEntry>(log),
     };

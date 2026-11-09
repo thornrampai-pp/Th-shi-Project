@@ -3,7 +3,7 @@ import { buildSlipPrompt, parseSlipBatch } from './slip-extraction';
 import type { SlipExtraction } from './slip-extraction';
 import { buildStatementPrompt, parseStatementExtraction } from './statement-extraction';
 import type { StatementExtraction } from './statement-extraction';
-import { recordGeminiCall } from '../monitoring/usage-metrics';
+import { geminiCallsTodayByModel, recordGeminiCall } from '../monitoring/usage-metrics';
 import type { GeminiCallKind } from '../monitoring/usage-metrics';
 
 export type { SlipExtraction, SlipTransactionType } from './slip-extraction';
@@ -88,18 +88,63 @@ export function resetModelCooldowns(): void {
 }
 
 /**
+ * Gemini's daily quota (GEMINI_RPD_LIMIT) is per model, per project, reset at midnight
+ * Pacific. A model that already made that many calls today (by this app's own count —
+ * failed calls included, so it errs on the safe side) is out for the day.
+ */
+export function splitByDailyBudget(
+  models: string[],
+  callsToday: Record<string, number>,
+  limit: number | null | undefined,
+): { available: string[]; exhausted: string[] } {
+  if (limit == null) return { available: [...models], exhausted: [] };
+  const spent = (m: string) => (callsToday[m] ?? 0) >= limit;
+  return { available: models.filter((m) => !spent(m)), exhausted: models.filter(spent) };
+}
+
+/** Calls the chain has left today, keeping `reservePerModel` of each model untouched. */
+export function dailyCallsLeft(
+  models: string[],
+  callsToday: Record<string, number>,
+  limit: number | null | undefined,
+  reservePerModel = 0,
+): number {
+  if (limit == null) return Infinity;
+  return models.reduce((sum, m) => sum + Math.max(0, limit - reservePerModel - (callsToday[m] ?? 0)), 0);
+}
+
+/** The configured chain: GEMINI_MODEL, then its fallbacks. */
+export function configuredGeminiModels(): string[] {
+  return geminiModelChain(env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODELS);
+}
+
+/**
  * One logical Gemini call: tries the models in order of availability, and on an
  * overload/quota/timeout error moves straight on to the next one. Any other error (bad
  * key, bad request, unreadable reply) is thrown at once — another model wouldn't fix
  * it. Cooling models are still tried last, so a call never fails unread just because
- * every model had a bad moment. Callers retry the whole chain with backoff.
+ * every model had a bad moment. A model that used up today's quota is not called at
+ * all; when every model has, the call is refused (429, not retryable) without a request.
+ * Callers retry the whole chain with backoff.
  */
 async function callGemini(kind: GeminiCallKind, promptText: string, parts: GeminiPart[]): Promise<string> {
   if (!env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
-  const models = orderByAvailability(geminiModelChain(env.GEMINI_MODEL, env.GEMINI_FALLBACK_MODELS));
+  const { available, exhausted } = splitByDailyBudget(
+    orderByAvailability(configuredGeminiModels()),
+    await geminiCallsTodayByModel(),
+    env.GEMINI_RPD_LIMIT,
+  );
+  if (available.length === 0) {
+    throw new GeminiRequestError(
+      `Gemini daily limit reached on every model (${env.GEMINI_RPD_LIMIT}/day each: ${exhausted.join(', ')}) — resets at midnight Pacific`,
+      false,
+      429,
+    );
+  }
+  const models = available;
   let lastError: unknown;
   for (const [i, model] of models.entries()) {
     try {

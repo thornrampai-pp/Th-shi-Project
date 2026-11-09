@@ -60,6 +60,47 @@ export function tokensFromRecentMember(member: string): number {
   return Number.isFinite(tokens) ? tokens : 0;
 }
 
+/** Day-hash field holding one model's call count (every call, failed ones included). */
+export const geminiModelField = (model: string) => `model:${model}`;
+/** Day-hash field holding one model's failed-call count. */
+export const geminiModelErrorField = (model: string) => `modelErrors:${model}`;
+
+/** Per-model call counts from a `sys:gemini:day:<day>` hash: `{ model: calls }`. */
+export function geminiModelCounts(fields: Record<string, string>): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const [field, value] of Object.entries(fields)) {
+    if (field.startsWith('model:')) counts[field.slice('model:'.length)] = Number(value) || 0;
+  }
+  return counts;
+}
+
+export interface GeminiModelUsage {
+  model: string;
+  requests: number;
+  errors: number;
+  /** GEMINI_RPD_LIMIT — the daily quota is per model, so every model gets the full limit. */
+  limit: number | null;
+  /** Part of the current GEMINI_MODEL → fallback chain (vs. called earlier today only). */
+  inChain: boolean;
+}
+
+/** Today's usage per model: the configured chain first (in order), then anything else called. */
+export function geminiModelUsage(
+  chain: string[],
+  fields: Record<string, string>,
+  limit: number | null,
+): GeminiModelUsage[] {
+  const counts = geminiModelCounts(fields);
+  const others = Object.keys(counts).filter((m) => !chain.includes(m)).sort();
+  return [...chain.map((m) => [m, true] as const), ...others.map((m) => [m, false] as const)].map(([model, inChain]) => ({
+    model,
+    requests: counts[model] ?? 0,
+    errors: Number(fields[geminiModelErrorField(model)]) || 0,
+    limit,
+    inChain,
+  }));
+}
+
 /**
  * Groups a key by its namespace so ids never become their own group:
  * `quote:AAPL` → `quote`, `history:price-tail:<id>:<day>` → `history:price-tail`,

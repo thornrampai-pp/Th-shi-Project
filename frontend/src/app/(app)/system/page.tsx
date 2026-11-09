@@ -208,7 +208,7 @@ export default async function SystemPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <GeminiSection gemini={toGemini(systemStatus?.gemini)} />
         <R2Section r2={toR2(systemStatus?.r2)} />
         <DiscordSection discord={toDiscord(systemStatus?.discord)} />

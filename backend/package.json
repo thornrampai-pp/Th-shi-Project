@@ -14,7 +14,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "discord:register-commands": "ts-node scripts/register-discord-commands.ts",
     "discord:dm": "ts-node scripts/send-discord-dm.ts",
-    "statements:bulk-upload": "ts-node scripts/statement-bulk-upload.ts",
+    "statements:bulk-upload": "PRISMA_LOG_QUERIES=false ts-node scripts/statement-bulk-upload.ts",
     "slips:migrate-to-r2": "ts-node scripts/migrate-slip-images-to-r2.ts"
   },
   "keywords": [],

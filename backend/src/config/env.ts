@@ -23,6 +23,9 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   PORT: z.coerce.number().default(4000),
+  // Development logs every SQL query; "false" turns that off (bulk scripts — one
+  // statement import run otherwise writes ~16k query lines and buries the real output).
+  PRISMA_LOG_QUERIES: z.enum(["true", "false"]).optional(),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),

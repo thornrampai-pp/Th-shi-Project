@@ -29,9 +29,11 @@ function Signed({ value, currency }: { value: number | null; currency: string })
   );
 }
 
+// Value sits a fixed distance under the title, so the figures line up across cards
+// even when one hint wraps to two lines (bottom-aligning them made the row uneven).
 function SummaryCard({ title, value, hint, tone }: { title: string; value: React.ReactNode; hint: string; tone?: string }) {
   return (
-    <div className="flex flex-col justify-between gap-2 rounded-md bg-muted p-4">
+    <div className="flex flex-col gap-2 rounded-md bg-muted p-4">
       <p className="text-sm font-semibold">{title}</p>
       <div>
         <p className={`text-xl font-semibold tabular-nums ${tone ?? ""}`}>{value}</p>

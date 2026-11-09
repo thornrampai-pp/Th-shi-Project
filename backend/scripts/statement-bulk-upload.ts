@@ -14,7 +14,8 @@
  *   with an unmapped symbol is skipped untouched and reported — never guessed. Keep
  *   the map in scripts/local/ (git-ignored): it lists what you hold.
  * - Re-running is safe and cheap: files already read reuse their cached read (no
- *   Gemini call), rows already recorded come back as duplicates.
+ *   Gemini call), and a read file whose every order number is already recorded is
+ *   skipped outright ("done") instead of being replayed for duplicates.
  * - Stops before the Gemini daily budget (GEMINI_RPD_LIMIT minus --reserve, default 1
  *   left for normal app use) is spent — checked before each file AND after every failed
  *   attempt, since one file can retry 5x across every fallback model. Stops the whole
@@ -112,6 +113,11 @@ async function cachedRead(bytes: Buffer): Promise<StatementExtraction | null> {
   return raw ? (JSON.parse(raw) as StatementExtraction) : null;
 }
 
+/** Order numbers of the rows a cached read found (rows without one can't be recorded anyway). */
+function orderIdsOf(extraction: StatementExtraction | null): string[] {
+  return (extraction?.rows ?? []).map((r) => r.orderId).filter((id): id is string => !!id);
+}
+
 function earliestRowDate(extraction: StatementExtraction | null): Date | null {
   const times = (extraction?.rows ?? [])
     .map((r) => (r.date ? new Date(r.date).getTime() : NaN))
@@ -141,6 +147,7 @@ async function main() {
           bytes,
           mimeType: MIME_BY_EXT[path.extname(name).toLowerCase()]!,
           cached: cached !== null,
+          extraction: cached,
           date: dateFromFileName(name) ?? earliestRowDate(cached),
         };
       }),
@@ -148,17 +155,42 @@ async function main() {
   const ordered = sortByDateThenName(files);
   if (ordered.length === 0) throw new Error(`No PDF/image files in ${args.dir}`);
 
+  // A file already read whose every order number is recorded has nothing left to do —
+  // skip it instead of replaying preview/confirm just to get duplicates back. Files
+  // with a row still missing (e.g. a sell that failed before its split was recorded)
+  // are replayed as before.
+  const cachedRefs = [
+    ...new Set(ordered.flatMap((f) => orderIdsOf(f.extraction))),
+  ];
+  const recordedRefs = new Set(
+    (
+      await prisma.transaction.findMany({
+        where: { externalRef: { in: cachedRefs }, portfolio: { userId: user.id, deletedAt: null } },
+        select: { externalRef: true },
+      })
+    ).map((t) => t.externalRef!),
+  );
+  const isDone = (f: (typeof ordered)[number]) => {
+    const refs = orderIdsOf(f.extraction);
+    return refs.length > 0 && refs.every((r) => recordedRefs.has(r));
+  };
+
   const rpd = env.GEMINI_RPD_LIMIT ?? Infinity;
   const budgetLimit = rpd - args.reserve;
   const spacingMs = env.GEMINI_RPM_LIMIT ? Math.ceil(60_000 / env.GEMINI_RPM_LIMIT) + 2_000 : 0;
   const usedAtStart = await geminiCallsToday();
+  const doneCount = ordered.filter(isDone).length;
   console.log(
-    `📂 ${ordered.length} file(s) in ${args.dir} — ${ordered.filter((f) => f.cached).length} already read` +
-      ` · Gemini today ${usedAtStart}/${rpd === Infinity ? '∞' : rpd}`,
+    `📂 ${ordered.length} file(s) in ${args.dir} — ${doneCount} done · ` +
+      `${ordered.filter((f) => f.cached && !isDone(f)).length} read but not fully recorded · ` +
+      `${ordered.filter((f) => !f.cached).length} new · Gemini today ${usedAtStart}/${rpd === Infinity ? '∞' : rpd}`,
   );
 
   if (args.dryRun) {
-    for (const f of ordered) console.log(`  ${day(f.date)}  ${f.cached ? 'cached' : 'new   '}  ${f.name}`);
+    for (const f of ordered) {
+      const state = isDone(f) ? 'done  ' : f.cached ? 'cached' : 'new   ';
+      console.log(`  ${day(f.date)}  ${state}  ${f.name}`);
+    }
     return;
   }
 
@@ -180,9 +212,16 @@ async function main() {
   let newReads = 0;
   let lastReadAt = 0;
   let stoppedEarly = false;
+  let skippedDone = 0;
 
   for (const [i, file] of ordered.entries()) {
     const label = `[${i + 1}/${ordered.length}] ${day(file.date)} ${file.name}`;
+
+    if (isDone(file)) {
+      skippedDone += 1;
+      console.log(`${label} ✔ recorded — skipped`);
+      continue;
+    }
 
     if (!file.cached) {
       const used = await geminiCallsToday();
@@ -270,7 +309,7 @@ async function main() {
 
   console.log(
     `\n${stoppedEarly ? '⏸️  Stopped early' : '✅ Done'} — 🆕 ${totals.created} · ⏭️ ${totals.duplicate} · ❓ ${totals.unreadable} · ❌ ${totals.error}` +
-      ` · new Gemini reads ${newReads} (today ${await geminiCallsToday()}/${rpd === Infinity ? '∞' : rpd})`,
+      ` · ✔ already recorded ${skippedDone} file(s) · new Gemini reads ${newReads} (today ${await geminiCallsToday()}/${rpd === Infinity ? '∞' : rpd})`,
   );
   if (problems.length > 0) {
     console.log(`\n⚠️  Needs attention (${problems.length}):`);

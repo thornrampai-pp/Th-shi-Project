@@ -29,6 +29,14 @@ export function toGemini(g: Raw["gemini"] | undefined) {
       slipCalls: n(today?.slipCalls),
       statementCalls: n(today?.statementCalls),
     },
+    // Daily quota is per model: each model in the chain has its own rpdLimit.
+    byModel: compact(g?.byModel).map((m) => ({
+      model: m.model ?? "—",
+      requests: n(m.requests),
+      errors: n(m.errors),
+      limit: m.limit ?? null,
+      inChain: !!m.inChain,
+    })),
     history: compact(g?.history).map((d) => ({
       day: d.day ?? "",
       requests: n(d.requests),

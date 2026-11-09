@@ -47,6 +47,13 @@ const SystemStatusQuery = graphql(`
           slipCalls
           statementCalls
         }
+        byModel {
+          model
+          requests
+          errors
+          limit
+          inChain
+        }
         history {
           day
           requests

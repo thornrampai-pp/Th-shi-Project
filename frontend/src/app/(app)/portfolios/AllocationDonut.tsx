@@ -18,10 +18,16 @@ const RADIUS = (SIZE - STROKE) / 2;
 const GAP = 1.2; // ≈2px at the rendered sizes, measured along the ring
 const HIT_STROKE = STROKE + 6; // hover target wider than the visible mark
 
-/** Point on the ring at `turn` (0–1, clockwise from 12 o'clock). */
+/**
+ * Point on the ring at `turn` (0–1, clockwise from 12 o'clock). Rounded to 3 decimals:
+ * Node (server render) and the browser can disagree on the last digits of Math.cos/sin,
+ * and a path string that differs by 1e-14 is a hydration mismatch. 0.001 of a 100-unit
+ * viewBox is far below a pixel.
+ */
 function point(turn: number): string {
   const angle = turn * 2 * Math.PI - Math.PI / 2;
-  return `${CENTER + RADIUS * Math.cos(angle)} ${CENTER + RADIUS * Math.sin(angle)}`;
+  const round = (v: number) => Math.round(v * 1000) / 1000;
+  return `${round(CENTER + RADIUS * Math.cos(angle))} ${round(CENTER + RADIUS * Math.sin(angle))}`;
 }
 
 /**

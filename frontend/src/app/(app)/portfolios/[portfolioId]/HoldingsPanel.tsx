@@ -102,7 +102,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
       </div>
 
       <div className="relative overflow-x-auto rounded-md bg-muted">
-        <table className="w-full min-w-[44rem] text-sm">
+        <table className="w-full min-w-[50rem] text-sm">
           <thead>
             <tr className="bg-chrome text-left text-xs font-medium text-white">
               <Th title="Asset" hint="symbol · name" />
@@ -110,6 +110,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
               <Th title="Weight" hint="of this portfolio" align="right" />
               <Th title="Avg cost" hint="per unit, incl. fees" align="right" />
               <Th title="Price" hint="per unit, latest" align="right" />
+              <Th title="Cost" hint="units × avg cost" align="right" />
               <Th title="Value" hint="units × price" align="right" />
               <Th title="Profit / Loss" hint="value − cost, unsold" align="right" />
               <th className="px-4 py-2.5">
@@ -121,7 +122,7 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
           <tbody className="divide-y divide-border/60 tabular-nums [&_td]:align-top">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
+                <td colSpan={9} className="px-4 py-16 text-center text-muted-foreground">
                   No holdings yet. Use “+ Add asset” to record one.
                 </td>
               </tr>
@@ -146,6 +147,11 @@ export default function HoldingsPanel({ portfolioId, currency, holdings, portfol
                   <p className="text-xs whitespace-nowrap text-muted-foreground">
                     <PriceAsOf source={h.priceSource} iso={h.priceAsOf} />
                   </p>
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <Private>
+                    <Amount value={h.costBasis} holding={h} currency={currency} />
+                  </Private>
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <Private>

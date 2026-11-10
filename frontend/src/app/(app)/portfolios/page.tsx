@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Private } from "@/components/AmountPrivacy";
-import { formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
+import { formatMoney, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
 import AllocationDonut from "./AllocationDonut";
 import { getPortfolioOverview } from "./data";
 import StatCard from "./StatCard";
@@ -36,6 +36,12 @@ export default async function PortfoliosPage() {
             </>
           }
         />
+        <StatCard
+          label="Cost"
+          value={<Private>{formatMoney(overview.costBasis, overview.currency)}</Private>}
+          detail="What you paid for current holdings"
+        />
+        <StatCard label="Market value" value={<Private>{formatMoney(overview.marketValue, overview.currency)}</Private>} />
       </div>
 
       {overview.portfolios.length === 0 ? (

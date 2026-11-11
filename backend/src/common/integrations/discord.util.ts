@@ -64,18 +64,44 @@ async function sendDirectMessage(discordUserId: string, content: string): Promis
   }
 }
 
+/** Discord answers 429 when a webhook is hit faster than ~5 messages / 2s. */
+const WEBHOOK_MAX_ATTEMPTS = 4;
+const MAX_RETRY_WAIT_MS = 10_000;
+
+/** How long Discord asked us to wait: `retry_after` (seconds) in the body, else the header. */
+function retryAfterMs(body: string, header: string | null): number {
+  let seconds = Number(header);
+  try {
+    const parsed = JSON.parse(body) as { retry_after?: number };
+    if (typeof parsed.retry_after === 'number') seconds = parsed.retry_after;
+  } catch {
+    // not JSON — fall back to the header
+  }
+  return Math.min(Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 1000, MAX_RETRY_WAIT_MS);
+}
+
+/**
+ * Posts to a channel webhook. A 429 is waited out and sent again (up to 4 tries) —
+ * a statement import used to fire dozens at once and Discord dropped half of them.
+ * Any other failure (deleted webhook, bad payload) is thrown at once.
+ */
 export async function sendDiscordWebhookMessage(
   webhookUrl: string,
   message: DiscordMessage,
 ): Promise<void> {
-  const response = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: message.text, embeds: message.embeds }),
-  });
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message.text, embeds: message.embeds }),
+    });
+    if (response.ok) return;
 
-  if (!response.ok) {
     const body = await response.text().catch(() => '');
+    if (response.status === 429 && attempt < WEBHOOK_MAX_ATTEMPTS) {
+      await new Promise((resolve) => setTimeout(resolve, retryAfterMs(body, response.headers.get('retry-after'))));
+      continue;
+    }
     throw new Error(`Discord webhook responded with ${response.status}: ${body}`);
   }
 }

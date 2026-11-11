@@ -14,7 +14,11 @@ import type { StatementExtraction, StatementRow } from '../../common/integration
 import { putObject } from '../../common/integrations/r2-storage.util';
 import { IMAGE_EXTENSION, ImageValidationError, decodeAndValidateImage } from '../../common/utils/image-validation.util';
 import { env } from '../../config/env';
-import { createTransaction } from './transaction.service';
+import { buildTransactionNotice, createTransaction } from './transaction.service';
+import type { CreateTransactionInput } from './transaction.service';
+import { notifyEvent } from '../notification/notification.service';
+import { statementImportMessages } from '../notification/notification-messages';
+import type { TransactionNotice } from '../notification/notification-messages';
 import {
   GEMINI_MAX_ATTEMPTS,
   GEMINI_RETRY_BASE_DELAY_MS,
@@ -184,6 +188,7 @@ export async function confirmStatement(
   }
 
   const rows: StatementRowResult[] = [];
+  const notices: TransactionNotice[] = [];
   for (const row of pending.rows) {
     const portfolioId = row.symbol ? portfolioBySymbol.get(row.symbol) : undefined;
     if (!isImportable(row) || !portfolioId) {
@@ -193,10 +198,25 @@ export async function confirmStatement(
       rows.push({ row, status: 'unreadable', transactionId: null, message });
       continue;
     }
-    rows.push(await importRow(userId, portfolioId, row, pending.imageKey, pending.file));
+    const { notice, ...result } = await importRow(userId, portfolioId, row, pending.imageKey, pending.file);
+    rows.push(result);
+    if (notice) notices.push(notice);
   }
 
   await redis.del(pendingKey(statementId));
+
+  // One Discord message for the whole statement listing every recorded row, instead of
+  // one per row (dozens at once used to trip Discord's rate limit and get dropped).
+  // Fire-and-forget like any notification — it must never fail the import.
+  const messages = statementImportMessages({
+    broker: pending.broker,
+    notices,
+    skipped: rows.length - notices.length,
+  });
+  (async () => {
+    for (const message of messages) await notifyEvent(userId, 'TRANSACTION_EXECUTED', message);
+  })().catch((err) => console.error('❌ Failed to send statement import notification:', err));
+
   return { broker: pending.broker, rows };
 }
 
@@ -221,7 +241,7 @@ async function importRow(
   row: StatementRow,
   imageKey: string,
   file: StatementFile,
-): Promise<StatementRowResult> {
+): Promise<StatementRowResult & { notice?: TransactionNotice }> {
   if (!row.orderId) {
     return { row, status: 'unreadable', transactionId: null, message: 'ไม่พบเลขที่คำสั่งของรายการนี้ — ข้ามไป' };
   }
@@ -240,20 +260,22 @@ async function importRow(
   const executedAt = executedAtRaw && executedAtRaw.getTime() <= Date.now() ? executedAtRaw : undefined;
 
   let transaction;
+  const input: CreateTransactionInput = {
+    portfolioId,
+    type: row.transactionType,
+    assetId: asset.id,
+    quantity: row.quantity,
+    price: row.price,
+    fee: row.fee ?? undefined,
+    currency: row.currency ?? undefined,
+    executedAt,
+    externalRef: row.orderId,
+    note: `จาก statement เลขที่คำสั่ง ${row.orderId}`,
+    fundWithDeposit: row.transactionType === 'BUY' || undefined,
+  };
   try {
-    transaction = await createTransaction(userId, {
-      portfolioId,
-      type: row.transactionType,
-      assetId: asset.id,
-      quantity: row.quantity,
-      price: row.price,
-      fee: row.fee ?? undefined,
-      currency: row.currency ?? undefined,
-      executedAt,
-      externalRef: row.orderId,
-      note: `จาก statement เลขที่คำสั่ง ${row.orderId}`,
-      fundWithDeposit: row.transactionType === 'BUY' || undefined,
-    });
+    // The statement sends one summary of all its rows (confirmStatement), not one per row.
+    transaction = await createTransaction(userId, input, { notify: false });
   } catch (err) {
     if (err instanceof AppError && err.code === 'CONFLICT') {
       return { row, status: 'duplicate', transactionId: null, message: err.message };
@@ -283,7 +305,16 @@ async function importRow(
     console.error('❌ Failed to attach statement document to transaction:', err);
   }
 
-  return { row, status: 'created', transactionId: transaction.id, message: null };
+  const notice = await buildTransactionNotice(
+    await prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId }, select: { name: true, baseCurrency: true } }),
+    input,
+    transaction,
+  ).catch((err) => {
+    console.error('❌ Could not prepare the notification for a statement row:', err);
+    return undefined;
+  });
+
+  return { row, status: 'created', transactionId: transaction.id, message: null, notice };
 }
 
 function validateStatementDocument(imageBase64: string, mimeType?: string): ValidatedDocument {

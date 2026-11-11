@@ -4,6 +4,8 @@ import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership
 import { postLedgerEntries } from "../ledger/ledger.service";
 import type { LedgerEntryInput, LedgerTxClient } from "../ledger/ledger.service";
 import { notifyEvent } from "../notification/notification.service";
+import { transactionMessage } from "../notification/notification-messages";
+import type { TransactionNotice } from "../notification/notification-messages";
 import { normalizeCountryCode } from "../../common/utils/source-country.util";
 import { refreshHistoryAfterTransaction } from "../history/history.service";
 import { getExchangeRate, resolveHomeFxRate } from "../fx/fx.service";
@@ -78,6 +80,7 @@ type Portfolio = Awaited<ReturnType<typeof assertPortfolioOwnership>>;
 export async function createTransaction(
   userId: string,
   input: CreateTransactionInput,
+  options: { notify?: boolean } = {},
 ) {
   const portfolio = await assertPortfolioOwnership(userId, input.portfolioId);
 
@@ -144,13 +147,17 @@ export async function createTransaction(
   /**
    * Notify only after the database transaction has committed.
    *
-   * A Discord/notification failure must never rollback financial data.
+   * A Discord/notification failure must never rollback financial data. Callers that
+   * record many rows at once (statement import) or announce it themselves (order fill)
+   * pass `notify: false` and send one message of their own.
    */
-  notifyEvent(userId, "TRANSACTION_EXECUTED", {
-    text: buildTransactionSummary(input, transaction),
-  }).catch((err) => {
-    console.error("❌ Failed to send transaction notification:", err);
-  });
+  if (options.notify !== false) {
+    buildTransactionNotice(portfolio, input, transaction)
+      .then((notice) => notifyEvent(userId, "TRANSACTION_EXECUTED", transactionMessage(notice)))
+      .catch((err) => {
+        console.error("❌ Failed to send transaction notification:", err);
+      });
+  }
 
   // Fetch history for anything new (so holdings are valued at market, not cost), and
   // rebuild snapshots if this was dated into the past. Never blocks the response.
@@ -169,48 +176,36 @@ export async function createTransaction(
   return transaction;
 }
 
-function buildTransactionSummary(
+/**
+ * The facts a Discord notification needs about a just-recorded transaction: asset
+ * symbol/type, portfolio name, amounts in the asset's (or the cash) currency.
+ */
+export async function buildTransactionNotice(
+  portfolio: { name: string; baseCurrency?: string | null },
   input: CreateTransactionInput,
-  transaction: {
-    baseCurrAmount: unknown;
-  },
-): string {
-  const amount =
-    transaction.baseCurrAmount != null
-      ? Number(transaction.baseCurrAmount).toLocaleString()
-      : "0";
-
-  switch (input.type) {
-    case "BUY":
-      return `🟢 ซื้อ ${input.quantity} หน่วย ราคา ${input.price} รวม ${amount}`;
-
-    case "SELL":
-      return `🔴 ขาย ${input.quantity} หน่วย ราคา ${input.price} รวม ${amount}`;
-
-    case "DEPOSIT":
-      return `💰 ฝากเงิน ${amount} ${input.currency ?? ""}`;
-
-    case "WITHDRAW":
-      return `💸 ถอนเงิน ${amount} ${input.currency ?? ""}`;
-
-    case "DIVIDEND":
-      return `💵 ได้รับเงินปันผล ${amount} ${input.currency ?? ""}`;
-
-    case "FEE":
-      return `🧾 ค่าธรรมเนียม ${amount} ${input.currency ?? ""}`;
-
-    case "TAX":
-      return `🏛️ ชำระภาษี ${amount} ${input.currency ?? ""}`;
-
-    case "SPLIT":
-      return `✂️ แตกพาร์ อัตรา ${input.ratio ?? input.quantity}:1`;
-
-    case "REPATRIATION":
-      return `🏠 นำเงินกลับประเทศ ${input.amount} ${input.currency ?? ""} → ${amount} ${TAX_CURRENCY}`;
-
-    default:
-      return `ธุรกรรม ${input.type} มูลค่า ${amount}`;
-  }
+  transaction: { baseCurrAmount: unknown; executedAt: Date; fee?: unknown },
+): Promise<TransactionNotice> {
+  const asset = input.assetId
+    ? await prisma.asset.findUnique({ where: { id: input.assetId }, select: { symbol: true, type: true, currency: true } })
+    : null;
+  const recorded = transaction.baseCurrAmount != null ? Number(transaction.baseCurrAmount) : null;
+  const isCash = ["DEPOSIT", "WITHDRAW", "FEE", "TAX", "ADJUSTMENT"].includes(input.type);
+  return {
+    type: input.type as TransactionNotice["type"],
+    symbol: asset?.symbol ?? null,
+    assetType: asset?.type ?? null,
+    portfolioName: portfolio.name,
+    quantity: input.quantity ?? null,
+    price: input.price ?? null,
+    // Cash movements keep their sign (an ADJUSTMENT can remove cash); the stored amount is absolute.
+    amount: isCash && input.amount != null ? input.amount : input.type === "REPATRIATION" ? (input.amount ?? null) : recorded,
+    fee: transaction.fee != null ? Number(transaction.fee) : (input.fee ?? null),
+    currency: input.currency ?? asset?.currency ?? portfolio.baseCurrency ?? "THB",
+    executedAt: transaction.executedAt,
+    ratio: input.ratio ?? null,
+    toAmount: input.type === "REPATRIATION" ? recorded : null,
+    toCurrency: input.type === "REPATRIATION" ? TAX_CURRENCY : null,
+  };
 }
 
 /**

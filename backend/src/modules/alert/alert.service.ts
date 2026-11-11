@@ -2,7 +2,7 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../common/errors/AppError";
 import { getAssetQuote, getLatestPrice } from "../asset/asset.service";
 import { yahooSymbolOf } from "../../common/integrations/yahoo-finance.util";
-import { buildInvestmentEmbed } from "../../common/integrations/discord.util";
+import { alertTriggeredMessage } from "../notification/notification-messages";
 import { notifyEvent } from "../notification/notification.service";
 
 /** Stored as a plain string in Alert.condition — this list is the source of truth. */
@@ -17,16 +17,6 @@ export const ALERT_CONDITIONS = [
 ] as const;
 
 export type AlertConditionValue = (typeof ALERT_CONDITIONS)[number];
-
-const CONDITION_LABEL: Record<AlertConditionValue, string> = {
-  PRICE_ABOVE: "ราคาสูงกว่า",
-  PRICE_BELOW: "ราคาต่ำกว่า",
-  CHANGE_PCT_ABOVE: "% เปลี่ยนแปลงวันนี้สูงกว่า",
-  CHANGE_PCT_BELOW: "% เปลี่ยนแปลงวันนี้ต่ำกว่า",
-  PE_ABOVE: "P/E สูงกว่า",
-  PE_BELOW: "P/E ต่ำกว่า",
-  DIVIDEND_YIELD_ABOVE: "Dividend Yield (%) สูงกว่า",
-};
 
 function assertCondition(condition: string): asserts condition is AlertConditionValue {
   if (!(ALERT_CONDITIONS as readonly string[]).includes(condition)) {
@@ -177,19 +167,11 @@ export async function checkActiveAlerts(): Promise<number> {
       if (count === 0) continue;
 
       triggered += 1;
-      notifyEvent(alert.userId, "ALERT_TRIGGERED", {
-        embeds: [
-          buildInvestmentEmbed({
-            title: `🔔 ${asset.symbol}: ${CONDITION_LABEL[condition]} ${target}`,
-            description: `ค่าปัจจุบัน: ${observed.toLocaleString()}`,
-            color: 0xf1c40f,
-            fields: [
-              { name: "สินทรัพย์", value: asset.name, inline: true },
-              { name: "เงื่อนไข", value: condition, inline: true },
-            ],
-          }),
-        ],
-      }).catch((err) => console.error("❌ Failed to send alert notification:", err));
+      notifyEvent(
+        alert.userId,
+        "ALERT_TRIGGERED",
+        alertTriggeredMessage({ asset, condition, target, observed }),
+      ).catch((err) => console.error("❌ Failed to send alert notification:", err));
     }
   }
 

@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../common/errors/AppError';
 import { sendDiscordWebhookMessage, DiscordMessage } from '../../common/integrations/discord.util';
+import { connectedMessage, testMessage } from './notification-messages';
 
 export type NotificationEventType =
   | 'TRANSACTION_EXECUTED'
@@ -31,9 +32,7 @@ export async function connectDiscordChannel(
   // find out the connection never worked when a real alert silently failed days later.
   // Calling sendDiscordWebhookMessage directly here lets that failure propagate.
   try {
-    await sendDiscordWebhookMessage(webhookUrl, {
-      text: `✅ เชื่อมต่อสำเร็จ! ช่องทางนี้ (${label ?? 'Discord'}) พร้อมรับข้อมูลการลงทุนแล้ว`,
-    });
+    await sendDiscordWebhookMessage(webhookUrl, connectedMessage(label, events));
   } catch (err) {
     throw AppError.badRequest(
       `Could not send a test message to this Discord webhook: ${err instanceof Error ? err.message : 'unknown error'}`,
@@ -62,7 +61,7 @@ export async function removeNotificationChannel(userId: string, id: string): Pro
 
 export async function testNotificationChannel(userId: string, id: string): Promise<boolean> {
   const channel = await getOwnedChannelOrThrow(userId, id);
-  await dispatchToChannel(channel, { text: '🔔 นี่คือข้อความทดสอบจากระบบ Investment Platform' }, 'DAILY_SUMMARY');
+  await dispatchToChannel(channel, testMessage(channel.label), 'DAILY_SUMMARY');
   return true;
 }
 
@@ -86,7 +85,32 @@ async function getOwnedChannelOrThrow(userId: string, id: string) {
   return channel;
 }
 
-async function dispatchToChannel(
+/**
+ * Messages to one channel go out one at a time, in order. Several fired together (a
+ * slip batch, a statement split over messages) used to race and trip Discord's
+ * per-webhook rate limit; the queue plus the 429 retry in sendDiscordWebhookMessage
+ * delivers them all.
+ */
+const channelQueues = new Map<string, Promise<void>>();
+
+function dispatchToChannel(
+  channel: { id: string; type: string; webhookUrl: string },
+  message: DiscordMessage,
+  eventType: NotificationEventType,
+): Promise<void> {
+  const previous = channelQueues.get(channel.id) ?? Promise.resolve();
+  // A failure of one message must not stall the ones queued behind it.
+  const next = previous.catch(() => undefined).then(() => deliver(channel, message, eventType));
+  channelQueues.set(channel.id, next);
+  next
+    .finally(() => {
+      if (channelQueues.get(channel.id) === next) channelQueues.delete(channel.id);
+    })
+    .catch(() => undefined); // the caller gets the rejection through `next`
+  return next;
+}
+
+async function deliver(
   channel: { id: string; type: string; webhookUrl: string },
   message: DiscordMessage,
   eventType: NotificationEventType,

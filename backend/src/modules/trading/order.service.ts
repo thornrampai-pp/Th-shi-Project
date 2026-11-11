@@ -3,9 +3,10 @@ import { AppError } from "../../common/errors/AppError";
 import { acquireOnceLock } from "../../common/utils/cache.util";
 import { redis } from "../../config/redis";
 import { assertPortfolioOwnership } from "../../common/utils/portfolio-ownership.util";
-import { buildInvestmentEmbed } from "../../common/integrations/discord.util";
 import { getLatestPrice } from "../asset/asset.service";
-import { createTransaction } from "../transaction/transaction.service";
+import { buildTransactionNotice, createTransaction } from "../transaction/transaction.service";
+import type { CreateTransactionInput } from "../transaction/transaction.service";
+import { orderFilledMessage } from "../notification/notification-messages";
 import { notifyEvent } from "../notification/notification.service";
 
 export type OrderSideValue = "BUY" | "SELL";
@@ -201,18 +202,21 @@ async function executeFill(
 
     const quantity = Number(order.quantity) - Number(order.filledQty);
 
+    const fillInput: CreateTransactionInput = {
+      portfolioId: order.portfolioId,
+      type: order.side,
+      assetId: order.assetId,
+      quantity,
+      price: fillPrice,
+      fee,
+      executedAt,
+      note: `order:${order.id}`,
+    };
     let transaction;
     try {
-      transaction = await createTransaction(order.portfolio.userId, {
-        portfolioId: order.portfolioId,
-        type: order.side,
-        assetId: order.assetId,
-        quantity,
-        price: fillPrice,
-        fee,
-        executedAt,
-        note: `order:${order.id}`,
-      });
+      // ORDER_FILLED below announces this fill; a TRANSACTION_EXECUTED for the same
+      // trade would post it to Discord twice.
+      transaction = await createTransaction(order.portfolio.userId, fillInput, { notify: false });
     } catch (err) {
       if (options.rejectOnFailure && err instanceof AppError && err.code === "BAD_REQUEST") {
         await markRejected(order.id, err.message);
@@ -239,20 +243,9 @@ async function executeFill(
       await prisma.tradingSignal.update({ where: { id: order.signalId }, data: { isExecuted: true } });
     }
 
-    notifyEvent(order.portfolio.userId, "ORDER_FILLED", {
-      embeds: [
-        buildInvestmentEmbed({
-          title: `${order.side === "BUY" ? "🟢" : "🔴"} Order filled: ${order.side} ${order.asset.symbol}`,
-          color: order.side === "BUY" ? 0x2ecc71 : 0xe74c3c,
-          fields: [
-            { name: "Quantity", value: String(quantity), inline: true },
-            { name: "Price", value: fillPrice.toLocaleString(), inline: true },
-            { name: "Fee", value: fee.toLocaleString(), inline: true },
-            { name: "Portfolio", value: order.portfolio.name },
-          ],
-        }),
-      ],
-    }).catch((err) => console.error("❌ Failed to send order notification:", err));
+    buildTransactionNotice(order.portfolio, fillInput, transaction)
+      .then((notice) => notifyEvent(order.portfolio.userId, "ORDER_FILLED", orderFilledMessage(notice)))
+      .catch((err) => console.error("❌ Failed to send order notification:", err));
 
     return true;
   } finally {

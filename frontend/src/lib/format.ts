@@ -1,4 +1,5 @@
-const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// signDisplay "negative": a balance like -0.00000009 (ledger rounding) reads "0.00", not "-0.00".
+const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "negative" });
 const quantity = new Intl.NumberFormat("en-US", { maximumFractionDigits: 8 });
 
 export function formatMoney(value: number, currency?: string): string {
@@ -35,9 +36,10 @@ export function formatCurrency(value: number, currency: string, signed = false):
         currencyDisplay: "narrowSymbol",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
+        signDisplay: "negative",
       });
     } catch {
-      format = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      format = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "negative" });
     }
     currencyFormats.set(currency, format);
   }

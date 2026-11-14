@@ -121,6 +121,24 @@ export async function addCashAccount(
   return prisma.cashAccount.create({ data: { portfolioId, currency, isDomestic, balance: 0 } });
 }
 
+/**
+ * The user's cash as ONE pool per currency (like the broker's wallet): every REAL
+ * portfolio's balance summed. PAPER portfolios' play money is left out. Ledger
+ * rounding leftovers (|x| < 1e-6) read as 0.
+ */
+export async function getCashPool(userId: string): Promise<{ currency: string; balance: number }[]> {
+  const rows = await prisma.cashAccount.groupBy({
+    by: ['currency'],
+    where: { portfolio: { userId, type: 'REAL', deletedAt: null } },
+    _sum: { balance: true },
+    orderBy: { currency: 'asc' },
+  });
+  return rows.map((r) => {
+    const sum = Math.round(Number(r._sum.balance ?? 0) * 1e8) / 1e8;
+    return { currency: r.currency, balance: Math.abs(sum) < 1e-6 ? 0 : sum };
+  });
+}
+
 export async function listCashAccounts(userId: string, portfolioId: string) {
   await assertPortfolioOwnership(userId, portfolioId);
   return prisma.cashAccount.findMany({ where: { portfolioId } });

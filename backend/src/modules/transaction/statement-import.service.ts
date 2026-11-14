@@ -93,16 +93,6 @@ export interface StatementCash {
   balance: number;
 }
 
-/**
- * How one portfolio pays for its buys in this statement (see funding.ts). Default
- * CASH_FIRST: its own cash — including sales in the same file, recorded first — then
- * `fromPortfolioId`'s cash if given, and a deposit only for what's still missing.
- */
-export interface StatementFunding {
-  portfolioId: string;
-  mode: FundingMode;
-  fromPortfolioId?: string;
-}
 
 export interface StatementPreview {
   statementId: string;
@@ -210,7 +200,11 @@ export async function confirmStatement(
   userId: string,
   statementId: string,
   assignments: StatementAssignment[],
-  funding: StatementFunding[] = [],
+  /**
+   * How the buys are paid (see funding.ts). Default CASH_FIRST: the shared cash pool —
+   * including sales in the same file, recorded first — then a deposit for the rest.
+   */
+  funding: FundingMode = 'CASH_FIRST',
 ): Promise<StatementImportSummary> {
   const raw = await redis.get(pendingKey(statementId));
   const pending = raw ? (JSON.parse(raw) as PendingStatement) : null;
@@ -238,12 +232,6 @@ export async function confirmStatement(
     }
   }
 
-  const fundingByPortfolio = new Map<string, StatementFunding>();
-  for (const f of funding) {
-    if (f.fromPortfolioId) await assertPortfolioOwnership(userId, f.fromPortfolioId);
-    fundingByPortfolio.set(f.portfolioId, f);
-  }
-
   // Record in time order with a day's SELLs before its BUYs, so the proceeds are in
   // the cash when the rebuy is paid for. Results still come back in the file's order.
   const results: StatementRowResult[] = new Array(pending.rows.length);
@@ -264,7 +252,7 @@ export async function confirmStatement(
       row,
       pending.imageKey,
       pending.file,
-      fundingByPortfolio.get(portfolioId),
+      funding,
     );
     results[i] = result;
     noticeAt[i] = notice;
@@ -299,10 +287,11 @@ export function recordingOrder(rows: StatementRow[]): number[] {
     .map((x) => x.i);
 }
 
-/** Every cash balance the user holds (non-zero), for the "pay from" choice. */
+/** Every cash balance in the user's shared (REAL) pool, for the "pay from" question. */
 async function userCash(userId: string): Promise<StatementCash[]> {
   const accounts = await prisma.cashAccount.findMany({
-    where: { portfolio: { userId, deletedAt: null }, balance: { gt: 0 } },
+    // Statements are real trades: only REAL portfolios' cash is in the pool.
+    where: { portfolio: { userId, type: 'REAL', deletedAt: null }, balance: { gt: 0 } },
     select: { portfolioId: true, currency: true, balance: true, portfolio: { select: { name: true } } },
     orderBy: [{ portfolio: { name: 'asc' } }, { currency: 'asc' }],
   });
@@ -335,7 +324,7 @@ async function importRow(
   row: StatementRow,
   imageKey: string,
   file: StatementFile,
-  funding?: StatementFunding,
+  funding: FundingMode,
 ): Promise<StatementRowResult & { notice?: TransactionNotice }> {
   if (!row.orderId) {
     return { row, status: 'unreadable', transactionId: null, message: 'ไม่พบเลขที่คำสั่งของรายการนี้ — ข้ามไป' };
@@ -366,9 +355,7 @@ async function importRow(
     executedAt,
     externalRef: row.orderId,
     note: `จาก statement เลขที่คำสั่ง ${row.orderId}`,
-    ...(row.transactionType === 'BUY'
-      ? { funding: funding?.mode ?? 'CASH_FIRST', fundFromPortfolioId: funding?.fromPortfolioId }
-      : {}),
+    ...(row.transactionType === 'BUY' ? { funding } : {}),
   };
   try {
     // The statement sends one summary of all its rows (confirmStatement), not one per row.

@@ -149,7 +149,7 @@ describe.skipIf(!runIntegrationTests)("transaction.service (real DB)", () => {
       expect(await cash(portfolioId)).toBeCloseTo(0);
       const deps = await deposits(portfolioId);
       expect(deps.map((d) => Number(d.baseCurrAmount))).toEqual([40]);
-      expect((tx.metadata as { funding: unknown }).funding).toEqual({ mode: "CASH_FIRST", fromCash: 60, transfer: 0, deposit: 40, fromPortfolioId: null });
+      expect((tx.metadata as { funding: unknown }).funding).toEqual({ mode: "CASH_FIRST", fromCash: 60, transfers: [], transfer: 0, deposit: 40 });
     });
 
     it("CASH_FIRST with enough cash records no deposit at all", async () => {
@@ -165,27 +165,39 @@ describe.skipIf(!runIntegrationTests)("transaction.service (real DB)", () => {
       expect((await deposits(portfolioId)).map((d) => Number(d.baseCurrAmount))).toEqual([100]);
     });
 
-    it("takes the shortfall from another portfolio's cash as a linked withdraw/deposit pair", async () => {
-      const other = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Fire" });
-      await createCashAccount(other.id, { balance: 70 });
+    it("uses the shared pool: other portfolios' cash (largest first) moves over as linked withdraw/deposit pairs", async () => {
+      const fire = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Fire" });
+      const stock = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Stock" });
+      await createCashAccount(fire.id, { balance: 50 });
+      await createCashAccount(stock.id, { balance: 25 });
       await createCashAccount(portfolioId, { balance: 10 });
-      await buy(portfolioId, 100, { funding: "CASH_FIRST", fundFromPortfolioId: other.id });
+      const tx = await buy(portfolioId, 100, { funding: "CASH_FIRST" });
 
-      expect(await cash(other.id)).toBeCloseTo(0);
+      expect(await cash(fire.id)).toBeCloseTo(0);
+      expect(await cash(stock.id)).toBeCloseTo(0);
       expect(await cash(portfolioId)).toBeCloseTo(0);
-      const out = await prisma.transaction.findFirstOrThrow({ where: { portfolioId: other.id, type: "WITHDRAW" } });
-      expect(Number(out.baseCurrAmount)).toBeCloseTo(70);
+      const out = await prisma.transaction.findFirstOrThrow({ where: { portfolioId: fire.id, type: "WITHDRAW" } });
+      expect(Number(out.baseCurrAmount)).toBeCloseTo(50);
       expect(out.metadata).toMatchObject({ cashTransfer: { toPortfolioId: portfolioId } });
       const ins = await deposits(portfolioId);
-      expect(ins.map((d) => Number(d.baseCurrAmount)).sort((a, b) => a - b)).toEqual([20, 70]);
-      expect(ins.find((d) => Number(d.baseCurrAmount) === 70)!.metadata).toMatchObject({ cashTransfer: { fromPortfolioId: other.id } });
+      expect(ins.map((d) => Number(d.baseCurrAmount)).sort((a, b) => a - b)).toEqual([15, 25, 50]); // 15 = new money
+      expect(ins.find((d) => Number(d.baseCurrAmount) === 50)!.metadata).toMatchObject({ cashTransfer: { fromPortfolioId: fire.id } });
+      expect((tx.metadata as { funding: { transfers: unknown } }).funding.transfers).toEqual([
+        { portfolioId: fire.id, amount: 50 },
+        { portfolioId: stock.id, amount: 25 },
+      ]);
     });
 
-    it("refuses to borrow from a portfolio the user doesn't own", async () => {
+    it("never draws on another user's cash, or on a PAPER portfolio's play money", async () => {
       const stranger = await createTestUser();
       const theirs = await createTestPortfolio(stranger.id, { type: "REAL", baseCurrency: "THB", name: "Theirs" });
       await createCashAccount(theirs.id, { balance: 500 });
-      await expect(buy(portfolioId, 100, { funding: "CASH_FIRST", fundFromPortfolioId: theirs.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const paper = await createTestPortfolio(userId, { type: "PAPER", baseCurrency: "THB", name: "Paper" });
+      await createCashAccount(paper.id, { balance: 1000 });
+      await buy(portfolioId, 100, { funding: "CASH_FIRST" });
+      expect(await cash(theirs.id)).toBeCloseTo(500);
+      expect(await cash(paper.id)).toBeCloseTo(1000);
+      expect((await deposits(portfolioId)).map((d) => Number(d.baseCurrAmount))).toEqual([100]);
       await cleanupTestUser(stranger.id, []);
     });
 

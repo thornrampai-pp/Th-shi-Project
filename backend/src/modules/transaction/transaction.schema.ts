@@ -574,19 +574,12 @@ const StatementCashType = builder.objectRef<statementImportService.StatementCash
 
 const FundingModeEnum = builder.enumType('FundingMode', {
   description:
-    "Where a BUY's money comes from. CASH_FIRST: the portfolio's cash (incl. sales recorded first), " +
-    "then fromPortfolioId's cash, then a deposit for the rest. DEPOSIT_ALL: a deposit for the full cost. " +
-    'CASH_ONLY: existing cash only — fails if short.',
+    "Where a BUY's money comes from. CASH_FIRST: the shared cash pool (every portfolio, same currency, " +
+    'incl. sales recorded first), then a deposit for the rest. DEPOSIT_ALL: a deposit for the full cost. ' +
+    "CASH_ONLY: the portfolio's own cash only — fails if short.",
   values: ['CASH_FIRST', 'DEPOSIT_ALL', 'CASH_ONLY'] as const,
 });
 
-const StatementFundingInput = builder.inputType('StatementFundingInput', {
-  fields: (t) => ({
-    portfolioId: t.id({ required: true }),
-    mode: t.field({ type: FundingModeEnum, required: true }),
-    fromPortfolioId: t.id({ description: 'CASH_FIRST: borrow the shortfall from this portfolio first' }),
-  }),
-});
 
 const StatementPreviewType = builder
   .objectRef<statementImportService.StatementPreview>('StatementPreview')
@@ -634,10 +627,7 @@ builder.mutationField('confirmStatement', (t) =>
     args: {
       statementId: t.arg.string({ required: true }),
       assignments: t.arg({ type: [StatementAssignmentInput], required: true }),
-      funding: t.arg({
-        type: [StatementFundingInput],
-        description: 'How each portfolio pays for its buys; a portfolio not listed uses CASH_FIRST',
-      }),
+      funding: t.arg({ type: FundingModeEnum, description: 'How the buys are paid; default CASH_FIRST (shared cash pool)' }),
     },
     resolve: async (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
@@ -649,11 +639,7 @@ builder.mutationField('confirmStatement', (t) =>
           portfolioId: a.portfolioId ? String(a.portfolioId) : undefined,
           newPortfolioName: a.newPortfolioName ?? undefined,
         })),
-        (args.funding ?? []).map((f) => ({
-          portfolioId: String(f.portfolioId),
-          mode: f.mode,
-          fromPortfolioId: f.fromPortfolioId ? String(f.fromPortfolioId) : undefined,
-        })),
+        args.funding ?? 'CASH_FIRST',
       );
       return { broker: result.broker, rows: result.rows.map(toStatementRowResult) };
     },

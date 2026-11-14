@@ -37,8 +37,7 @@ export type TransactionTypeValue =
 /**
  * Field usage per type:
  * - BUY / SELL:     assetId, quantity, price, fee?, currency? (defaults to the asset's);
- *                   BUY also takes funding? (CASH_FIRST / DEPOSIT_ALL / CASH_ONLY) and
- *                   fundFromPortfolioId? — see funding.ts
+ *                   BUY also takes funding? (CASH_FIRST / DEPOSIT_ALL / CASH_ONLY) — see funding.ts
  * - DEPOSIT / WITHDRAW / FEE / TAX: amount, currency
  * - DIVIDEND:       assetId, amount (net cash received), currency, taxWithheld?
  * - ADJUSTMENT:     amount (signed: + adds cash, − removes cash), currency
@@ -72,12 +71,11 @@ export interface CreateTransactionInput {
   /** BUY only, legacy: same as `funding: "DEPOSIT_ALL"`. */
   fundWithDeposit?: boolean;
   /**
-   * BUY only: where the money comes from (see funding.ts). Default CASH_ONLY — the
-   * portfolio's cash must cover it — unless fundWithDeposit is set.
+   * BUY only: where the money comes from (see funding.ts). CASH_FIRST draws on the
+   * user's shared cash pool (every portfolio, same currency). Default CASH_ONLY — the
+   * portfolio's own cash must cover it — unless fundWithDeposit is set.
    */
   funding?: FundingMode;
-  /** BUY + CASH_FIRST: borrow the shortfall from this portfolio's cash (same user, same currency). */
-  fundFromPortfolioId?: string;
 }
 
 type Portfolio = Awaited<ReturnType<typeof assertPortfolioOwnership>>;
@@ -195,15 +193,13 @@ export async function buildTransactionNotice(
   input: CreateTransactionInput,
   transaction: { baseCurrAmount: unknown; executedAt: Date; fee?: unknown; metadata?: unknown },
 ): Promise<TransactionNotice> {
-  const recordedFunding = (transaction.metadata as { funding?: FundingPlan & { fromPortfolioId?: string | null } } | null)?.funding;
+  // Cash is one pool: whether it sat in this portfolio or another is not news.
+  const recordedFunding = (transaction.metadata as { funding?: Partial<FundingPlan> } | null)?.funding;
   const funding = recordedFunding
     ? {
-        fromCash: recordedFunding.fromCash,
-        transfer: recordedFunding.transfer,
-        deposit: recordedFunding.deposit,
-        fromPortfolioName: recordedFunding.fromPortfolioId
-          ? ((await prisma.portfolio.findUnique({ where: { id: recordedFunding.fromPortfolioId }, select: { name: true } }))?.name ?? null)
-          : null,
+        fromCash: (recordedFunding.fromCash ?? 0) + (recordedFunding.transfer ?? 0),
+        transfer: 0,
+        deposit: recordedFunding.deposit ?? 0,
       }
     : null;
   const asset = input.assetId
@@ -462,23 +458,26 @@ async function createBuyTransaction(
 
     const effectiveUnitCost = totalCost / quantity;
 
-    const source =
-      mode === "CASH_FIRST" && input.fundFromPortfolioId && input.fundFromPortfolioId !== portfolioId
-        ? await tx.portfolio.findFirst({
-            where: { id: input.fundFromPortfolioId, userId: portfolio.userId, deletedAt: null },
-            select: { id: true, name: true, cashAccounts: { where: { currency }, take: 1 } },
+    // The shared pool: the user's other portfolios of the same kind (REAL money never
+    // mixes with PAPER play money) holding cash in this currency.
+    const donors =
+      mode === "CASH_FIRST"
+        ? await tx.cashAccount.findMany({
+            where: {
+              currency,
+              balance: { gt: 0 },
+              portfolioId: { not: portfolioId },
+              portfolio: { userId: portfolio.userId, type: portfolio.type, deletedAt: null },
+            },
+            include: { portfolio: { select: { name: true } } },
           })
-        : null;
-    if (input.fundFromPortfolioId && mode === "CASH_FIRST" && input.fundFromPortfolioId !== portfolioId && !source) {
-      throw AppError.notFound("Portfolio to take cash from not found");
-    }
-    const sourceAccount = source?.cashAccounts[0] ?? null;
+        : [];
 
     const plan: FundingPlan = planFunding({
       mode,
       cost: totalCost,
       cash: Number(cashAccount.balance),
-      otherCash: sourceAccount ? Number(sourceAccount.balance) : 0,
+      pool: donors.map((d) => ({ portfolioId: d.portfolioId, balance: Number(d.balance) })),
     });
     if (mode === "CASH_ONLY" && !portfolio.isMargin && Number(cashAccount.balance) < totalCost - 0.000001) {
       const missing = (totalCost - Number(cashAccount.balance)).toFixed(2);
@@ -503,21 +502,22 @@ async function createBuyTransaction(
           currency: cashAccount.currency,
           note: input.note,
           timeKnown: input.timeKnown,
-          funding: { mode, ...plan, fromPortfolioId: plan.transfer > 0 ? source!.id : null },
+          funding: { mode, ...plan },
         },
       },
     });
 
-    if (plan.transfer > 0 && source && sourceAccount) {
+    for (const t of plan.transfers) {
+      const donor = donors.find((d) => d.portfolioId === t.portfolioId)!;
       await postCashTransfer(tx, {
-        from: { portfolioId: source.id, portfolioName: source.name, cashAccount: sourceAccount },
+        from: { portfolioId: donor.portfolioId, portfolioName: donor.portfolio.name, cashAccount: donor },
         to: { portfolioId, portfolioName: portfolio.name, cashAccount },
-        amount: plan.transfer,
+        amount: t.amount,
         executedAt,
         parentTxId: transaction.id,
         symbol: asset.symbol,
       });
-      await assertCashNotNegative(tx, sourceAccount.id, false);
+      await assertCashNotNegative(tx, donor.id, false);
     }
     if (plan.deposit > 0) {
       await postFundingDeposit(tx, {

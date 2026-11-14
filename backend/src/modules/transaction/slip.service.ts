@@ -57,11 +57,6 @@ export interface AutoMatchSlipOptions extends SlipExtractionHooks {
   createMissing?: boolean;
 }
 
-/** How a BUY recorded from a slip is paid for (see funding.ts). */
-export interface SlipFundingChoice {
-  mode: FundingMode;
-  fromPortfolioId?: string;
-}
 
 export interface SlipUpload {
   imageBase64: string;
@@ -358,11 +353,10 @@ export async function createTransactionFromSlip(
   extracted: SlipExtraction,
   draft: SlipTradeDraft,
   confirmed: boolean,
-  funding?: SlipFundingChoice,
+  funding?: FundingMode,
 ): Promise<SlipBatchItemResult> {
   assertSlipServicesConfigured();
   await assertPortfolioOwnership(userId, portfolioId);
-  if (funding?.fromPortfolioId) await assertPortfolioOwnership(userId, funding.fromPortfolioId);
   const image = validateSlipImage(upload.imageBase64, upload.mimeType);
 
   const readable = readableFields(extracted);
@@ -380,7 +374,7 @@ async function createFromSlip(
   extracted: SlipExtraction,
   draft: SlipTradeDraft,
   confirmed: boolean,
-  funding?: SlipFundingChoice,
+  funding?: FundingMode,
 ): Promise<SlipBatchItemResult> {
   const readable = readableFields(extracted);
   if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
@@ -444,7 +438,7 @@ async function createFromSlip(
       timeKnown: slipHasTime(extracted.transactionDate) || undefined,
       externalRef: extracted.orderRef ?? undefined,
       note: `จากสลิป Ref ${readable.ref}`,
-      ...(type === 'BUY' ? { funding: funding!.mode, fundFromPortfolioId: funding!.fromPortfolioId } : {}),
+      ...(type === 'BUY' ? { funding: funding! } : {}),
     });
   } catch (err) {
     if (err instanceof AppError) return { status: 'error', extracted, message: err.message };
@@ -466,33 +460,25 @@ async function createFromSlip(
   }
 }
 
-/** The cost of a BUY vs the cash the user has to pay it with. */
+/** The cost of a BUY vs the user's shared cash pool in that currency. */
 export async function slipFundingQuestion(
   userId: string,
   portfolioId: string,
   currency: string,
   cost: number,
 ): Promise<FundingQuestion> {
-  const [accounts, portfolio] = await Promise.all([
-    prisma.cashAccount.findMany({
-      where: { currency, portfolio: { userId, deletedAt: null } },
-      select: { portfolioId: true, currency: true, balance: true, portfolio: { select: { name: true } } },
-    }),
-    prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId }, select: { name: true } }),
-  ]);
+  const { type } = await prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId }, select: { type: true } });
+  const accounts = await prisma.cashAccount.findMany({
+    where: { currency, portfolio: { userId, type, deletedAt: null } },
+    select: { portfolioId: true, currency: true, balance: true, portfolio: { select: { name: true } } },
+  });
   const cash = accounts.map((a) => ({
     portfolioId: a.portfolioId,
     portfolioName: a.portfolio.name,
     currency: a.currency,
     balance: Number(a.balance),
   }));
-  const [question] = fundingQuestions({
-    groups: [{ symbol: '_', buyAmount: cost, sellAmount: 0, currency }],
-    portfolioOf: new Map([['_', portfolioId]]),
-    cash,
-    portfolioNames: new Map([[portfolioId, portfolio.name]]),
-  });
-  return question!;
+  return fundingQuestions({ groups: [{ buyAmount: cost, sellAmount: 0, currency }], cash })[0]!;
 }
 
 /**

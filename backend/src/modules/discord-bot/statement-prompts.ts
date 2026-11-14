@@ -9,12 +9,12 @@ import { confirmStatement } from '../transaction/statement-import.service';
 import type {
   StatementAssignment,
   StatementCash,
-  StatementFunding,
   StatementGroup,
 } from '../transaction/statement-import.service';
 import { fundingQuestions } from '../transaction/funding-question';
 import type { FundingQuestion } from '../transaction/funding-question';
 import { fundingChoiceFromAction, fundingPrompt } from './funding-prompt';
+import type { FundingMode } from '../transaction/funding';
 import {
   RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE,
   RESPONSE_TYPE_MODAL,
@@ -57,7 +57,7 @@ export async function finishStatement(
   userId: string,
   statementId: string,
   assignments: StatementAssignment[],
-  funding: StatementFunding[] = [],
+  funding: FundingMode = 'CASH_FIRST',
 ) {
   return describeStatementResult(await confirmStatement(userId, statementId, assignments, funding));
 }
@@ -98,18 +98,10 @@ export async function openStatementPrompt(params: {
 
 const save = (id: string, pending: PendingChoice) => redis.set(key(id), JSON.stringify(pending), 'EX', TTL_SECONDS);
 
+/** Cash is one pool per currency, so which portfolio each asset went to doesn't matter here. */
 async function questionsFor(pending: PendingChoice): Promise<FundingQuestion[]> {
-  const portfolioOf = new Map(pending.resolved.filter((a) => a.portfolioId).map((a) => [a.symbol, a.portfolioId!]));
-  const portfolios = await prisma.portfolio.findMany({
-    where: { id: { in: [...new Set(portfolioOf.values())] } },
-    select: { id: true, name: true },
-  });
-  return fundingQuestions({
-    groups: pending.groups,
-    portfolioOf,
-    cash: pending.cash,
-    portfolioNames: new Map(portfolios.map((p) => [p.id, p.name])),
-  });
+  const placed = new Set(pending.resolved.map((a) => a.symbol));
+  return fundingQuestions({ groups: pending.groups.filter((g) => placed.has(g.symbol)), cash: pending.cash });
 }
 
 function fundingMessage(id: string, questions: FundingQuestion[]): DiscordMessage {
@@ -165,15 +157,10 @@ export async function handleStatementInteraction(
   }
   if (pending.discordUserId !== discordUserId) return update({ content: '❌ รายการนี้เป็นของผู้ใช้คนอื่น', components: [] });
 
-  const choice = fundingChoiceFromAction(action, interaction.data?.values ?? []);
+  const choice = fundingChoiceFromAction(action);
   if (choice) {
     if (pending.unresolvedSymbols.length > 0) return update(await promptFor(id, pending));
-    const questions = await questionsFor(pending);
-    if (choice.fromPortfolioId && !questions.some((q) => q.others.some((o) => o.portfolioId === choice.fromPortfolioId))) {
-      return update(fundingMessage(id, questions));
-    }
-    const funding: StatementFunding[] = questions.map((q) => ({ portfolioId: q.portfolioId, ...choice }));
-    return record(interaction, id, pending, funding);
+    return record(interaction, id, pending, choice);
   }
 
   switch (action) {
@@ -229,7 +216,7 @@ async function run(
       const questions = await questionsFor(pending);
       if (questions.length === 0) {
         await save(id, pending);
-        await recordNow(url, id, pending, []);
+        await recordNow(url, id, pending, 'CASH_FIRST');
         return;
       }
       await save(id, pending);
@@ -247,14 +234,14 @@ async function record(
   interaction: DiscordInteraction,
   id: string,
   pending: PendingChoice,
-  funding: StatementFunding[],
+  funding: FundingMode,
 ): Promise<DiscordInteractionResponse> {
   const url = originalMessageUrl(interaction);
   void recordNow(url, id, pending, funding);
   return { type: RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE };
 }
 
-async function recordNow(url: string, id: string, pending: PendingChoice, funding: StatementFunding[]) {
+async function recordNow(url: string, id: string, pending: PendingChoice, funding: FundingMode) {
   const locked = await redis.set(lockKey(id), '1', 'EX', 300, 'NX');
   if (!locked) return;
   try {

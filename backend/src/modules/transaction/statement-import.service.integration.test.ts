@@ -235,7 +235,7 @@ describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () =
       expect(await depositsOf(home)).toEqual([10, 30]); // the beforeEach buy, then only the 60 − 30 shortfall
     });
 
-    it("DEPOSIT_ALL for a portfolio deposits the full cost and keeps the sale proceeds as cash", async () => {
+    it("DEPOSIT_ALL deposits the full cost and keeps the sale proceeds as cash", async () => {
       sellThenRebuy();
       const { statementId } = await previewStatement(userId, upload);
       await confirmStatement(
@@ -245,25 +245,35 @@ describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () =
           { symbol: fresh.symbol, portfolioId: home },
           { symbol: held.symbol, portfolioId: home },
         ],
-        [{ portfolioId: home, mode: "DEPOSIT_ALL" }],
+        "DEPOSIT_ALL",
       );
       expect(await cashOf(home)).toBeCloseTo(30);
       expect(await depositsOf(home)).toEqual([10, 60]);
     });
 
-    it("can take the shortfall from another portfolio's cash", async () => {
+    it("uses the shared pool: another portfolio's cash pays first", async () => {
       mockExtract.mockResolvedValue({
         broker: "Test Broker",
         rows: [{ orderId: orderIds.fresh, date: "2026-02-10", transactionType: "BUY", symbol: fresh.symbol, quantity: 3, price: 20, currency: "THB", fee: 0, totalAmount: 60 }],
       });
       await prisma.cashAccount.create({ data: { portfolioId: other, currency: "THB", balance: 45 } });
       const { statementId } = await previewStatement(userId, upload);
-      await confirmStatement(userId, statementId, [{ symbol: fresh.symbol, portfolioId: home }], [
-        { portfolioId: home, mode: "CASH_FIRST", fromPortfolioId: other },
-      ]);
+      await confirmStatement(userId, statementId, [{ symbol: fresh.symbol, portfolioId: home }]);
       expect(await cashOf(other)).toBeCloseTo(0);
       expect(await cashOf(home)).toBeCloseTo(0);
       expect(await depositsOf(home)).toEqual([10, 45, 15]);
+    });
+
+    it("a sale in one portfolio pays for a buy in another in the same file", async () => {
+      sellThenRebuy(); // sells `held` (home, +30), buys `fresh` (60)
+      const { statementId } = await previewStatement(userId, upload);
+      await confirmStatement(userId, statementId, [
+        { symbol: fresh.symbol, portfolioId: other },
+        { symbol: held.symbol, portfolioId: home },
+      ]);
+      expect(await cashOf(home)).toBeCloseTo(0);
+      expect(await cashOf(other)).toBeCloseTo(0);
+      expect(await depositsOf(other)).toEqual([30, 30]); // 30 moved over from home, 30 new money (order by createdAt)
     });
   });
 });

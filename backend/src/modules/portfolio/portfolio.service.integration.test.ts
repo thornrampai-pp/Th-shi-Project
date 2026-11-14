@@ -118,4 +118,28 @@ describe.skipIf(!runIntegrationTests)("portfolio.service (real DB)", () => {
       await prisma.tag.delete({ where: { id: tag.id } });
     });
   });
+
+  describe("getCashPool", () => {
+    it("sums every REAL portfolio's cash per currency — one shared pool, PAPER money left out", async () => {
+      const mk = (name: string, type: "REAL" | "PAPER" = "REAL") =>
+        prisma.portfolio.create({ data: { userId, name, baseCurrency: "THB", type } });
+      const fire = await mk("Fire");
+      const stock = await mk("Stock");
+      const paper = await mk("Paper", "PAPER");
+      const theirs = await prisma.portfolio.create({ data: { userId: otherUserId, name: "X", baseCurrency: "THB", type: "REAL" } });
+      await prisma.cashAccount.createMany({
+        data: [
+          { portfolioId: fire.id, currency: "USD", balance: 12.5 },
+          { portfolioId: stock.id, currency: "USD", balance: 7.5 },
+          { portfolioId: stock.id, currency: "THB", balance: -1e-8 },
+          { portfolioId: paper.id, currency: "USD", balance: 1000 },
+          { portfolioId: theirs.id, currency: "USD", balance: 99 },
+        ],
+      });
+      expect(await portfolioService.getCashPool(userId)).toEqual([
+        { currency: "THB", balance: 0 },
+        { currency: "USD", balance: 20 },
+      ]);
+    });
+  });
 });

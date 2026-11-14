@@ -32,7 +32,7 @@ import {
 } from './discord-api';
 import type { DiscordAttachment, DiscordInteraction, DiscordInteractionResponse, DiscordMessage, DiscordModal } from './discord-api';
 import { fundingChoiceFromAction, fundingPrompt } from './funding-prompt';
-import type { FundingChoice } from './funding-prompt';
+import type { FundingMode } from '../transaction/funding';
 import type { FundingQuestion } from '../transaction/funding-question';
 import { describeDraft, describeResult, describeSlip, loadTransactionSummaries, transactionIdsOf } from './slip-messages';
 
@@ -109,12 +109,9 @@ export async function handleSlipInteraction(
     return ephemeral('❌ สลิปนี้เป็นของผู้ใช้คนอื่น');
   }
 
-  const funding = fundingChoiceFromAction(action, interaction.data?.values ?? []);
+  const funding = fundingChoiceFromAction(action);
   if (funding) {
     if (!pending.fundingQuestion || !pending.portfolioId) return ephemeral('❌ ไม่มีรายการที่รอเลือกแหล่งเงิน');
-    if (funding.fromPortfolioId && !pending.fundingQuestion.others.some((o) => o.portfolioId === funding.fromPortfolioId)) {
-      return ephemeral('❌ ไม่พบพอร์ตนี้');
-    }
     return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, true, funding));
   }
 
@@ -219,7 +216,7 @@ async function nextStep(
   return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, false));
 }
 
-function createFrom(pending: PendingSlip, upload: SlipUpload, confirmed: boolean, funding?: FundingChoice) {
+function createFrom(pending: PendingSlip, upload: SlipUpload, confirmed: boolean, funding?: FundingMode) {
   return createTransactionFromSlip(
     pending.userId,
     pending.portfolioId!,

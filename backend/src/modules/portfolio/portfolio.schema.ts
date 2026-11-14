@@ -119,6 +119,21 @@ builder.queryField('cashAccounts', (t) =>
   }),
 );
 
+const CashPoolType = builder
+  .objectRef<{ currency: string; balance: number }>('CashPoolBalance')
+  .implement({
+    description: "The user's shared cash in one currency — every REAL portfolio's balance summed",
+    fields: (t) => ({ currency: t.exposeString('currency'), balance: t.exposeFloat('balance') }),
+  });
+
+builder.queryField('cashPool', (t) =>
+  t.field({
+    type: [CashPoolType],
+    description: 'Cash as one shared pool per currency (buys draw on it from any portfolio)',
+    resolve: (_root, _args, context: GraphQLContext) => portfolioService.getCashPool(requireAuth(context)),
+  }),
+);
+
 builder.queryField('tags', (t) =>
   t.field({
     type: [TagType],

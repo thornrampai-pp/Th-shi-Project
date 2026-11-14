@@ -133,6 +133,29 @@ export const getPortfolioOverview = cache(async () => {
   };
 });
 
+const CashPoolQuery = graphql(`
+  query CashPool {
+    cashPool {
+      currency
+      balance
+    }
+  }
+`);
+
+/**
+ * Cash as one shared pool per currency (every REAL portfolio summed) — buys draw on it
+ * from any portfolio, like the broker's wallet. Zero currencies are kept so the tile
+ * always shows USD and THB.
+ */
+export const getCashPool = cache(async () => {
+  const { cashPool } = await serverQuery(CashPoolQuery);
+  const rows = compact(cashPool).flatMap((c) => (c.currency ? [{ currency: c.currency, balance: c.balance ?? 0 }] : []));
+  // Foreign (USD…) first, then THB.
+  return rows.sort((a, b) => Number(a.currency === "THB") - Number(b.currency === "THB") || a.currency.localeCompare(b.currency));
+});
+
+export type CashPool = Awaited<ReturnType<typeof getCashPool>>;
+
 /** Names only, oldest first — for navigation, without valuing anything. */
 export const getPortfolioList = cache(async () => {
   const { myPortfolios } = await serverQuery(PortfolioListQuery);

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
 import AllocationDonut from "./AllocationDonut";
-import { getPortfolioOverview } from "./data";
+import CashPoolValue from "./CashPoolValue";
+import { getCashPool, getPortfolioOverview } from "./data";
 import StatCard from "./StatCard";
 
 export const metadata: Metadata = { title: "Portfolios" };
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "Portfolios" };
 const TOP_COUNT = 3;
 
 export default async function PortfoliosPage() {
-  const overview = await getPortfolioOverview();
+  const [overview, cashPool] = await Promise.all([getPortfolioOverview(), getCashPool()]);
   // Best performers first; portfolios with nothing invested yet go last.
   const top = [...overview.portfolios]
     .sort((a, b) => Number(b.costBasis > 0) - Number(a.costBasis > 0) || b.unrealizedPLPct - a.unrealizedPLPct)
@@ -42,6 +43,12 @@ export default async function PortfoliosPage() {
           detail="What you paid for current holdings"
         />
         <StatCard label="Market value" value={<Private>{formatMoney(overview.marketValue, overview.currency)}</Private>} />
+        <StatCard
+          label="Cash"
+          className="col-span-2"
+          value={<CashPoolValue pool={cashPool} />}
+          detail="Shared by all portfolios — buys use it first"
+        />
       </div>
 
       {overview.portfolios.length === 0 ? (

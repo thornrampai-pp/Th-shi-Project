@@ -4,7 +4,7 @@ import { useMutation } from "@apollo/client/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { graphql } from "@/gql";
-import type { ConfirmStatementMutation, StatementFundingInput } from "@/gql/graphql";
+import type { ConfirmStatementMutation, FundingMode } from "@/gql/graphql";
 import type { PortfolioListItem } from "../data";
 import { formatMoney, formatQuantity } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ const ConfirmStatementDocument = graphql(`
   mutation ConfirmStatement(
     $statementId: String!
     $assignments: [StatementAssignmentInput!]!
-    $funding: [StatementFundingInput!]
+    $funding: FundingMode
   ) {
     confirmStatement(statementId: $statementId, assignments: $assignments, funding: $funding) {
       broker
@@ -72,8 +72,6 @@ type Group = {
   currency: string;
 };
 type Preview = { statementId: string; broker: string | null; unreadableCount: number; groups: Group[]; cash: CashBalance[] };
-/** How one portfolio pays: "cash" = its cash first, "deposit" = top up everything, else borrow from that portfolio id. */
-type Pay = "cash" | "deposit" | string;
 type Result = NonNullable<ConfirmStatementMutation["confirmStatement"]>;
 
 const NEW = "__new__";
@@ -109,7 +107,8 @@ export default function ImportStatementDialog({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [choices, setChoices] = useState<Record<string, Choice>>({});
-  const [pay, setPay] = useState<Record<string, Pay>>({});
+  // Cash is one shared pool, so one choice covers every buy in the file.
+  const [mode, setMode] = useState<FundingMode>("CASH_FIRST");
   const [result, setResult] = useState<Result | null>(null);
   const [previewStatement] = useMutation(PreviewStatementDocument);
   const [confirmStatement] = useMutation(ConfirmStatementDocument);
@@ -175,22 +174,8 @@ export default function ImportStatementDialog({
   const ready = groups.length > 0 && groups.every((g) => !needsName(choices[g.symbol]));
   const nameOf = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "—";
 
-  // Where each portfolio's buys get their money — recomputed as portfolios are picked.
-  const questions: FundingQuestion[] = preview
-    ? fundingQuestions({
-        groups,
-        cash: preview.cash,
-        target: new Map(
-          groups.flatMap((g): [string, { key: string; portfolioId: string | null; name: string }][] => {
-            const c = choices[g.symbol];
-            if (!c) return [];
-            return c.portfolioId === NEW
-              ? [[g.symbol, { key: `new:${c.newName.trim().toLowerCase()}`, portfolioId: null, name: c.newName.trim() || "New portfolio" }]]
-              : [[g.symbol, { key: c.portfolioId, portfolioId: c.portfolioId, name: nameOf(c.portfolioId) }]];
-          }),
-        ),
-      })
-    : [];
+  // The buys vs the shared cash pool, per currency.
+  const questions: FundingQuestion[] = preview ? fundingQuestions({ groups, cash: preview.cash }) : [];
 
   const confirm = async () => {
     if (!preview) return;
@@ -204,15 +189,7 @@ export default function ImportStatementDialog({
           ? { symbol: g.symbol, newPortfolioName: c.newName.trim() }
           : { symbol: g.symbol, portfolioId: c.portfolioId };
       });
-      // New portfolios start with no cash, so they always use the default (top up).
-      const funding = questions.flatMap((q): StatementFundingInput[] => {
-        if (!q.portfolioId) return [];
-        const p = pay[q.key] ?? "cash";
-        if (p === "deposit") return [{ portfolioId: q.portfolioId, mode: "DEPOSIT_ALL" }];
-        if (p === "cash") return [{ portfolioId: q.portfolioId, mode: "CASH_FIRST" }];
-        return [{ portfolioId: q.portfolioId, mode: "CASH_FIRST", fromPortfolioId: p }];
-      });
-      const { data } = await confirmStatement({ variables: { statementId: preview.statementId, assignments, funding } });
+      const { data } = await confirmStatement({ variables: { statementId: preview.statementId, assignments, funding: mode } });
       if (!data?.confirmStatement) throw new Error("Unexpected response from the server");
       setResult(data.confirmStatement);
       if (data.confirmStatement.rows?.some((r) => r?.status === "CREATED")) router.refresh();
@@ -310,11 +287,7 @@ export default function ImportStatementDialog({
             {questions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Paying for the buys</p>
-                <ul className="divide-y divide-border/60 rounded-md bg-muted px-3">
-                  {questions.map((q) => (
-                    <FundingRow key={q.key} q={q} value={pay[q.key] ?? "cash"} onChange={(v) => setPay((p) => ({ ...p, [q.key]: v }))} />
-                  ))}
-                </ul>
+                <FundingChoice questions={questions} mode={mode} onChange={setMode} />
               </div>
             )}
             {preview.unreadableCount > 0 && (
@@ -390,65 +363,51 @@ export default function ImportStatementDialog({
   );
 }
 
-/** One portfolio's buys vs its cash, and where the money comes from. */
-function FundingRow({ q, value, onChange }: { q: FundingQuestion; value: Pay; onChange: (v: Pay) => void }) {
-  const m = (v: number) => formatMoney(v, q.currency);
-  const borrowing = value !== "cash" && value !== "deposit";
-  const lender = q.others.find((o) => o.portfolioId === value);
+/** The buys vs the shared cash pool (per currency), and one choice of where the money comes from. */
+function FundingChoice({
+  questions,
+  mode,
+  onChange,
+}: {
+  questions: FundingQuestion[];
+  mode: FundingMode;
+  onChange: (m: FundingMode) => void;
+}) {
+  const anyCash = questions.some((q) => q.kind === "has_cash");
+  const totals = (pick: (q: FundingQuestion) => number) => questions.map((q) => formatMoney(pick(q), q.currency)).join(" + ");
   return (
-    <li className="space-y-1.5 py-2.5 text-sm">
-      <p>
-        <span className="font-semibold">{q.portfolioName}</span>{" "}
-        <span className="text-xs text-muted-foreground">
-          buys {m(q.buyAmount)}
-          {q.kind === "has_cash" && (
-            <>
-              {" "}· cash {m(q.available)}
-              {q.sellAmount > 0 && ` (incl. ${m(q.sellAmount)} from sells in this file)`}
-            </>
-          )}
-        </span>
-      </p>
-      {q.kind === "no_cash" && !borrowing && (
-        <p className="text-xs text-amber-600">
-          ⚠ No cash in this portfolio — {m(q.shortfall)} will be recorded as a top-up (deposit).
-        </p>
+    <div className="space-y-2 rounded-md bg-muted px-3 py-2.5 text-sm">
+      <ul className="space-y-1">
+        {questions.map((q) => (
+          <li key={q.currency}>
+            <span className="font-semibold">{q.currency}</span>{" "}
+            <span className="text-xs text-muted-foreground">
+              buys {formatMoney(q.buyAmount, q.currency)} · shared cash {formatMoney(q.available, q.currency)}
+              {q.sellAmount > 0 && ` (incl. ${formatMoney(q.sellAmount, q.currency)} from sells in this file)`}
+            </span>
+            {q.kind === "no_cash" && (
+              <p className="text-xs text-amber-600">
+                ⚠ No {q.currency} cash — {formatMoney(q.shortfall, q.currency)} will be recorded as a top-up (deposit).
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {anyCash && (
+        <div className="flex flex-col gap-1 text-xs">
+          <label className="flex items-center gap-2">
+            <input type="radio" name="funding" checked={mode === "CASH_FIRST"} onChange={() => onChange("CASH_FIRST")} />
+            {questions.every((q) => q.shortfall <= 0)
+              ? "Use the shared cash — no top-up needed"
+              : `Use the shared cash first, top up ${totals((q) => q.shortfall)}`}
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="funding" checked={mode === "DEPOSIT_ALL"} onChange={() => onChange("DEPOSIT_ALL")} />
+            Top up the full {totals((q) => q.buyAmount)} (keep the cash)
+          </label>
+        </div>
       )}
-      <div className="flex flex-col gap-1 text-xs">
-        {q.kind === "has_cash" && (
-          <label className="flex items-center gap-2">
-            <input type="radio" checked={value === "cash"} onChange={() => onChange("cash")} />
-            {q.shortfall > 0 ? `Use the cash first, top up ${m(q.shortfall)}` : "Use the cash — no top-up needed"}
-          </label>
-        )}
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={value === "deposit" || (q.kind === "no_cash" && value === "cash")}
-            onChange={() => onChange(q.kind === "no_cash" ? "cash" : "deposit")}
-          />
-          {q.kind === "no_cash" ? `Top up ${m(q.buyAmount)}` : `Top up the full ${m(q.buyAmount)} (keep the cash)`}
-        </label>
-        {q.portfolioId && q.shortfall > 0 && q.others.length > 0 && (
-          <label className="flex items-center gap-2">
-            <input type="radio" checked={borrowing} onChange={() => onChange(q.others[0]!.portfolioId)} />
-            Use cash from
-            <select
-              value={borrowing ? value : q.others[0]!.portfolioId}
-              onChange={(e) => onChange(e.target.value)}
-              className="rounded-md bg-background px-2 py-0.5 outline-none"
-            >
-              {q.others.map((o) => (
-                <option key={o.portfolioId} value={o.portfolioId}>
-                  {o.portfolioName} ({m(o.balance)})
-                </option>
-              ))}
-            </select>
-            {lender && q.shortfall > lender.balance && <span className="text-amber-600">+ top up {m(q.shortfall - lender.balance)}</span>}
-          </label>
-        )}
-      </div>
-    </li>
+    </div>
   );
 }
 

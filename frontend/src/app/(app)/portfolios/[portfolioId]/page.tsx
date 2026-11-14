@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { Private } from "@/components/AmountPrivacy";
 import { formatMoney, formatSignedMoney, formatSignedPct, plColor } from "@/lib/format";
 import AllocationDonut from "../AllocationDonut";
-import { getPortfolioList, loadPortfolio } from "../data";
+import CashPoolValue from "../CashPoolValue";
+import { getCashPool, getPortfolioList, loadPortfolio } from "../data";
 import StatCard from "../StatCard";
 import HoldingsPanel from "./HoldingsPanel";
 
@@ -18,7 +19,9 @@ export default async function PortfolioPage({ params }: Props) {
   const portfolio = await loadPortfolio((await params).portfolioId);
   if (!portfolio) notFound();
   const { currency } = portfolio;
-  const portfolios = await getPortfolioList();
+  const [portfolios, cashPool] = await Promise.all([getPortfolioList(), getCashPool()]);
+  // REAL portfolios share one cash pool; a PAPER one keeps its own play money.
+  const shared = portfolio.type === "REAL";
 
   return (
     <>
@@ -50,9 +53,10 @@ export default async function PortfolioPage({ params }: Props) {
           />
           <StatCard label="Market value" value={<Private>{formatMoney(portfolio.marketValue, currency)}</Private>} />
           <StatCard
-            label="Cash"
+            label={shared ? "Shared cash" : "Cash"}
             className="col-span-2 sm:col-span-1"
-            value={<Private>{formatMoney(portfolio.cash, currency)}</Private>}
+            value={shared ? <CashPoolValue pool={cashPool} /> : <Private>{formatMoney(portfolio.cash, currency)}</Private>}
+            detail={shared ? "All portfolios — buys use it first" : undefined}
           />
         </div>
       </div>

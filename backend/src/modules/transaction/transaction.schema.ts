@@ -112,7 +112,7 @@ export const TransactionType = builder.objectRef<TransactionShape>('Transaction'
     costBasisHome: t.field({ type: 'Float', nullable: true, resolve: (tr) => numOrNull(metadataOf(tr).costBasisHome) }),
     autoFunded: t.boolean({
       description:
-        'A DEPOSIT the app created to fund a BUY (fundWithDeposit, e.g. from a statement or slip) rather than money actually transferred in',
+        'A DEPOSIT the app created to fund a BUY (the part its cash didn\'t cover, e.g. from a statement or slip) rather than money typed in by hand',
       resolve: (tr) => tr.type === 'DEPOSIT' && !!tr.parentTxId,
     }),
     note: t.field({
@@ -556,6 +556,35 @@ const StatementGroupType = builder.objectRef<statementImportService.StatementGro
     rowCount: t.exposeInt('rowCount'),
     heldInPortfolioIds: t.exposeStringList('heldInPortfolioIds'),
     suggestedPortfolioId: t.exposeString('suggestedPortfolioId', { nullable: true }),
+    buyAmount: t.exposeFloat('buyAmount', { description: "This asset's BUY rows, cost incl. fee, in `currency`" }),
+    sellAmount: t.exposeFloat('sellAmount', { description: "This asset's SELL rows, net, in `currency`" }),
+    currency: t.exposeString('currency'),
+  }),
+});
+
+const StatementCashType = builder.objectRef<statementImportService.StatementCash>('StatementCash').implement({
+  description: 'Cash a portfolio holds now — what the buys can be paid from',
+  fields: (t) => ({
+    portfolioId: t.exposeString('portfolioId'),
+    portfolioName: t.exposeString('portfolioName'),
+    currency: t.exposeString('currency'),
+    balance: t.exposeFloat('balance'),
+  }),
+});
+
+const FundingModeEnum = builder.enumType('FundingMode', {
+  description:
+    "Where a BUY's money comes from. CASH_FIRST: the portfolio's cash (incl. sales recorded first), " +
+    "then fromPortfolioId's cash, then a deposit for the rest. DEPOSIT_ALL: a deposit for the full cost. " +
+    'CASH_ONLY: existing cash only — fails if short.',
+  values: ['CASH_FIRST', 'DEPOSIT_ALL', 'CASH_ONLY'] as const,
+});
+
+const StatementFundingInput = builder.inputType('StatementFundingInput', {
+  fields: (t) => ({
+    portfolioId: t.id({ required: true }),
+    mode: t.field({ type: FundingModeEnum, required: true }),
+    fromPortfolioId: t.id({ description: 'CASH_FIRST: borrow the shortfall from this portfolio first' }),
   }),
 });
 
@@ -566,6 +595,7 @@ const StatementPreviewType = builder
       statementId: t.exposeString('statementId'),
       broker: t.exposeString('broker', { nullable: true }),
       groups: t.field({ type: [StatementGroupType], resolve: (p) => p.groups }),
+      cash: t.field({ type: [StatementCashType], resolve: (p) => p.cash }),
       unreadableCount: t.exposeInt('unreadableCount'),
     }),
   });
@@ -604,6 +634,10 @@ builder.mutationField('confirmStatement', (t) =>
     args: {
       statementId: t.arg.string({ required: true }),
       assignments: t.arg({ type: [StatementAssignmentInput], required: true }),
+      funding: t.arg({
+        type: [StatementFundingInput],
+        description: 'How each portfolio pays for its buys; a portfolio not listed uses CASH_FIRST',
+      }),
     },
     resolve: async (_root, args, context: GraphQLContext) => {
       const userId = requireAuth(context);
@@ -614,6 +648,11 @@ builder.mutationField('confirmStatement', (t) =>
           symbol: a.symbol,
           portfolioId: a.portfolioId ? String(a.portfolioId) : undefined,
           newPortfolioName: a.newPortfolioName ?? undefined,
+        })),
+        (args.funding ?? []).map((f) => ({
+          portfolioId: String(f.portfolioId),
+          mode: f.mode,
+          fromPortfolioId: f.fromPortfolioId ? String(f.fromPortfolioId) : undefined,
         })),
       );
       return { broker: result.broker, rows: result.rows.map(toStatementRowResult) };

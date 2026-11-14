@@ -135,6 +135,74 @@ describe.skipIf(!runIntegrationTests)("transaction.service (real DB)", () => {
     });
   });
 
+  describe("BUY funding (where the money comes from)", () => {
+    const cash = async (pid: string) =>
+      Number((await prisma.cashAccount.findFirstOrThrow({ where: { portfolioId: pid, currency: "THB" } })).balance);
+    const deposits = (pid: string) =>
+      prisma.transaction.findMany({ where: { portfolioId: pid, type: "DEPOSIT" }, select: { baseCurrAmount: true, metadata: true } });
+    const buy = (pid: string, price: number, extra: Record<string, unknown> = {}) =>
+      createTransaction(userId, { portfolioId: pid, type: "BUY", assetId, quantity: 1, price, ...extra });
+
+    it("CASH_FIRST spends sale proceeds already in the portfolio and deposits only the shortfall", async () => {
+      await createCashAccount(portfolioId, { balance: 60 });
+      const tx = await buy(portfolioId, 100, { funding: "CASH_FIRST" });
+      expect(await cash(portfolioId)).toBeCloseTo(0);
+      const deps = await deposits(portfolioId);
+      expect(deps.map((d) => Number(d.baseCurrAmount))).toEqual([40]);
+      expect((tx.metadata as { funding: unknown }).funding).toEqual({ mode: "CASH_FIRST", fromCash: 60, transfer: 0, deposit: 40, fromPortfolioId: null });
+    });
+
+    it("CASH_FIRST with enough cash records no deposit at all", async () => {
+      await createCashAccount(portfolioId, { balance: 500 });
+      await buy(portfolioId, 100, { funding: "CASH_FIRST" });
+      expect(await cash(portfolioId)).toBeCloseTo(400);
+      expect(await deposits(portfolioId)).toHaveLength(0);
+    });
+
+    it("CASH_FIRST creates the cash account when the portfolio has none", async () => {
+      await buy(portfolioId, 100, { funding: "CASH_FIRST" });
+      expect(await cash(portfolioId)).toBeCloseTo(0);
+      expect((await deposits(portfolioId)).map((d) => Number(d.baseCurrAmount))).toEqual([100]);
+    });
+
+    it("takes the shortfall from another portfolio's cash as a linked withdraw/deposit pair", async () => {
+      const other = await createTestPortfolio(userId, { type: "REAL", baseCurrency: "THB", name: "Fire" });
+      await createCashAccount(other.id, { balance: 70 });
+      await createCashAccount(portfolioId, { balance: 10 });
+      await buy(portfolioId, 100, { funding: "CASH_FIRST", fundFromPortfolioId: other.id });
+
+      expect(await cash(other.id)).toBeCloseTo(0);
+      expect(await cash(portfolioId)).toBeCloseTo(0);
+      const out = await prisma.transaction.findFirstOrThrow({ where: { portfolioId: other.id, type: "WITHDRAW" } });
+      expect(Number(out.baseCurrAmount)).toBeCloseTo(70);
+      expect(out.metadata).toMatchObject({ cashTransfer: { toPortfolioId: portfolioId } });
+      const ins = await deposits(portfolioId);
+      expect(ins.map((d) => Number(d.baseCurrAmount)).sort((a, b) => a - b)).toEqual([20, 70]);
+      expect(ins.find((d) => Number(d.baseCurrAmount) === 70)!.metadata).toMatchObject({ cashTransfer: { fromPortfolioId: other.id } });
+    });
+
+    it("refuses to borrow from a portfolio the user doesn't own", async () => {
+      const stranger = await createTestUser();
+      const theirs = await createTestPortfolio(stranger.id, { type: "REAL", baseCurrency: "THB", name: "Theirs" });
+      await createCashAccount(theirs.id, { balance: 500 });
+      await expect(buy(portfolioId, 100, { funding: "CASH_FIRST", fundFromPortfolioId: theirs.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+      await cleanupTestUser(stranger.id, []);
+    });
+
+    it("DEPOSIT_ALL (and the legacy fundWithDeposit) deposit the full cost and leave existing cash alone", async () => {
+      await createCashAccount(portfolioId, { balance: 60 });
+      await buy(portfolioId, 100, { funding: "DEPOSIT_ALL" });
+      await buy(portfolioId, 50, { fundWithDeposit: true });
+      expect(await cash(portfolioId)).toBeCloseTo(60);
+      expect((await deposits(portfolioId)).map((d) => Number(d.baseCurrAmount)).sort((a, b) => a - b)).toEqual([50, 100]);
+    });
+
+    it("CASH_ONLY rejects a buy the cash can't cover, in Thai, saying how much is missing", async () => {
+      await createCashAccount(portfolioId, { balance: 30 });
+      await expect(buy(portfolioId, 100, { funding: "CASH_ONLY" })).rejects.toThrow(/เงินสด.*ไม่พอ.*ขาด 70\.00/);
+    });
+  });
+
   describe("SELL", () => {
     async function buy(quantity: number, price: number) {
       await createCashAccount(portfolioId, { balance: 1_000_000 });

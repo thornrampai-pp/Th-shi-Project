@@ -117,3 +117,27 @@ describe('other notifications', () => {
     );
   });
 });
+
+describe('where the money for a buy came from', () => {
+  it('a single buy says how much came from cash, another portfolio and a new deposit', () => {
+    expect(transactionMessage({ ...buy, funding: { fromCash: 212.52, transfer: 0, deposit: 17.24 } }).text).toContain(
+      '\n💵 ใช้เงินสด $212.52 + เติมเงิน $17.24\n',
+    );
+    expect(
+      transactionMessage({ ...buy, funding: { fromCash: 0, transfer: 20, deposit: 0, fromPortfolioName: 'Stock' } }).text,
+    ).toContain('\n💵 ใช้เงินสดจากพอร์ต Stock $20.00\n');
+    expect(transactionMessage({ ...buy, funding: { fromCash: 0, transfer: 0, deposit: 22.33 } }).text).toContain('\n💵 เติมเงิน $22.33\n');
+  });
+
+  it('a statement sums the funding per portfolio in its footer', () => {
+    const notices: TransactionNotice[] = [
+      { ...buy, amount: 200, funding: { fromCash: 200, transfer: 0, deposit: 0 } },
+      { ...buy, amount: 29.76, funding: { fromCash: 12.52, transfer: 0, deposit: 17.24 } },
+      { ...buy, portfolioName: 'Growth', amount: 37, funding: { fromCash: 0, transfer: 0, deposit: 37 } },
+      { ...buy, type: 'SELL', amount: 212.52 },
+    ];
+    const text = statementImportMessages({ broker: 'Dime', notices, skipped: 0 }).map((m) => m.text).join('\n');
+    expect(text).toContain('💵 Fire: ใช้เงินสด $212.52 + เติมเงิน $17.24');
+    expect(text).toContain('💵 Growth: เติมเงิน $37.00');
+  });
+});

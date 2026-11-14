@@ -6,7 +6,15 @@ import { redis } from '../../config/redis';
 import { AppError } from '../../common/errors/AppError';
 import { createPortfolio } from '../portfolio/portfolio.service';
 import { confirmStatement } from '../transaction/statement-import.service';
-import type { StatementAssignment } from '../transaction/statement-import.service';
+import type {
+  StatementAssignment,
+  StatementCash,
+  StatementFunding,
+  StatementGroup,
+} from '../transaction/statement-import.service';
+import { fundingQuestions } from '../transaction/funding-question';
+import type { FundingQuestion } from '../transaction/funding-question';
+import { fundingChoiceFromAction, fundingPrompt } from './funding-prompt';
 import {
   RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE,
   RESPONSE_TYPE_MODAL,
@@ -35,6 +43,9 @@ interface PendingChoice {
   resolved: StatementAssignment[];
   /** Still needs a portfolio. */
   unresolvedSymbols: string[];
+  /** From the preview — what each asset buys/sells and the cash on hand, for the funding question. */
+  groups: StatementGroup[];
+  cash: StatementCash[];
 }
 
 export function isStatementCustomId(id: string | undefined): boolean {
@@ -42,25 +53,71 @@ export function isStatementCustomId(id: string | undefined): boolean {
 }
 
 /** Records everything and returns the summary text. */
-export async function finishStatement(userId: string, statementId: string, assignments: StatementAssignment[]) {
-  return describeStatementResult(await confirmStatement(userId, statementId, assignments));
+export async function finishStatement(
+  userId: string,
+  statementId: string,
+  assignments: StatementAssignment[],
+  funding: StatementFunding[] = [],
+) {
+  return describeStatementResult(await confirmStatement(userId, statementId, assignments, funding));
 }
 
+/**
+ * After the preview: asks for a portfolio for assets that have none, then where the
+ * money for the buys comes from. Nothing is recorded until both are answered (a file
+ * with no buys is recorded straight away).
+ */
 export async function openStatementPrompt(params: {
   statementId: string;
   userId: string;
   discordUserId: string;
   resolved: StatementAssignment[];
   unresolvedSymbols: string[];
+  groups: StatementGroup[];
+  cash: StatementCash[];
 }): Promise<DiscordMessage> {
   const pending: PendingChoice = {
     userId: params.userId,
     discordUserId: params.discordUserId,
     resolved: params.resolved,
     unresolvedSymbols: params.unresolvedSymbols,
+    groups: params.groups,
+    cash: params.cash,
   };
-  await redis.set(key(params.statementId), JSON.stringify(pending), 'EX', TTL_SECONDS);
+  if (pending.unresolvedSymbols.length === 0) {
+    const questions = await questionsFor(pending);
+    if (questions.length === 0) {
+      return { content: (await finishStatement(pending.userId, params.statementId, pending.resolved)).slice(0, 1990), components: [] };
+    }
+    await save(params.statementId, pending);
+    return fundingMessage(params.statementId, questions);
+  }
+  await save(params.statementId, pending);
   return promptFor(params.statementId, pending);
+}
+
+const save = (id: string, pending: PendingChoice) => redis.set(key(id), JSON.stringify(pending), 'EX', TTL_SECONDS);
+
+async function questionsFor(pending: PendingChoice): Promise<FundingQuestion[]> {
+  const portfolioOf = new Map(pending.resolved.filter((a) => a.portfolioId).map((a) => [a.symbol, a.portfolioId!]));
+  const portfolios = await prisma.portfolio.findMany({
+    where: { id: { in: [...new Set(portfolioOf.values())] } },
+    select: { id: true, name: true },
+  });
+  return fundingQuestions({
+    groups: pending.groups,
+    portfolioOf,
+    cash: pending.cash,
+    portfolioNames: new Map(portfolios.map((p) => [p.id, p.name])),
+  });
+}
+
+function fundingMessage(id: string, questions: FundingQuestion[]): DiscordMessage {
+  const ask = fundingPrompt(questions, (action) => customId(action, id));
+  return {
+    content: `📄 ก่อนบันทึก statement นี้\n${ask.content}`.slice(0, 1900),
+    components: [...ask.components, actionRow(button(customId('cancel', id), 'ยกเลิก'))],
+  };
 }
 
 async function promptFor(id: string, pending: PendingChoice): Promise<DiscordMessage> {
@@ -108,6 +165,17 @@ export async function handleStatementInteraction(
   }
   if (pending.discordUserId !== discordUserId) return update({ content: '❌ รายการนี้เป็นของผู้ใช้คนอื่น', components: [] });
 
+  const choice = fundingChoiceFromAction(action, interaction.data?.values ?? []);
+  if (choice) {
+    if (pending.unresolvedSymbols.length > 0) return update(await promptFor(id, pending));
+    const questions = await questionsFor(pending);
+    if (choice.fromPortfolioId && !questions.some((q) => q.others.some((o) => o.portfolioId === choice.fromPortfolioId))) {
+      return update(fundingMessage(id, questions));
+    }
+    const funding: StatementFunding[] = questions.map((q) => ({ portfolioId: q.portfolioId, ...choice }));
+    return record(interaction, id, pending, funding);
+  }
+
   switch (action) {
     case 'cancel':
       await redis.del(key(id));
@@ -142,36 +210,64 @@ export async function handleStatementInteraction(
   return update({ content: '❌ ไม่รู้จักคำสั่งนี้', components: [] });
 }
 
-/** Acks at once (Discord waits ~3s) and records in the background, then edits the message to the summary. */
+/**
+ * Portfolio chosen for the unplaced assets (created first if new) → on to the funding
+ * question. Acks at once (Discord waits ~3s); creating a portfolio can take longer.
+ */
 async function run(
   interaction: DiscordInteraction,
   id: string,
   pending: PendingChoice,
   choosePortfolio: () => Promise<string>,
 ): Promise<DiscordInteractionResponse> {
-  const locked = await redis.set(lockKey(id), '1', 'EX', 300, 'NX');
-  if (!locked) return update({ content: '⏳ กำลังบันทึกอยู่', components: [] });
-
   const url = originalMessageUrl(interaction);
   void (async () => {
     try {
-      await editMessage(url, { content: '⏳ กำลังบันทึกรายการ...', components: [] });
       const portfolioId = await choosePortfolio();
-      const assignments: StatementAssignment[] = [
-        ...pending.resolved,
-        ...pending.unresolvedSymbols.map((symbol) => ({ symbol, portfolioId })),
-      ];
-      const summary = await finishStatement(pending.userId, id, assignments);
-      await redis.del(key(id));
-      await editMessage(url, { content: summary.slice(0, 1990), components: [] });
+      pending.resolved = [...pending.resolved, ...pending.unresolvedSymbols.map((symbol) => ({ symbol, portfolioId }))];
+      pending.unresolvedSymbols = [];
+      const questions = await questionsFor(pending);
+      if (questions.length === 0) {
+        await save(id, pending);
+        await recordNow(url, id, pending, []);
+        return;
+      }
+      await save(id, pending);
+      await editMessage(url, fundingMessage(id, questions));
     } catch (err) {
       const message = err instanceof AppError || err instanceof Error ? err.message : 'unknown error';
       await editMessage(url, { content: `❌ นำเข้า statement ไม่สำเร็จ: ${message}`, components: [] }).catch(() => undefined);
-    } finally {
-      await redis.del(lockKey(id));
     }
   })();
   return { type: RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE };
+}
+
+/** Records everything in the background, then edits the message to the summary. */
+async function record(
+  interaction: DiscordInteraction,
+  id: string,
+  pending: PendingChoice,
+  funding: StatementFunding[],
+): Promise<DiscordInteractionResponse> {
+  const url = originalMessageUrl(interaction);
+  void recordNow(url, id, pending, funding);
+  return { type: RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE };
+}
+
+async function recordNow(url: string, id: string, pending: PendingChoice, funding: StatementFunding[]) {
+  const locked = await redis.set(lockKey(id), '1', 'EX', 300, 'NX');
+  if (!locked) return;
+  try {
+    await editMessage(url, { content: '⏳ กำลังบันทึกรายการ...', components: [] });
+    const summary = await finishStatement(pending.userId, id, pending.resolved, funding);
+    await redis.del(key(id));
+    await editMessage(url, { content: summary.slice(0, 1990), components: [] });
+  } catch (err) {
+    const message = err instanceof AppError || err instanceof Error ? err.message : 'unknown error';
+    await editMessage(url, { content: `❌ นำเข้า statement ไม่สำเร็จ: ${message}`, components: [] }).catch(() => undefined);
+  } finally {
+    await redis.del(lockKey(id));
+  }
 }
 
 function update(message: DiscordMessage): DiscordInteractionResponse {

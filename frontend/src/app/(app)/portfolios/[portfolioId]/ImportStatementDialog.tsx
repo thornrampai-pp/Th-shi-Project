@@ -4,10 +4,12 @@ import { useMutation } from "@apollo/client/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { graphql } from "@/gql";
-import type { ConfirmStatementMutation } from "@/gql/graphql";
+import type { ConfirmStatementMutation, StatementFundingInput } from "@/gql/graphql";
 import type { PortfolioListItem } from "../data";
 import { formatMoney, formatQuantity } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { fundingQuestions } from "./statement-funding";
+import type { CashBalance, FundingQuestion } from "./statement-funding";
 
 // Sent through Apollo → /api/graphql rather than a Server Action: Server Actions cap
 // the request body at 1 MB by default, and a multi-page statement PDF can exceed that.
@@ -22,14 +24,27 @@ const PreviewStatementDocument = graphql(`
         rowCount
         heldInPortfolioIds
         suggestedPortfolioId
+        buyAmount
+        sellAmount
+        currency
+      }
+      cash {
+        portfolioId
+        portfolioName
+        currency
+        balance
       }
     }
   }
 `);
 
 const ConfirmStatementDocument = graphql(`
-  mutation ConfirmStatement($statementId: String!, $assignments: [StatementAssignmentInput!]!) {
-    confirmStatement(statementId: $statementId, assignments: $assignments) {
+  mutation ConfirmStatement(
+    $statementId: String!
+    $assignments: [StatementAssignmentInput!]!
+    $funding: [StatementFundingInput!]
+  ) {
+    confirmStatement(statementId: $statementId, assignments: $assignments, funding: $funding) {
       broker
       rows {
         status
@@ -47,8 +62,18 @@ const ConfirmStatementDocument = graphql(`
   }
 `);
 
-type Group = { symbol: string; rowCount: number; heldInPortfolioIds: string[]; suggestedPortfolioId: string | null };
-type Preview = { statementId: string; broker: string | null; unreadableCount: number; groups: Group[] };
+type Group = {
+  symbol: string;
+  rowCount: number;
+  heldInPortfolioIds: string[];
+  suggestedPortfolioId: string | null;
+  buyAmount: number;
+  sellAmount: number;
+  currency: string;
+};
+type Preview = { statementId: string; broker: string | null; unreadableCount: number; groups: Group[]; cash: CashBalance[] };
+/** How one portfolio pays: "cash" = its cash first, "deposit" = top up everything, else borrow from that portfolio id. */
+type Pay = "cash" | "deposit" | string;
 type Result = NonNullable<ConfirmStatementMutation["confirmStatement"]>;
 
 const NEW = "__new__";
@@ -84,6 +109,7 @@ export default function ImportStatementDialog({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [choices, setChoices] = useState<Record<string, Choice>>({});
+  const [pay, setPay] = useState<Record<string, Pay>>({});
   const [result, setResult] = useState<Result | null>(null);
   const [previewStatement] = useMutation(PreviewStatementDocument);
   const [confirmStatement] = useMutation(ConfirmStatementDocument);
@@ -112,7 +138,22 @@ export default function ImportStatementDialog({
         unreadableCount: p.unreadableCount ?? 0,
         groups: (p.groups ?? []).flatMap((g) =>
           g?.symbol
-            ? [{ symbol: g.symbol, rowCount: g.rowCount ?? 0, heldInPortfolioIds: (g.heldInPortfolioIds ?? []).flatMap((id) => (id ? [id] : [])), suggestedPortfolioId: g.suggestedPortfolioId ?? null }]
+            ? [
+                {
+                  symbol: g.symbol,
+                  rowCount: g.rowCount ?? 0,
+                  heldInPortfolioIds: (g.heldInPortfolioIds ?? []).flatMap((id) => (id ? [id] : [])),
+                  suggestedPortfolioId: g.suggestedPortfolioId ?? null,
+                  buyAmount: g.buyAmount ?? 0,
+                  sellAmount: g.sellAmount ?? 0,
+                  currency: g.currency ?? "THB",
+                },
+              ]
+            : [],
+        ),
+        cash: (p.cash ?? []).flatMap((c) =>
+          c?.portfolioId
+            ? [{ portfolioId: c.portfolioId, portfolioName: c.portfolioName ?? "", currency: c.currency ?? "", balance: c.balance ?? 0 }]
             : [],
         ),
       };
@@ -132,6 +173,24 @@ export default function ImportStatementDialog({
   const groups = preview?.groups ?? [];
   const needsName = (c: Choice | undefined) => c?.portfolioId === NEW && !c.newName.trim();
   const ready = groups.length > 0 && groups.every((g) => !needsName(choices[g.symbol]));
+  const nameOf = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "—";
+
+  // Where each portfolio's buys get their money — recomputed as portfolios are picked.
+  const questions: FundingQuestion[] = preview
+    ? fundingQuestions({
+        groups,
+        cash: preview.cash,
+        target: new Map(
+          groups.flatMap((g): [string, { key: string; portfolioId: string | null; name: string }][] => {
+            const c = choices[g.symbol];
+            if (!c) return [];
+            return c.portfolioId === NEW
+              ? [[g.symbol, { key: `new:${c.newName.trim().toLowerCase()}`, portfolioId: null, name: c.newName.trim() || "New portfolio" }]]
+              : [[g.symbol, { key: c.portfolioId, portfolioId: c.portfolioId, name: nameOf(c.portfolioId) }]];
+          }),
+        ),
+      })
+    : [];
 
   const confirm = async () => {
     if (!preview) return;
@@ -145,7 +204,15 @@ export default function ImportStatementDialog({
           ? { symbol: g.symbol, newPortfolioName: c.newName.trim() }
           : { symbol: g.symbol, portfolioId: c.portfolioId };
       });
-      const { data } = await confirmStatement({ variables: { statementId: preview.statementId, assignments } });
+      // New portfolios start with no cash, so they always use the default (top up).
+      const funding = questions.flatMap((q): StatementFundingInput[] => {
+        if (!q.portfolioId) return [];
+        const p = pay[q.key] ?? "cash";
+        if (p === "deposit") return [{ portfolioId: q.portfolioId, mode: "DEPOSIT_ALL" }];
+        if (p === "cash") return [{ portfolioId: q.portfolioId, mode: "CASH_FIRST" }];
+        return [{ portfolioId: q.portfolioId, mode: "CASH_FIRST", fromPortfolioId: p }];
+      });
+      const { data } = await confirmStatement({ variables: { statementId: preview.statementId, assignments, funding } });
       if (!data?.confirmStatement) throw new Error("Unexpected response from the server");
       setResult(data.confirmStatement);
       if (data.confirmStatement.rows?.some((r) => r?.status === "CREATED")) router.refresh();
@@ -161,8 +228,6 @@ export default function ImportStatementDialog({
     status,
     count: rows.filter((r) => r?.status === status).length,
   }));
-  const nameOf = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "—";
-
   return (
     <dialog
       ref={dialogRef}
@@ -242,6 +307,16 @@ export default function ImportStatementDialog({
                 );
               })}
             </ul>
+            {questions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Paying for the buys</p>
+                <ul className="divide-y divide-border/60 rounded-md bg-muted px-3">
+                  {questions.map((q) => (
+                    <FundingRow key={q.key} q={q} value={pay[q.key] ?? "cash"} onChange={(v) => setPay((p) => ({ ...p, [q.key]: v }))} />
+                  ))}
+                </ul>
+              </div>
+            )}
             {preview.unreadableCount > 0 && (
               <p className="text-xs text-amber-600">
                 {preview.unreadableCount} row{preview.unreadableCount === 1 ? "" : "s"} couldn&apos;t be read completely and will be skipped.
@@ -312,6 +387,68 @@ export default function ImportStatementDialog({
         </div>
       </div>
     </dialog>
+  );
+}
+
+/** One portfolio's buys vs its cash, and where the money comes from. */
+function FundingRow({ q, value, onChange }: { q: FundingQuestion; value: Pay; onChange: (v: Pay) => void }) {
+  const m = (v: number) => formatMoney(v, q.currency);
+  const borrowing = value !== "cash" && value !== "deposit";
+  const lender = q.others.find((o) => o.portfolioId === value);
+  return (
+    <li className="space-y-1.5 py-2.5 text-sm">
+      <p>
+        <span className="font-semibold">{q.portfolioName}</span>{" "}
+        <span className="text-xs text-muted-foreground">
+          buys {m(q.buyAmount)}
+          {q.kind === "has_cash" && (
+            <>
+              {" "}· cash {m(q.available)}
+              {q.sellAmount > 0 && ` (incl. ${m(q.sellAmount)} from sells in this file)`}
+            </>
+          )}
+        </span>
+      </p>
+      {q.kind === "no_cash" && !borrowing && (
+        <p className="text-xs text-amber-600">
+          ⚠ No cash in this portfolio — {m(q.shortfall)} will be recorded as a top-up (deposit).
+        </p>
+      )}
+      <div className="flex flex-col gap-1 text-xs">
+        {q.kind === "has_cash" && (
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={value === "cash"} onChange={() => onChange("cash")} />
+            {q.shortfall > 0 ? `Use the cash first, top up ${m(q.shortfall)}` : "Use the cash — no top-up needed"}
+          </label>
+        )}
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            checked={value === "deposit" || (q.kind === "no_cash" && value === "cash")}
+            onChange={() => onChange(q.kind === "no_cash" ? "cash" : "deposit")}
+          />
+          {q.kind === "no_cash" ? `Top up ${m(q.buyAmount)}` : `Top up the full ${m(q.buyAmount)} (keep the cash)`}
+        </label>
+        {q.portfolioId && q.shortfall > 0 && q.others.length > 0 && (
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={borrowing} onChange={() => onChange(q.others[0]!.portfolioId)} />
+            Use cash from
+            <select
+              value={borrowing ? value : q.others[0]!.portfolioId}
+              onChange={(e) => onChange(e.target.value)}
+              className="rounded-md bg-background px-2 py-0.5 outline-none"
+            >
+              {q.others.map((o) => (
+                <option key={o.portfolioId} value={o.portfolioId}>
+                  {o.portfolioName} ({m(o.balance)})
+                </option>
+              ))}
+            </select>
+            {lender && q.shortfall > lender.balance && <span className="text-amber-600">+ top up {m(q.shortfall - lender.balance)}</span>}
+          </label>
+        )}
+      </div>
+    </li>
   );
 }
 

@@ -21,7 +21,7 @@ import {
 } from './discord-api';
 import type { DiscordAttachment, DiscordInteraction, DiscordInteractionResponse, DiscordMessage } from './discord-api';
 import { describeResult, loadTransactionSummaries, transactionIdsOf } from './slip-messages';
-import { finishStatement, handleStatementInteraction, isStatementCustomId, openStatementPrompt } from './statement-prompts';
+import { handleStatementInteraction, isStatementCustomId, openStatementPrompt } from './statement-prompts';
 import { downloadAttachment, handleSlipInteraction, isSlipCustomId, needsPrompt, openSlipPrompt } from './slip-prompts';
 
 export type { DiscordInteraction, DiscordInteractionResponse } from './discord-api';
@@ -345,11 +345,6 @@ async function processUploadStatementAsync(interaction: DiscordInteraction, disc
       else unresolvedSymbols.push(group.symbol);
     }
 
-    if (unresolvedSymbols.length === 0) {
-      await editMessage(followupUrl, await finishStatement(user.id, preview.statementId, resolved));
-      return;
-    }
-
     await editMessage(
       followupUrl,
       await openStatementPrompt({
@@ -358,6 +353,8 @@ async function processUploadStatementAsync(interaction: DiscordInteraction, disc
         discordUserId,
         resolved,
         unresolvedSymbols,
+        groups: preview.groups,
+        cash: preview.cash,
       }),
     );
   } catch (err) {

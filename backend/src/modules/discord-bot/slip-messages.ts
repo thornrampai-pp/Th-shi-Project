@@ -78,7 +78,9 @@ export function describeResult(result: SlipBatchItemResult, summaries: Map<strin
     case 'needs_input':
       return result.need === 'portfolio'
         ? `⏸️ ${describeSlip(result.extracted)}\n   ไม่พบรายการที่ตรงกัน — เลือกพอร์ตในข้อความด้านล่าง`
-        : `⏸️ ${describeSlip(result.extracted)}\n   ไม่พบรายการที่ตรงกัน — ตรวจ/กรอกข้อมูลในข้อความด้านล่าง`;
+        : result.need === 'funding'
+          ? `⏸️ ${describeSlip(result.extracted)}\n   เลือกแหล่งเงินในข้อความด้านล่างก่อนบันทึก`
+          : `⏸️ ${describeSlip(result.extracted)}\n   ไม่พบรายการที่ตรงกัน — ตรวจ/กรอกข้อมูลในข้อความด้านล่าง`;
     case 'not_found':
       return (
         `❌ ${describeSlip(result.extracted)}\n   assetSymbol: ${result.extracted.assetSymbol ?? '-'}\n` +

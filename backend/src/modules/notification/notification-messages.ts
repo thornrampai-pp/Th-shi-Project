@@ -39,6 +39,24 @@ export interface TransactionNotice {
   /** REPATRIATION: what arrived at home. */
   toAmount?: number | null;
   toCurrency?: string | null;
+  /** BUY: where the money came from (see transaction/funding.ts). */
+  funding?: NoticeFunding | null;
+}
+
+export interface NoticeFunding {
+  fromCash: number;
+  transfer: number;
+  deposit: number;
+  fromPortfolioName?: string | null;
+}
+
+/** `ใช้เงินสด $212.52 + เติมเงิน $17.24` — null when nothing was paid. */
+export function fundingText(f: NoticeFunding, currency: string): string | null {
+  const parts: string[] = [];
+  if (f.fromCash > 0) parts.push(`ใช้เงินสด ${money(f.fromCash, currency)}`);
+  if (f.transfer > 0) parts.push(`ใช้เงินสดจากพอร์ต ${f.fromPortfolioName ?? 'อื่น'} ${money(f.transfer, currency)}`);
+  if (f.deposit > 0) parts.push(`เติมเงิน ${money(f.deposit, currency)}`);
+  return parts.length ? parts.join(' + ') : null;
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -117,6 +135,8 @@ export function transactionMessage(n: TransactionNotice): DiscordMessage {
   if (isTrade(n)) {
     const fee = n.fee ? ` (ค่าธรรมเนียม ${money(n.fee, n.currency)})` : '';
     lines.push(trade(n, true) + fee);
+    const paid = n.type === 'BUY' && n.funding ? fundingText(n.funding, n.currency) : null;
+    if (paid) lines.push(`💵 ${paid}`);
   } else if ((n.type === 'TRANSFER_IN' || n.type === 'TRANSFER_OUT') && n.quantity != null) {
     lines.push(`${quantity(n.quantity)} ${unit(n)}`);
   }
@@ -180,8 +200,25 @@ export function statementImportMessages(params: {
       }).join(' · ')
     : null;
 
+  // How each portfolio paid for its buys, e.g. `💵 Fire: ใช้เงินสด $212.52 + เติมเงิน $17.24`.
+  const paidBy = new Map<string, { f: NoticeFunding; currency: string }>(); // "portfolio|currency"
+  for (const n of notices) {
+    if (n.type !== 'BUY' || !n.funding) continue;
+    const key = `${n.portfolioName}|${n.currency}`;
+    const sum = paidBy.get(key) ?? { f: { fromCash: 0, transfer: 0, deposit: 0, fromPortfolioName: null }, currency: n.currency };
+    sum.f.fromCash += n.funding.fromCash;
+    sum.f.transfer += n.funding.transfer;
+    sum.f.deposit += n.funding.deposit;
+    sum.f.fromPortfolioName ??= n.funding.fromPortfolioName ?? null;
+    paidBy.set(key, sum);
+  }
+  const fundingLines = [...paidBy].flatMap(([key, { f, currency }]) => {
+    const text = fundingText(f, currency);
+    return text ? [`💵 ${key.split('|')[0]}: ${text}`] : [];
+  });
+
   const rows = notices.map((n) => transactionLine(n, { withPortfolio }));
-  const lines = footer ? [...rows, footer] : rows;
+  const lines = [...rows, ...(footer ? [footer] : []), ...fundingLines];
 
   // Pack lines into chunks under the limit; continuation chunks get a short header
   // (filled in once the chunk count is known).

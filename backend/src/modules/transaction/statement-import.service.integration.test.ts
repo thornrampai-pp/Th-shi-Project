@@ -182,4 +182,88 @@ describe.skipIf(!runIntegrationTests)("statement-import.service (real DB)", () =
       await cleanupTestUser(stranger.id);
     }
   });
+
+  describe("paying for the buys (funding)", () => {
+    const cashOf = async (pid: string) =>
+      Number((await prisma.cashAccount.findFirst({ where: { portfolioId: pid, currency: "THB" } }))?.balance ?? 0);
+    const depositsOf = async (pid: string) =>
+      (await prisma.transaction.findMany({ where: { portfolioId: pid, type: "DEPOSIT" }, orderBy: { createdAt: "asc" } })).map((d) =>
+        Number(d.baseCurrAmount),
+      );
+    // A buy listed BEFORE the sell that pays for it, as brokers often print them.
+    const sellThenRebuy = () => {
+      const sellId = `ORD-S-${Date.now()}`;
+      mockExtract.mockResolvedValue({
+        broker: "Test Broker",
+        rows: [
+          { orderId: orderIds.fresh, date: "2026-02-10", transactionType: "BUY", symbol: fresh.symbol, quantity: 3, price: 20, currency: "THB", fee: 0, totalAmount: 60 },
+          { orderId: sellId, date: "2026-02-10", transactionType: "SELL", symbol: held.symbol, quantity: 1, price: 30, currency: "THB", fee: 0, totalAmount: 30 },
+        ],
+      });
+    };
+
+    it("previews what each asset buys/sells and how much cash each portfolio holds", async () => {
+      sellThenRebuy();
+      await prisma.cashAccount.create({ data: { portfolioId: other, currency: "THB", balance: 45 } });
+      const preview = await previewStatement(userId, upload);
+      const bySymbol = new Map(preview.groups.map((g) => [g.symbol, g]));
+      expect(bySymbol.get(fresh.symbol)).toMatchObject({ buyAmount: 60, sellAmount: 0, currency: "THB" });
+      expect(bySymbol.get(held.symbol)).toMatchObject({ buyAmount: 0, sellAmount: 30, currency: "THB" });
+      expect(preview.cash).toEqual(expect.arrayContaining([expect.objectContaining({ portfolioId: other, currency: "THB", balance: 45 })]));
+    });
+
+    it("leaves rows already recorded out of the buy/sell totals (re-uploading a file isn't new money)", async () => {
+      sellThenRebuy();
+      const first = await previewStatement(userId, upload);
+      await confirmStatement(userId, first.statementId, [
+        { symbol: fresh.symbol, portfolioId: home },
+        { symbol: held.symbol, portfolioId: home },
+      ]);
+      const again = await previewStatement(userId, upload);
+      for (const g of again.groups) expect(g).toMatchObject({ buyAmount: 0, sellAmount: 0 });
+    });
+
+    it("records sells before buys, so a sale on the same day pays for the rebuy (cash used first by default)", async () => {
+      sellThenRebuy();
+      const { statementId } = await previewStatement(userId, upload);
+      const result = await confirmStatement(userId, statementId, [
+        { symbol: fresh.symbol, portfolioId: home },
+        { symbol: held.symbol, portfolioId: home },
+      ]);
+      expect(result.rows.map((r) => r.status)).toEqual(["created", "created"]); // results keep the file's order
+      expect(await cashOf(home)).toBeCloseTo(0);
+      expect(await depositsOf(home)).toEqual([10, 30]); // the beforeEach buy, then only the 60 − 30 shortfall
+    });
+
+    it("DEPOSIT_ALL for a portfolio deposits the full cost and keeps the sale proceeds as cash", async () => {
+      sellThenRebuy();
+      const { statementId } = await previewStatement(userId, upload);
+      await confirmStatement(
+        userId,
+        statementId,
+        [
+          { symbol: fresh.symbol, portfolioId: home },
+          { symbol: held.symbol, portfolioId: home },
+        ],
+        [{ portfolioId: home, mode: "DEPOSIT_ALL" }],
+      );
+      expect(await cashOf(home)).toBeCloseTo(30);
+      expect(await depositsOf(home)).toEqual([10, 60]);
+    });
+
+    it("can take the shortfall from another portfolio's cash", async () => {
+      mockExtract.mockResolvedValue({
+        broker: "Test Broker",
+        rows: [{ orderId: orderIds.fresh, date: "2026-02-10", transactionType: "BUY", symbol: fresh.symbol, quantity: 3, price: 20, currency: "THB", fee: 0, totalAmount: 60 }],
+      });
+      await prisma.cashAccount.create({ data: { portfolioId: other, currency: "THB", balance: 45 } });
+      const { statementId } = await previewStatement(userId, upload);
+      await confirmStatement(userId, statementId, [{ symbol: fresh.symbol, portfolioId: home }], [
+        { portfolioId: home, mode: "CASH_FIRST", fromPortfolioId: other },
+      ]);
+      expect(await cashOf(other)).toBeCloseTo(0);
+      expect(await cashOf(home)).toBeCloseTo(0);
+      expect(await depositsOf(home)).toEqual([10, 45, 15]);
+    });
+  });
 });

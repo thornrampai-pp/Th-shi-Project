@@ -19,6 +19,8 @@ import {
 } from "../tax/tax.service";
 import { logAuditEvent } from "../audit/audit.service";
 import { quantityRemovedBySell } from "./position-dust";
+import { planFunding } from "./funding";
+import type { FundingMode, FundingPlan } from "./funding";
 
 export type TransactionTypeValue =
   | "BUY"
@@ -35,7 +37,8 @@ export type TransactionTypeValue =
 /**
  * Field usage per type:
  * - BUY / SELL:     assetId, quantity, price, fee?, currency? (defaults to the asset's);
- *                   BUY also takes fundWithDeposit? to record a holding bought elsewhere
+ *                   BUY also takes funding? (CASH_FIRST / DEPOSIT_ALL / CASH_ONLY) and
+ *                   fundFromPortfolioId? — see funding.ts
  * - DEPOSIT / WITHDRAW / FEE / TAX: amount, currency
  * - DIVIDEND:       assetId, amount (net cash received), currency, taxWithheld?
  * - ADJUSTMENT:     amount (signed: + adds cash, − removes cash), currency
@@ -66,8 +69,15 @@ export interface CreateTransactionInput {
   timeKnown?: boolean;
   /** Broker order / deal number. Unique per portfolio; never generated. */
   externalRef?: string;
-  /** BUY only: deposit the full cost first (creating the cash account if needed), atomically. */
+  /** BUY only, legacy: same as `funding: "DEPOSIT_ALL"`. */
   fundWithDeposit?: boolean;
+  /**
+   * BUY only: where the money comes from (see funding.ts). Default CASH_ONLY — the
+   * portfolio's cash must cover it — unless fundWithDeposit is set.
+   */
+  funding?: FundingMode;
+  /** BUY + CASH_FIRST: borrow the shortfall from this portfolio's cash (same user, same currency). */
+  fundFromPortfolioId?: string;
 }
 
 type Portfolio = Awaited<ReturnType<typeof assertPortfolioOwnership>>;
@@ -183,8 +193,19 @@ export async function createTransaction(
 export async function buildTransactionNotice(
   portfolio: { name: string; baseCurrency?: string | null },
   input: CreateTransactionInput,
-  transaction: { baseCurrAmount: unknown; executedAt: Date; fee?: unknown },
+  transaction: { baseCurrAmount: unknown; executedAt: Date; fee?: unknown; metadata?: unknown },
 ): Promise<TransactionNotice> {
+  const recordedFunding = (transaction.metadata as { funding?: FundingPlan & { fromPortfolioId?: string | null } } | null)?.funding;
+  const funding = recordedFunding
+    ? {
+        fromCash: recordedFunding.fromCash,
+        transfer: recordedFunding.transfer,
+        deposit: recordedFunding.deposit,
+        fromPortfolioName: recordedFunding.fromPortfolioId
+          ? ((await prisma.portfolio.findUnique({ where: { id: recordedFunding.fromPortfolioId }, select: { name: true } }))?.name ?? null)
+          : null,
+      }
+    : null;
   const asset = input.assetId
     ? await prisma.asset.findUnique({ where: { id: input.assetId }, select: { symbol: true, type: true, currency: true } })
     : null;
@@ -205,6 +226,7 @@ export async function buildTransactionNotice(
     ratio: input.ratio ?? null,
     toAmount: input.type === "REPATRIATION" ? recorded : null,
     toCurrency: input.type === "REPATRIATION" ? TAX_CURRENCY : null,
+    funding,
   };
 }
 
@@ -267,6 +289,7 @@ async function postFundingDeposit(
     executedAt: Date;
     parentTxId: string;
     note: string;
+    extraMetadata?: Record<string, unknown>;
   },
 ) {
   const { portfolioId, cashAccount, amount } = params;
@@ -278,7 +301,7 @@ async function postFundingDeposit(
       baseCurrAmount: amount,
       executedAt: params.executedAt,
       parentTxId: params.parentTxId,
-      metadata: { currency: cashAccount.currency, direction: "IN", note: params.note },
+      metadata: { currency: cashAccount.currency, direction: "IN", note: params.note, ...params.extraMetadata },
     },
   });
 
@@ -299,6 +322,57 @@ async function postFundingDeposit(
       assetSymbol: cashAccount.currency,
     },
   ]);
+}
+
+/**
+ * Moves cash from one of the user's portfolios to another to pay for a BUY: a WITHDRAW
+ * in the source and a DEPOSIT in the target, both children of the BUY and tagged
+ * `cashTransfer`, so each portfolio's own cash and equity stay right while the user's
+ * total deposits are unchanged (Dime is one wallet; tōshi splits it by portfolio).
+ *
+ * source: CASH CREDIT / EQUITY DEBIT · target: CASH DEBIT / EQUITY CREDIT
+ */
+async function postCashTransfer(
+  tx: LedgerTxClient,
+  params: {
+    from: { portfolioId: string; portfolioName: string; cashAccount: { id: string; currency: string } };
+    to: { portfolioId: string; portfolioName: string; cashAccount: { id: string; currency: string } };
+    amount: number;
+    executedAt: Date;
+    parentTxId: string;
+    symbol: string;
+  },
+) {
+  const { from, to, amount } = params;
+  const currency = from.cashAccount.currency;
+  const out = await tx.transaction.create({
+    data: {
+      portfolioId: from.portfolioId,
+      type: "WITHDRAW",
+      baseCurrAmount: amount,
+      executedAt: params.executedAt,
+      parentTxId: params.parentTxId,
+      metadata: {
+        currency,
+        direction: "OUT",
+        note: `โอนเงินสดไปพอร์ต ${to.portfolioName} เพื่อซื้อ ${params.symbol}`,
+        cashTransfer: { toPortfolioId: to.portfolioId },
+      },
+    },
+  });
+  await postLedgerEntries(tx, out.id, [
+    { portfolioId: from.portfolioId, accountType: "CASH", side: "CREDIT", amount, assetSymbol: currency, cashAccountId: from.cashAccount.id },
+    { portfolioId: from.portfolioId, accountType: "EQUITY", side: "DEBIT", amount, assetSymbol: currency },
+  ]);
+  await postFundingDeposit(tx, {
+    portfolioId: to.portfolioId,
+    cashAccount: to.cashAccount,
+    amount,
+    executedAt: params.executedAt,
+    parentTxId: params.parentTxId,
+    note: `รับเงินสดจากพอร์ต ${from.portfolioName} เพื่อซื้อ ${params.symbol}`,
+    extraMetadata: { cashTransfer: { fromPortfolioId: from.portfolioId } },
+  });
 }
 
 /**
@@ -378,13 +452,40 @@ async function createBuyTransaction(
     if (!asset) throw AppError.notFound("Asset not found");
 
     const currency = input.currency ?? asset.currency;
-    const cashAccount = input.fundWithDeposit
-      ? await getOrCreateCashAccount(tx, portfolioId, currency)
-      : await getCashAccount(tx, portfolioId, currency);
+    const mode: FundingMode = input.funding ?? (input.fundWithDeposit ? "DEPOSIT_ALL" : "CASH_ONLY");
+    const cashAccount =
+      mode === "CASH_ONLY"
+        ? await getCashAccount(tx, portfolioId, currency)
+        : await getOrCreateCashAccount(tx, portfolioId, currency);
 
     const totalCost = quantity * price + fee;
 
     const effectiveUnitCost = totalCost / quantity;
+
+    const source =
+      mode === "CASH_FIRST" && input.fundFromPortfolioId && input.fundFromPortfolioId !== portfolioId
+        ? await tx.portfolio.findFirst({
+            where: { id: input.fundFromPortfolioId, userId: portfolio.userId, deletedAt: null },
+            select: { id: true, name: true, cashAccounts: { where: { currency }, take: 1 } },
+          })
+        : null;
+    if (input.fundFromPortfolioId && mode === "CASH_FIRST" && input.fundFromPortfolioId !== portfolioId && !source) {
+      throw AppError.notFound("Portfolio to take cash from not found");
+    }
+    const sourceAccount = source?.cashAccounts[0] ?? null;
+
+    const plan: FundingPlan = planFunding({
+      mode,
+      cost: totalCost,
+      cash: Number(cashAccount.balance),
+      otherCash: sourceAccount ? Number(sourceAccount.balance) : 0,
+    });
+    if (mode === "CASH_ONLY" && !portfolio.isMargin && Number(cashAccount.balance) < totalCost - 0.000001) {
+      const missing = (totalCost - Number(cashAccount.balance)).toFixed(2);
+      throw AppError.badRequest(
+        `เงินสด ${currency} ในพอร์ตไม่พอ — ขาด ${missing} ${currency} (Insufficient ${currency} cash balance)`,
+      );
+    }
 
     const transaction = await tx.transaction.create({
       data: {
@@ -398,15 +499,31 @@ async function createBuyTransaction(
         fee,
         executedAt,
         externalRef: input.externalRef,
-        metadata: { currency: cashAccount.currency, note: input.note, timeKnown: input.timeKnown },
+        metadata: {
+          currency: cashAccount.currency,
+          note: input.note,
+          timeKnown: input.timeKnown,
+          funding: { mode, ...plan, fromPortfolioId: plan.transfer > 0 ? source!.id : null },
+        },
       },
     });
 
-    if (input.fundWithDeposit) {
+    if (plan.transfer > 0 && source && sourceAccount) {
+      await postCashTransfer(tx, {
+        from: { portfolioId: source.id, portfolioName: source.name, cashAccount: sourceAccount },
+        to: { portfolioId, portfolioName: portfolio.name, cashAccount },
+        amount: plan.transfer,
+        executedAt,
+        parentTxId: transaction.id,
+        symbol: asset.symbol,
+      });
+      await assertCashNotNegative(tx, sourceAccount.id, false);
+    }
+    if (plan.deposit > 0) {
       await postFundingDeposit(tx, {
         portfolioId,
         cashAccount,
-        amount: totalCost,
+        amount: plan.deposit,
         executedAt,
         parentTxId: transaction.id,
         note: `Funding for BUY ${asset.symbol}`,

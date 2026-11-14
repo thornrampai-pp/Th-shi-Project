@@ -31,6 +31,9 @@ import {
   textInputRow,
 } from './discord-api';
 import type { DiscordAttachment, DiscordInteraction, DiscordInteractionResponse, DiscordMessage, DiscordModal } from './discord-api';
+import { fundingChoiceFromAction, fundingPrompt } from './funding-prompt';
+import type { FundingChoice } from './funding-prompt';
+import type { FundingQuestion } from '../transaction/funding-question';
 import { describeDraft, describeResult, describeSlip, loadTransactionSummaries, transactionIdsOf } from './slip-messages';
 
 /** A slip left unanswered this long is dropped; the user sends it again. */
@@ -51,6 +54,8 @@ interface PendingSlip {
   draft: SlipTradeDraft;
   /** Why the last attempt didn't go through, shown on the prompt. */
   message: string | null;
+  /** Set when a BUY is ready and the user has to say where its money comes from. */
+  fundingQuestion?: FundingQuestion | null;
 }
 
 type PromptableResult = Extract<SlipBatchItemResult, { status: 'ambiguous' | 'needs_input' }>;
@@ -84,6 +89,7 @@ export async function openSlipPrompt(params: {
     portfolioId: result.status === 'needs_input' ? result.portfolioId : params.portfolioId,
     draft: result.status === 'needs_input' ? result.draft : draftFromSlip(result.extracted),
     message: result.status === 'needs_input' ? result.message : null,
+    fundingQuestion: result.status === 'needs_input' ? (result.funding ?? null) : null,
   };
   await save(id, pending);
   const prompt = await promptFor(id, pending);
@@ -101,6 +107,15 @@ export async function handleSlipInteraction(
   }
   if (pending.discordUserId !== discordUserId) {
     return ephemeral('❌ สลิปนี้เป็นของผู้ใช้คนอื่น');
+  }
+
+  const funding = fundingChoiceFromAction(action, interaction.data?.values ?? []);
+  if (funding) {
+    if (!pending.fundingQuestion || !pending.portfolioId) return ephemeral('❌ ไม่มีรายการที่รอเลือกแหล่งเงิน');
+    if (funding.fromPortfolioId && !pending.fundingQuestion.others.some((o) => o.portfolioId === funding.fromPortfolioId)) {
+      return ephemeral('❌ ไม่พบพอร์ตนี้');
+    }
+    return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, true, funding));
   }
 
   switch (action) {
@@ -134,6 +149,7 @@ export async function handleSlipInteraction(
 
     case 'change':
       pending.portfolioId = null;
+      pending.fundingQuestion = null;
       await save(id, pending);
       return update(await promptFor(id, pending));
 
@@ -181,6 +197,7 @@ export async function handleSlipInteraction(
       pending.draft = draft;
       pending.message = error;
       await save(id, pending);
+      pending.fundingQuestion = null; // the cost may have changed — asked again
       if (error) return update(await promptFor(id, pending));
       return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, true));
     }
@@ -202,8 +219,16 @@ async function nextStep(
   return runLocked(interaction, id, pending, (upload) => createFrom(pending, upload, false));
 }
 
-function createFrom(pending: PendingSlip, upload: SlipUpload, confirmed: boolean) {
-  return createTransactionFromSlip(pending.userId, pending.portfolioId!, upload, pending.extracted, pending.draft, confirmed);
+function createFrom(pending: PendingSlip, upload: SlipUpload, confirmed: boolean, funding?: FundingChoice) {
+  return createTransactionFromSlip(
+    pending.userId,
+    pending.portfolioId!,
+    upload,
+    pending.extracted,
+    pending.draft,
+    confirmed,
+    funding,
+  );
 }
 
 /**
@@ -236,8 +261,11 @@ async function runLocked(
         if (result.status === 'needs_input') {
           pending.portfolioId = result.portfolioId ?? pending.portfolioId;
           pending.draft = result.draft;
+          pending.fundingQuestion = result.funding ?? null;
         }
-        pending.message = result.message ?? (result.status === 'needs_input' ? 'ตรวจข้อมูลก่อนบันทึก' : null);
+        pending.message =
+          result.message ??
+          (result.status === 'needs_input' && result.need !== 'funding' ? 'ตรวจข้อมูลก่อนบันทึก' : null);
         await save(id, pending);
         await editMessage(url, await promptFor(id, pending));
         return;
@@ -307,6 +335,17 @@ async function promptFor(id: string, pending: PendingSlip): Promise<DiscordMessa
           ),
         ),
         actionRow(newPortfolioButton, cancel),
+      ],
+    };
+  }
+
+  if (pending.fundingQuestion) {
+    const ask = fundingPrompt([pending.fundingQuestion], (action) => customId(action, id));
+    return {
+      content: `${header}\n${describeDraft(pending.draft)}\n${ask.content}${note}`,
+      components: [
+        ...ask.components,
+        actionRow(button(customId('form', id), '📝 แก้ข้อมูล'), button(customId('change', id), 'เปลี่ยนพอร์ต'), cancel),
       ],
     };
   }

@@ -3,6 +3,9 @@ import { prisma } from '../../config/prisma';
 import { AppError } from '../../common/errors/AppError';
 import { assertPortfolioOwnership } from '../../common/utils/portfolio-ownership.util';
 import { GeminiRequestError, extractSlipsData } from '../../common/integrations/gemini.util';
+import { fundingQuestions } from './funding-question';
+import type { FundingQuestion } from './funding-question';
+import type { FundingMode } from './funding';
 import type { SlipExtraction } from '../../common/integrations/gemini.util';
 import { deleteObject, getPresignedReadUrl, isR2Configured, putObject } from '../../common/integrations/r2-storage.util';
 import {
@@ -54,6 +57,12 @@ export interface AutoMatchSlipOptions extends SlipExtractionHooks {
   createMissing?: boolean;
 }
 
+/** How a BUY recorded from a slip is paid for (see funding.ts). */
+export interface SlipFundingChoice {
+  mode: FundingMode;
+  fromPortfolioId?: string;
+}
+
 export interface SlipUpload {
   imageBase64: string;
   mimeType?: string;
@@ -82,7 +91,10 @@ export type SlipBatchItemResult =
   | {
       status: 'needs_input';
       extracted: SlipExtraction;
-      need: 'portfolio' | 'fields';
+      /** 'funding': a BUY is ready to record, but the user picks where its money comes from. */
+      need: 'portfolio' | 'fields' | 'funding';
+      /** need === 'funding': the cost vs the portfolio's cash. */
+      funding?: FundingQuestion;
       draft: SlipTradeDraft;
       portfolioId: string | null;
       message: string | null;
@@ -346,9 +358,11 @@ export async function createTransactionFromSlip(
   extracted: SlipExtraction,
   draft: SlipTradeDraft,
   confirmed: boolean,
+  funding?: SlipFundingChoice,
 ): Promise<SlipBatchItemResult> {
   assertSlipServicesConfigured();
   await assertPortfolioOwnership(userId, portfolioId);
+  if (funding?.fromPortfolioId) await assertPortfolioOwnership(userId, funding.fromPortfolioId);
   const image = validateSlipImage(upload.imageBase64, upload.mimeType);
 
   const readable = readableFields(extracted);
@@ -356,7 +370,7 @@ export async function createTransactionFromSlip(
   if (await prisma.slipVerification.findUnique({ where: { transRef: readable.ref } })) {
     return { status: 'duplicate', extracted };
   }
-  return createFromSlip(userId, portfolioId, image, extracted, draft, confirmed);
+  return createFromSlip(userId, portfolioId, image, extracted, draft, confirmed, funding);
 }
 
 async function createFromSlip(
@@ -366,6 +380,7 @@ async function createFromSlip(
   extracted: SlipExtraction,
   draft: SlipTradeDraft,
   confirmed: boolean,
+  funding?: SlipFundingChoice,
 ): Promise<SlipBatchItemResult> {
   const readable = readableFields(extracted);
   if (!readable.ok) return { status: 'unreadable', extracted, message: readable.message };
@@ -400,6 +415,21 @@ async function createFromSlip(
     };
   }
 
+  // A BUY is never paid for silently: with cash in the portfolio the user picks the
+  // source, with none they're told it will be recorded as a top-up.
+  if (type === 'BUY' && !funding) {
+    const question = await slipFundingQuestion(userId, portfolioId, asset.currency, quantity * price + (draft.fee ?? 0));
+    return {
+      status: 'needs_input',
+      extracted,
+      need: 'funding',
+      draft,
+      portfolioId,
+      funding: question,
+      message: null,
+    };
+  }
+
   const slipDate = parseSlipDate(extracted.transactionDate);
   let transaction;
   try {
@@ -414,7 +444,7 @@ async function createFromSlip(
       timeKnown: slipHasTime(extracted.transactionDate) || undefined,
       externalRef: extracted.orderRef ?? undefined,
       note: `จากสลิป Ref ${readable.ref}`,
-      fundWithDeposit: type === 'BUY' || undefined,
+      ...(type === 'BUY' ? { funding: funding!.mode, fundFromPortfolioId: funding!.fromPortfolioId } : {}),
     });
   } catch (err) {
     if (err instanceof AppError) return { status: 'error', extracted, message: err.message };
@@ -434,6 +464,35 @@ async function createFromSlip(
       message: 'บันทึกรายการแล้ว แต่แนบรูปสลิปไม่สำเร็จ — แนบเองในแอป',
     };
   }
+}
+
+/** The cost of a BUY vs the cash the user has to pay it with. */
+export async function slipFundingQuestion(
+  userId: string,
+  portfolioId: string,
+  currency: string,
+  cost: number,
+): Promise<FundingQuestion> {
+  const [accounts, portfolio] = await Promise.all([
+    prisma.cashAccount.findMany({
+      where: { currency, portfolio: { userId, deletedAt: null } },
+      select: { portfolioId: true, currency: true, balance: true, portfolio: { select: { name: true } } },
+    }),
+    prisma.portfolio.findUniqueOrThrow({ where: { id: portfolioId }, select: { name: true } }),
+  ]);
+  const cash = accounts.map((a) => ({
+    portfolioId: a.portfolioId,
+    portfolioName: a.portfolio.name,
+    currency: a.currency,
+    balance: Number(a.balance),
+  }));
+  const [question] = fundingQuestions({
+    groups: [{ symbol: '_', buyAmount: cost, sellAmount: 0, currency }],
+    portfolioOf: new Map([['_', portfolioId]]),
+    cash,
+    portfolioNames: new Map([[portfolioId, portfolio.name]]),
+  });
+  return question!;
 }
 
 /**

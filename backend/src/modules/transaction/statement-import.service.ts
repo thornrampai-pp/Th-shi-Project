@@ -16,6 +16,7 @@ import { IMAGE_EXTENSION, ImageValidationError, decodeAndValidateImage } from '.
 import { env } from '../../config/env';
 import { buildTransactionNotice, createTransaction } from './transaction.service';
 import type { CreateTransactionInput } from './transaction.service';
+import type { FundingMode } from './funding';
 import { notifyEvent } from '../notification/notification.service';
 import { statementImportMessages } from '../notification/notification-messages';
 import type { TransactionNotice } from '../notification/notification-messages';
@@ -78,12 +79,36 @@ export interface StatementGroup {
   heldInPortfolioIds: string[];
   /** The single portfolio to use without asking — set only when exactly one holds it. */
   suggestedPortfolioId: string | null;
+  /** Total of this asset's BUY rows (cost incl. fee) and SELL rows (net), in `currency`. */
+  buyAmount: number;
+  sellAmount: number;
+  currency: string;
+}
+
+/** Cash one of the user's portfolios holds right now — what a buy can be paid from. */
+export interface StatementCash {
+  portfolioId: string;
+  portfolioName: string;
+  currency: string;
+  balance: number;
+}
+
+/**
+ * How one portfolio pays for its buys in this statement (see funding.ts). Default
+ * CASH_FIRST: its own cash — including sales in the same file, recorded first — then
+ * `fromPortfolioId`'s cash if given, and a deposit only for what's still missing.
+ */
+export interface StatementFunding {
+  portfolioId: string;
+  mode: FundingMode;
+  fromPortfolioId?: string;
 }
 
 export interface StatementPreview {
   statementId: string;
   broker: string | null;
   groups: StatementGroup[];
+  cash: StatementCash[];
   /** Rows that can't be imported whatever the portfolio (no order id / incomplete). */
   unreadableCount: number;
 }
@@ -128,18 +153,42 @@ export async function previewStatement(
   };
   await redis.set(pendingKey(statementId), JSON.stringify(pending), 'EX', PENDING_TTL_SECONDS);
 
-  const counts = new Map<string, number>();
+  // Rows already recorded (same order id) will come back 'duplicate' — they move no money now.
+  const recorded = new Set(
+    (
+      await prisma.transaction.findMany({
+        where: {
+          externalRef: { in: extraction.rows.flatMap((r) => (r.orderId ? [r.orderId.trim()] : [])) },
+          portfolio: { userId, deletedAt: null },
+        },
+        select: { externalRef: true },
+      })
+    ).map((t) => t.externalRef),
+  );
+  const totals = new Map<string, { rowCount: number; buyAmount: number; sellAmount: number; currency: string }>();
   for (const row of extraction.rows) {
-    if (isImportable(row)) counts.set(row.symbol!, (counts.get(row.symbol!) ?? 0) + 1);
+    if (!isImportable(row)) continue;
+    const t = totals.get(row.symbol!) ?? { rowCount: 0, buyAmount: 0, sellAmount: 0, currency: row.currency ?? 'THB' };
+    t.rowCount += 1;
+    totals.set(row.symbol!, t);
+    if (recorded.has(row.orderId!.trim())) continue;
+    const gross = row.quantity! * row.price!;
+    if (row.transactionType === 'BUY') t.buyAmount += gross + (row.fee ?? 0);
+    if (row.transactionType === 'SELL') t.sellAmount += gross - (row.fee ?? 0);
+    totals.set(row.symbol!, t);
   }
+  const round2 = (v: number) => Math.round(v * 100) / 100;
   const groups: StatementGroup[] = [];
-  for (const [symbol, rowCount] of counts) {
+  for (const [symbol, t] of totals) {
     const held = await portfoliosHolding(userId, symbol);
     groups.push({
       symbol,
-      rowCount,
+      rowCount: t.rowCount,
       heldInPortfolioIds: held,
       suggestedPortfolioId: held.length === 1 ? held[0]! : null,
+      buyAmount: round2(t.buyAmount),
+      sellAmount: round2(t.sellAmount),
+      currency: t.currency,
     });
   }
 
@@ -147,6 +196,7 @@ export async function previewStatement(
     statementId,
     broker: extraction.broker,
     groups,
+    cash: await userCash(userId),
     unreadableCount: extraction.rows.filter((r) => !isImportable(r)).length,
   };
 }
@@ -160,6 +210,7 @@ export async function confirmStatement(
   userId: string,
   statementId: string,
   assignments: StatementAssignment[],
+  funding: StatementFunding[] = [],
 ): Promise<StatementImportSummary> {
   const raw = await redis.get(pendingKey(statementId));
   const pending = raw ? (JSON.parse(raw) as PendingStatement) : null;
@@ -187,21 +238,39 @@ export async function confirmStatement(
     }
   }
 
-  const rows: StatementRowResult[] = [];
-  const notices: TransactionNotice[] = [];
-  for (const row of pending.rows) {
+  const fundingByPortfolio = new Map<string, StatementFunding>();
+  for (const f of funding) {
+    if (f.fromPortfolioId) await assertPortfolioOwnership(userId, f.fromPortfolioId);
+    fundingByPortfolio.set(f.portfolioId, f);
+  }
+
+  // Record in time order with a day's SELLs before its BUYs, so the proceeds are in
+  // the cash when the rebuy is paid for. Results still come back in the file's order.
+  const results: StatementRowResult[] = new Array(pending.rows.length);
+  const noticeAt: (TransactionNotice | undefined)[] = new Array(pending.rows.length);
+  for (const i of recordingOrder(pending.rows)) {
+    const row = pending.rows[i]!;
     const portfolioId = row.symbol ? portfolioBySymbol.get(row.symbol) : undefined;
     if (!isImportable(row) || !portfolioId) {
       const message = isImportable(row)
         ? `ไม่ได้เลือกพอร์ตสำหรับ ${row.symbol}`
         : 'ข้อมูลรายการไม่ครบ (เลขที่คำสั่ง/ประเภท/ชื่อหุ้น/จำนวน/ราคา)';
-      rows.push({ row, status: 'unreadable', transactionId: null, message });
+      results[i] = { row, status: 'unreadable', transactionId: null, message };
       continue;
     }
-    const { notice, ...result } = await importRow(userId, portfolioId, row, pending.imageKey, pending.file);
-    rows.push(result);
-    if (notice) notices.push(notice);
+    const { notice, ...result } = await importRow(
+      userId,
+      portfolioId,
+      row,
+      pending.imageKey,
+      pending.file,
+      fundingByPortfolio.get(portfolioId),
+    );
+    results[i] = result;
+    noticeAt[i] = notice;
   }
+  const rows = results;
+  const notices = noticeAt.filter((n): n is TransactionNotice => !!n);
 
   await redis.del(pendingKey(statementId));
 
@@ -218,6 +287,31 @@ export async function confirmStatement(
   })().catch((err) => console.error('❌ Failed to send statement import notification:', err));
 
   return { broker: pending.broker, rows };
+}
+
+/** Row indexes in the order to record them: by date, a day's SELLs first, else file order. */
+export function recordingOrder(rows: StatementRow[]): number[] {
+  const day = (r: StatementRow) => parseSlipDate(r.date)?.toISOString().slice(0, 10) ?? '';
+  const rank = (r: StatementRow) => (r.transactionType === 'SELL' ? 0 : 1);
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => day(a.r).localeCompare(day(b.r)) || rank(a.r) - rank(b.r) || a.i - b.i)
+    .map((x) => x.i);
+}
+
+/** Every cash balance the user holds (non-zero), for the "pay from" choice. */
+async function userCash(userId: string): Promise<StatementCash[]> {
+  const accounts = await prisma.cashAccount.findMany({
+    where: { portfolio: { userId, deletedAt: null }, balance: { gt: 0 } },
+    select: { portfolioId: true, currency: true, balance: true, portfolio: { select: { name: true } } },
+    orderBy: [{ portfolio: { name: 'asc' } }, { currency: 'asc' }],
+  });
+  return accounts.map((a) => ({
+    portfolioId: a.portfolioId,
+    portfolioName: a.portfolio.name,
+    currency: a.currency,
+    balance: Number(a.balance),
+  }));
 }
 
 /** The user's portfolios holding `symbol` (as typed, or its Thai/US listing), largest first. */
@@ -241,6 +335,7 @@ async function importRow(
   row: StatementRow,
   imageKey: string,
   file: StatementFile,
+  funding?: StatementFunding,
 ): Promise<StatementRowResult & { notice?: TransactionNotice }> {
   if (!row.orderId) {
     return { row, status: 'unreadable', transactionId: null, message: 'ไม่พบเลขที่คำสั่งของรายการนี้ — ข้ามไป' };
@@ -271,7 +366,9 @@ async function importRow(
     executedAt,
     externalRef: row.orderId,
     note: `จาก statement เลขที่คำสั่ง ${row.orderId}`,
-    fundWithDeposit: row.transactionType === 'BUY' || undefined,
+    ...(row.transactionType === 'BUY'
+      ? { funding: funding?.mode ?? 'CASH_FIRST', fundFromPortfolioId: funding?.fromPortfolioId }
+      : {}),
   };
   try {
     // The statement sends one summary of all its rows (confirmStatement), not one per row.
